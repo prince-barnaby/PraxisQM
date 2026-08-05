@@ -1,0 +1,33 @@
+/* PraxisQM – Design Tokens als CSS-Variablen
+   Modul: Design System
+   Zweck: Zentrale Single Source of Truth für alle Farben, Schriften und Abstände.
+   Quelle: docs/12_Design_Tokens/PQM-DT-001_Design_Tokens.md
+*/
+
+:root {
+  /* Farben */
+  --pqm-color-primary: #163A5F;       /* Primary Blue – Navigation, Hauptaktionen */
+  --pqm-color-accent: #008C8C;        /* Accent Teal – Akzentfarbe */
+  --pqm-color-background: #FFFFFF;    /* Background White – Haupt-Hintergrund */
+  --pqm-color-surface: #F2F4F7;       /* Surface Light – Karten und Flächen */
+  --pqm-color-success: #22C55E;       /* Success Green – gültig / Erfolg */
+  --pqm-color-warning: #F59E0B;       /* Warning Orange – läuft bald ab / Warnung */
+  --pqm-color-error: #EF4444;         /* Error Red – abgelaufen / kritische Aktion */
+  --pqm-color-neutral: #6B7280;       /* Neutral Grey – archiviert / deaktiviert */
+
+  /* Abmessungen */
+  --pqm-sidebar-width: 240px;
+  --pqm-header-height: 64px;
+
+  /* Schriften */
+  --pqm-font-family: "Inter", "Roboto", system-ui, -apple-system, sans-serif;
+
+  /* Spacing (8px-Raster) */
+  --pqm-space-1: 8px;
+  --pqm-space-2: 16px;
+  --pqm-space-3: 24px;
+  --pqm-space-4: 32px;
+
+  /* Radius */
+  --pqm-radius: 8px;
+}

@@ -28,14 +28,16 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 
 | Modul | Zweck | Hauptordner | Status |
 |---|---|---|---|
-| Dashboard | Startseite mit Übersicht, Statuskarten und Schnellzugriffen | `source/` | geplant |
-| Navigation | Sidebar, Header, Seitenwechsel | `source/` | geplant |
-| Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `source/` | geplant |
-| Archiv | Archivierte Dokumente und Wiederherstellung | `source/` | geplant |
-| Mitarbeiter | Mitarbeiterverwaltung, Rollen, Schulungen | `source/` | geplant |
-| Einstellungen | Praxisdaten, Systemoptionen, Backup-Einstellungen | `source/` | geplant |
-| Datenhaltung | lokale Speicherung und Datenmodell | `database/` / `source/` | geplant |
-| Backup | Export, Import, Sicherung, Wiederherstellung | `source/` | geplant |
+| Grundstruktur | App-Shell, Eintrittspunkt, Build-Konfiguration | `src/` | aktiv |
+| Dashboard | Startseite mit Übersicht, Statuskarten und Schnellzugriffen | `src/pages/` | vorbereitet |
+| Navigation | Sidebar, Header, Seitenwechsel | `src/components/` | vorbereitet |
+| Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `src/` | geplant |
+| Archiv | Archivierte Dokumente und Wiederherstellung | `src/` | geplant |
+| Mitarbeiter | Mitarbeiterverwaltung, Rollen, Schulungen | `src/` | geplant |
+| Einstellungen | Praxisdaten, Systemoptionen, Backup-Einstellungen | `src/` | geplant |
+| Datenhaltung | lokale Speicherung und Datenmodell | `database/` / `src/` | geplant |
+| Backup | Export, Import, Sicherung, Wiederherstellung | `src/` | geplant |
+| Desktop Runtime | Tauri-Projektstruktur | `src-tauri/` | vorbereitet |
 | Tests | Testfälle und Qualitätssicherung | `tests/` | geplant |
 
 ---
@@ -44,19 +46,28 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 
 | UI-Element | Modul | Datei | Funktion / Komponente | Zweck | Status |
 |---|---|---|---|---|---|
-| App-Shell | Grundstruktur | `source/` | noch offen | Grundlayout der Anwendung | geplant |
-| Sidebar | Navigation | `source/` | noch offen | Hauptnavigation links | geplant |
-| Header | Navigation | `source/` | noch offen | Oberer Seitenbereich mit Titel und Status | geplant |
-| Dashboard-Karte „Dokumente“ | Dashboard | `source/` | noch offen | Schnellübersicht Dokumente | geplant |
-| Dashboard-Karte „Mitarbeiter“ | Dashboard | `source/` | noch offen | Schnellübersicht Mitarbeiter | geplant |
-| Dashboard-Karte „Archiv“ | Dashboard | `source/` | noch offen | Schnellzugriff Archiv | geplant |
-| Dashboard-Karte „Systemstatus“ | Dashboard | `source/` | noch offen | Anzeige lokaler Systeminformationen | geplant |
-| Button „Neues Dokument“ | Dokumente | `source/` | noch offen | Startet später den Dokumenten-Upload | geplant |
-| Button „Dokument archivieren“ | Dokumente / Archiv | `source/` | noch offen | Verschiebt Dokument ins Archiv | geplant |
-| Suchfeld Dokumente | Dokumente | `source/` | noch offen | Filtert Dokumentenliste | geplant |
-| Mitarbeiterliste | Mitarbeiter | `source/` | noch offen | Zeigt Mitarbeitende der Praxis | geplant |
-| Button „Mitarbeiter hinzufügen“ | Mitarbeiter | `source/` | noch offen | Öffnet Formular für neuen Mitarbeiter | geplant |
-| Einstellungen-Seite | Einstellungen | `source/` | noch offen | System- und Praxiseinstellungen | geplant |
+| App-Shell | Grundstruktur | `src/components/AppShell.tsx` | `AppShell` | Grundlayout: Sidebar + Header + Inhaltsbereich | aktiv |
+| Sidebar | Navigation | `src/components/Sidebar.tsx` | `Sidebar` | Hauptnavigation links (statisch, keine echte Navigation) | vorbereitet |
+| Header | Navigation | `src/components/Header.tsx` | `Header` | Oberer Kopfbereich mit Titel und Platzhalter-Suchleiste | vorbereitet |
+| Startseite | Dashboard | `src/pages/Startseite.tsx` | `Startseite` | Leere Startseite mit Platzhalter | vorbereitet |
+| Anwendungseintrittspunkt | Grundstruktur | `src/main.tsx` | `main` | React-DOM-Root, lädt globale Styles | aktiv |
+| Anwendungskomponente | Grundstruktur | `src/App.tsx` | `App` | Setzt App-Shell und Startseite zusammen | aktiv |
+| Design Tokens | Design System | `src/styles/tokens.css` | CSS-Variablen | Zentrale Farb-, Schrift- und Abstandsdefinitionen | aktiv |
+| Globales CSS | Design System | `src/styles/global.css` | Reset + Base | Globale Basestyles auf Token-Basis | aktiv |
+| Tauri-Konfiguration | Desktop Runtime | `src-tauri/tauri.conf.json` | – | Tauri-Anwendungskonfiguration | vorbereitet |
+| Tauri-Cargo-Manifest | Desktop Runtime | `src-tauri/Cargo.toml` | – | Rust-Abhängigkeiten für Tauri | vorbereitet |
+| Tauri-Haupteintrittspunkt | Desktop Runtime | `src-tauri/src/main.rs` | `main` | Startet native Desktop-Anwendung | vorbereitet |
+| Tauri-Build-Skript | Desktop Runtime | `src-tauri/build.rs` | – | Tauri-Build-Hook | vorbereitet |
+| Dashboard-Karte „Dokumente“ | Dashboard | `src/` | noch offen | Schnellübersicht Dokumente | geplant |
+| Dashboard-Karte „Mitarbeiter“ | Dashboard | `src/` | noch offen | Schnellübersicht Mitarbeiter | geplant |
+| Dashboard-Karte „Archiv“ | Dashboard | `src/` | noch offen | Schnellzugriff Archiv | geplant |
+| Dashboard-Karte „Systemstatus“ | Dashboard | `src/` | noch offen | Anzeige lokaler Systeminformationen | geplant |
+| Button „Neues Dokument“ | Dokumente | `src/` | noch offen | Startet später den Dokumenten-Upload | geplant |
+| Button „Dokument archivieren“ | Dokumente / Archiv | `src/` | noch offen | Verschiebt Dokument ins Archiv | geplant |
+| Suchfeld Dokumente | Dokumente | `src/` | noch offen | Filtert Dokumentenliste | geplant |
+| Mitarbeiterliste | Mitarbeiter | `src/` | noch offen | Zeigt Mitarbeitende der Praxis | geplant |
+| Button „Mitarbeiter hinzufügen“ | Mitarbeiter | `src/` | noch offen | Öffnet Formular für neuen Mitarbeiter | geplant |
+| Einstellungen-Seite | Einstellungen | `src/` | noch offen | System- und Praxiseinstellungen | geplant |
 
 ---
 
@@ -92,7 +103,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 
 | Prompt | Zielmodul | Ergebnisdateien | Status |
 |---|---|---|---|
-| Prompt 001 – Projektgrundgerüst | Grundstruktur | noch offen | geplant |
+| Prompt 001 – Projektgrundgerüst | Grundstruktur | `package.json`, `vite.config.ts`, `tsconfig.json`, `index.html`, `src/main.tsx`, `src/App.tsx`, `src/components/AppShell.tsx`, `src/components/Sidebar.tsx`, `src/components/Header.tsx`, `src/pages/Startseite.tsx`, `src/styles/tokens.css`, `src/styles/global.css`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/src/main.rs`, `src-tauri/build.rs` | aktiv |
 | Prompt 002 – Navigation | Navigation | noch offen | geplant |
 | Prompt 003 – Dashboard | Dashboard | noch offen | geplant |
 | Prompt 004 – Dokumentenübersicht | Dokumente | noch offen | geplant |
@@ -105,6 +116,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Datum | Änderung | Autor |
 |---|---|---|
 | 2026-07-06 | Initiale Code Map erstellt | Saskia / ChatGPT |
+| 2026-08-05 | Code Map für technisches Grundgerüst aktualisiert (App-Shell, Sidebar, Header, Startseite, Design Tokens, Tauri-Struktur) | Saskia / Bolt |
 
 ---
 

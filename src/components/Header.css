@@ -1,0 +1,31 @@
+.pqm-header {
+  height: var(--pqm-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--pqm-space-3);
+  background-color: var(--pqm-color-background);
+  border-bottom: 1px solid var(--pqm-color-surface);
+  flex-shrink: 0;
+}
+
+.pqm-header__title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-header__search {
+  display: flex;
+  align-items: center;
+  gap: var(--pqm-space-1);
+  padding: var(--pqm-space-1) var(--pqm-space-2);
+  background-color: var(--pqm-color-surface);
+  border-radius: var(--pqm-radius);
+  min-width: 240px;
+}
+
+.pqm-header__search-placeholder {
+  color: var(--pqm-color-neutral);
+  font-size: 0.9rem;
+}

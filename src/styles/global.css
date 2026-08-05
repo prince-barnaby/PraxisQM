@@ -1,0 +1,26 @@
+/* PraxisQM – Globales CSS
+   Modul: Design System
+   Zweck: Reset und globale Basestyles, die auf Design Tokens basieren.
+*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--pqm-font-family);
+  background-color: var(--pqm-color-background);
+  color: var(--pqm-color-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}

@@ -1,0 +1,17 @@
+[package]
+name = "praxisqm"
+version = "0.9.1"
+description = "PraxisQM – Offline-Qualitätsmanagementsystem für Zahnarztpraxen"
+authors = ["Saskia Wassilick"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.6", features = [] }
+
+[dependencies]
+tauri = { version = "1.6", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

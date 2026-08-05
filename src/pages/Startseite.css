@@ -1,0 +1,26 @@
+.pqm-startseite {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.pqm-startseite__placeholder {
+  text-align: center;
+  max-width: 480px;
+  padding: var(--pqm-space-4);
+  background-color: var(--pqm-color-background);
+  border-radius: var(--pqm-radius);
+  border: 2px dashed var(--pqm-color-neutral);
+}
+
+.pqm-startseite__placeholder h2 {
+  margin-top: var(--pqm-space-2);
+  color: var(--pqm-color-primary);
+  font-weight: 600;
+}
+
+.pqm-startseite__placeholder p {
+  margin-top: var(--pqm-space-1);
+  color: var(--pqm-color-neutral);
+}
