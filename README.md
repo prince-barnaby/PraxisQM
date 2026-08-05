@@ -1,155 +1,52 @@
 # PraxisQM
 
-> Status: 🚧 Active Development
+**Qualität. Dokumentiert. Einfach.**
 
-Ein vollständig offlinefähiges Qualitätsmanagementsystem für Zahnarztpraxen.
+PraxisQM ist ein offlinefähiges Dokumentenmanagementsystem für Zahnarztpraxen.  
+Die Anwendung soll QM-Dokumente schnell, sicher und nachvollziehbar auffindbar machen.
 
----
+## Projektstatus
 
-# Ziel
+**Version:** 0.9  
+**Status:** Planungsphase / Software Design Document in Arbeit  
+**Datum:** 04.07.2026
 
-PraxisQM soll die Verwaltung aller QM-Dokumente einer Zahnarztpraxis vereinfachen.
+## Kernziele
 
-## Schwerpunkte
+- QM-Dokumente innerhalb weniger Sekunden finden
+- vollständiger Offline-Betrieb im lokalen Praxisnetzwerk
+- keine Installation auf einzelnen Arbeitsplätzen
+- klare Rollen: Gast, Editor, Admin
+- automatische Dokumentennummern
+- Versionierung statt Überschreiben
+- Archivieren statt Löschen
+- Backup-Erinnerung und Wiederherstellung
+- Admin-Datenmanager
+- einheitliches Designsystem
 
-- Offlinebetrieb
-- Dokumentenverwaltung
-- Rollen- und Benutzerverwaltung
-- Automatische Dokumentennummerierung
-- Archivierung
-- PDF-Vorschau
-- Suchfunktion
-- Modernes Desktop-Design
+## Entwicklungsgrundsätze
 
----
+1. Das richtige Dokument soll innerhalb weniger Sekunden gefunden werden.
+2. PraxisQM läuft vollständig offline.
+3. Gäste sehen nur, was sie zum Suchen und Öffnen brauchen.
+4. Dokumente werden ausschließlich über PraxisQM eingepflegt.
+5. Dokumentennummern sind automatisch, eindeutig und unveränderlich.
+6. Neue Versionen ersetzen keine alten Versionen.
+7. Archivieren ersetzt Löschen.
+8. Jede wichtige Änderung wird protokolliert.
+9. Jede Funktion muss einen echten praktischen Nutzen besitzen.
+10. PraxisQM bleibt unabhängig von einer einzelnen Praxis.
 
-# Projektstatus
+## Geplante Technologie
 
-**Aktuelle Phase**
+- Backend: Python / Flask
+- Datenbank: SQLite
+- Frontend: HTML, CSS, JavaScript
+- Icons: Lucide Icons
+- Betrieb: lokaler Server / Praxis-PC im internen Netzwerk
 
-✅ Architektur abgeschlossen
+## Projektleitung & Konzeption
 
-**Nächster Schritt**
+Saskia Wassilick
 
-➡ Umsetzung der Anwendung
-
----
-
-# Technologie
-
-## Frontend
-
-- React
-- TypeScript
-- Vite
-
-## Desktop-Anwendung
-
-- Tauri
-- Rust als Tauri-Runtime
-
-## Datenbank
-
-- SQLite
-
-## Styling und Icons
-
-- CSS
-- Design Tokens
-- Lucide React
-
-## Versionsverwaltung
-
-- Git
-- GitHub
-
----
-
-# Architekturgrundsatz
-
-PraxisQM wird als lokale Desktop-Anwendung entwickelt.
-
-Die Anwendung arbeitet vollständig offline und verwendet keine verpflichtenden Cloud-Dienste.
-
-Die verbindliche Stack-Entscheidung ist dokumentiert in:
-
-```text
-docs/06_Decisions_ADR/ADR-027_Application_Stack.md
-```
-
----
-
-# Projektstruktur
-
-```text
-assets/
-database/
-diagrams/
-docs/
-mockups/
-prompts/
-releases/
-source/
-tests/
-```
-
----
-
-# Dokumentation
-
-Die vollständige Projektdokumentation befindet sich im Ordner `docs/`.
-
-Enthalten sind unter anderem:
-
-- Software Design Document
-- Administrator Guide
-- Developer Guide
-- Design System
-- Navigation Specification
-- Component Library
-- Decision Records (ADR)
-- Data Dictionary
-- AI Development Rules
-- Code Map
-
----
-
-# Entwicklungsprinzipien
-
-- Offline First
-- Never Break Main
-- Architecture before Code
-- Clean Code
-- Modular Development
-- Documentation First
-- Small Pull Requests
-
----
-
-# Branch-Strategie
-
-```text
-main      → immer lauffähig
-feature/* → neue Funktionen
-bugfix/*  → Fehlerbehebungen
-docs/*    → Dokumentation
-```
-
----
-
-# Build Status
-
-- ✅ Architecture Complete
-- ⬜ Sprint 1
-- ⬜ Sprint 2
-- ⬜ Sprint 3
-- ⬜ Release Candidate
-- ⬜ Version 1.0
-
----
-
-# Lizenz
-
-Private Project
-
-Nicht zur öffentlichen Nutzung bestimmt.
+Technische Ausarbeitung und Dokumentation in Zusammenarbeit mit ChatGPT.
