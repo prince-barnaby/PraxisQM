@@ -43,23 +43,39 @@ PraxisQM soll die Verwaltung aller QM-Dokumente einer Zahnarztpraxis vereinfache
 - TypeScript
 - Vite
 
-## Backend
+## Desktop-Anwendung
 
-- Python
-- Flask
+- Tauri
+- Rust als Tauri-Runtime
 
 ## Datenbank
 
 - SQLite
 
-## Icons
+## Styling und Icons
 
+- CSS
+- Design Tokens
 - Lucide React
 
 ## Versionsverwaltung
 
 - Git
 - GitHub
+
+---
+
+# Architekturgrundsatz
+
+PraxisQM wird als lokale Desktop-Anwendung entwickelt.
+
+Die Anwendung arbeitet vollständig offline und verwendet keine verpflichtenden Cloud-Dienste.
+
+Die verbindliche Stack-Entscheidung ist dokumentiert in:
+
+```text
+docs/06_Decisions_ADR/ADR-027_Application_Stack.md
+```
 
 ---
 
@@ -93,6 +109,8 @@ Enthalten sind unter anderem:
 - Component Library
 - Decision Records (ADR)
 - Data Dictionary
+- AI Development Rules
+- Code Map
 
 ---
 
