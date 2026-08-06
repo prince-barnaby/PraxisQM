@@ -1,0 +1,23 @@
+.pqm-startseite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-3);
+  max-width: 960px;
+}
+
+.pqm-startseite__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-1);
+}
+
+.pqm-startseite__heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-startseite__subtitle {
+  font-size: 0.95rem;
+  color: var(--pqm-color-neutral);
+}

@@ -2,6 +2,28 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.2] - 06.08.2026
+
+### Hinzugefügt
+
+- Dashboard-Grundlayout auf der Startseite mit vier Statuskarten (Dokumente, Mitarbeiter, Archiv, Systemstatus)
+- Wiederverwendbare Dashboard-Karten-Komponente (`src/components/dashboard/DashboardCard.tsx`)
+- Responsive Dashboard-Grid-Komponente (`src/components/dashboard/DashboardGrid.tsx`)
+- Alle Dashboard-Karten zeigen eindeutig gekennzeichnete Platzhalter-Werte, keine erfundenen Daten
+- Accessibility-Eigenschaften (role, aria-label) für alle Karten
+- Code Map und Changelog aktualisiert
+
+### Geändert
+
+- Startseite von Platzhalter auf Dashboard-Grundlayout umgestellt
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine echten Dokumentdaten
+- Keine Suchfunktion, kein Upload, keine Benutzer- oder Rollenlogik
+- Keine Archivierungslogik, keine Benachrichtigungslogik
+- Keine Änderungen an Navigation, Header, Sidebar oder Routing
+
 ## [0.9.1] - 05.08.2026
 
 ### Hinzugefügt

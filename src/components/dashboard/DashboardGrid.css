@@ -1,0 +1,11 @@
+.pqm-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--pqm-space-3);
+}
+
+@media (max-width: 768px) {
+  .pqm-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}

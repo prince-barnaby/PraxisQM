@@ -1,0 +1,46 @@
+.pqm-dashboard-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-1);
+  padding: var(--pqm-space-3);
+  background-color: var(--pqm-color-background);
+  border-radius: var(--pqm-radius);
+  border: 1px solid var(--pqm-color-surface);
+  transition: box-shadow 0.15s ease;
+}
+
+.pqm-dashboard-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.pqm-dashboard-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--pqm-space-1);
+}
+
+.pqm-dashboard-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pqm-color-accent);
+}
+
+.pqm-dashboard-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-dashboard-card__value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--pqm-color-primary);
+  line-height: 1.2;
+}
+
+.pqm-dashboard-card__description {
+  font-size: 0.875rem;
+  color: var(--pqm-color-neutral);
+  line-height: 1.5;
+}
