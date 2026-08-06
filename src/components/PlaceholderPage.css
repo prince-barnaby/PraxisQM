@@ -1,11 +1,11 @@
-.pqm-startseite {
+.pqm-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
 }
 
-.pqm-startseite__placeholder {
+.pqm-placeholder__card {
   text-align: center;
   max-width: 480px;
   padding: var(--pqm-space-4);
@@ -14,13 +14,13 @@
   border: 2px dashed var(--pqm-color-neutral);
 }
 
-.pqm-startseite__placeholder h2 {
+.pqm-placeholder__title {
   margin-top: var(--pqm-space-2);
   color: var(--pqm-color-primary);
   font-weight: 600;
 }
 
-.pqm-startseite__placeholder p {
+.pqm-placeholder__message {
   margin-top: var(--pqm-space-1);
   color: var(--pqm-color-neutral);
 }

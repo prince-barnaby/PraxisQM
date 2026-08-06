@@ -1,14 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { HashRouter } from "react-router-dom";
 import App from "./App";
 import "./styles/tokens.css";
 import "./styles/global.css";
 
-// PraxisQM – Anwendungseintrittspunkt
-// Modul: Grundstruktur
-// Zweck: Bindet React in das DOM ein und lädt globale Styles.
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <HashRouter>
+      <App />
+    </HashRouter>
   </React.StrictMode>
 );

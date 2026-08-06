@@ -36,11 +36,18 @@
   padding: var(--pqm-space-1);
   border-radius: var(--pqm-radius);
   color: rgba(255, 255, 255, 0.85);
-  cursor: default;
+  text-decoration: none;
   font-size: 0.95rem;
   transition: background-color 0.15s ease;
 }
 
 .pqm-sidebar__item:hover {
   background-color: rgba(255, 255, 255, 0.08);
+}
+
+.pqm-sidebar__item--active,
+.pqm-sidebar__item.active {
+  background-color: var(--pqm-color-accent);
+  color: var(--pqm-color-background);
+  font-weight: 600;
 }
