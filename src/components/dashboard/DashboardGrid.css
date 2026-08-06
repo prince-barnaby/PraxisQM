@@ -1,7 +1,8 @@
 .pqm-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--pqm-space-3);
+  gap: var(--pqm-space-2);
+  flex: 1;
 }
 
 @media (max-width: 768px) {

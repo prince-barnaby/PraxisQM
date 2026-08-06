@@ -59,7 +59,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Tauri-Haupteintrittspunkt | Desktop Runtime | `src-tauri/src/main.rs` | `main` | Startet native Desktop-Anwendung | vorbereitet |
 | Tauri-Build-Skript | Desktop Runtime | `src-tauri/build.rs` | – | Tauri-Build-Hook | vorbereitet |
 | Dashboard-Grid | Dashboard | `src/components/dashboard/DashboardGrid.tsx` | `DashboardGrid` | Responsive CSS-Grid-Wrapper für Statuskarten | aktiv |
-| Dashboard-Karte | Dashboard | `src/components/dashboard/DashboardCard.tsx` | `DashboardCard` | Wiederverwendbare Statuskarte (Icon, Titel, Wert, Beschreibung) | aktiv |
+| Dashboard-Karte | Dashboard | `src/components/dashboard/DashboardCard.tsx` | `DashboardCard` | Wiederverwendbare, klickbare Statuskarte (großes Icon, Titel, Wert, Beschreibung, Navigationspfeil, Hover-Animation) | aktiv |
 | Dashboard-Karte „Dokumente“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Schnellübersicht Dokumente (Platzhalter-Wert) | vorbereitet |
 | Dashboard-Karte „Mitarbeiter“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Schnellübersicht Mitarbeiter (Platzhalter-Wert) | vorbereitet |
 | Dashboard-Karte „Archiv“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Schnellzugriff Archiv (Platzhalter-Wert) | vorbereitet |
@@ -121,6 +121,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-05 | Code Map für technisches Grundgerüst aktualisiert (App-Shell, Sidebar, Header, Startseite, Design Tokens, Tauri-Struktur) | Saskia / Bolt |
 | 2026-08-06 | Code Map für Prompt 002 (Navigation: React Router, NavLink, Platzhalter-Seiten) aktualisiert | Saskia / Bolt |
 | 2026-08-06 | Code Map für Prompt 003 (Dashboard-Grundlayout, DashboardGrid, DashboardCard) aktualisiert | Saskia / Bolt |
+| 2026-08-06 | Code Map für Dashboard-Visual-Improvement (klickbare Karten, Navigationspfeil, Hover-Animation, kompakteres Layout) aktualisiert | Saskia / Bolt |
 
 ---
 

@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import "./DashboardCard.css";
 
 interface DashboardCardProps {
@@ -15,21 +16,26 @@ export default function DashboardCard({
   description,
 }: DashboardCardProps) {
   return (
-    <section
+    <article
       className="pqm-dashboard-card"
-      role="region"
-      aria-label={title}
+      role="button"
+      tabIndex={0}
+      aria-label={`${title} – ${description}`}
     >
-      <header className="pqm-dashboard-card__header">
-        <span className="pqm-dashboard-card__icon" aria-hidden="true">
-          <Icon size={24} />
-        </span>
-        <h3 className="pqm-dashboard-card__title">{title}</h3>
-      </header>
-      <div className="pqm-dashboard-card__value" aria-label={`${title} – Platzhalter`}>
+      <div className="pqm-dashboard-card__icon" aria-hidden="true">
+        <Icon size={40} />
+      </div>
+      <h3 className="pqm-dashboard-card__title">{title}</h3>
+      <div
+        className="pqm-dashboard-card__value"
+        aria-label={`${title} – Platzhalter`}
+      >
         {value}
       </div>
       <p className="pqm-dashboard-card__description">{description}</p>
-    </section>
+      <span className="pqm-dashboard-card__arrow" aria-hidden="true">
+        <ArrowRight size={18} />
+      </span>
+    </article>
   );
 }

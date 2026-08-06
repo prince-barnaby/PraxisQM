@@ -2,6 +2,24 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.3] - 06.08.2026
+
+### Geändert
+
+- Dashboard-Karten visuell überarbeitet: größeres Icon in gefetteter Icon-Fläche, größerer Platzhalter-Wert, kompaktere Beschreibung
+- Karten jetzt komplett klickbar (role=button, Tastatur-Fokus via tabIndex)
+- Navigationspfeil in der unteren rechten Ecke jeder Karte, bei Hover hervorgehoben
+- Subtile Hover-Animation (leichte Erhebung, Schatten, Akzent-Rahmen)
+- Grid und Seitenlayout so angepasst, dass das 2×2-Raster auf einem normalen Desktop ohne vertikales Scrollen vollständig sichtbar ist
+- Innenabstände reduziert, Hierarchie (Icon → Titel → Wert → Beschreibung) klarer strukturiert
+- Voll responsive (zwei Spalten Desktop, eine Spalte mobil)
+
+### Nicht enthalten (bewusst)
+
+- Keine Navigationsfunktion hinter dem Klick (bewusst als Platzhalter belassen)
+- Keine Datenbankanbindung, keine echten Daten
+- Keine Änderungen an Routing, Navigation, Header oder Sidebar
+
 ## [0.9.2] - 06.08.2026
 
 ### Hinzugefügt
