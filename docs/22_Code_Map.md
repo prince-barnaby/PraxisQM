@@ -176,6 +176,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 013 (Initiale SQLite-Foundation: rusqlite + uuid Dependencies, database.rs mit kanonischem Class-A Schema, idempotente Initialisierung, Schema-Versionierung, Foreign-Key-Enforcement, Tauri setup-Hook, .gitignore aktualisiert) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 013 Korrektur (tauri-build Dependency von ^1.6 auf ^1.5 korrigiert — tauri-build hatte keine 1.6.x Veröffentlichung; tempfile dev-dependency für Tests hinzugefügt) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 013B (tauri.conf.json von Tauri-v2-Schema auf Tauri-v1-Schema korrigiert — `app`/`bundle`/`identifier` Top-Level-Felder durch v1-kompatible `tauri.windows`/`tauri.security`/`tauri.bundle`-Struktur ersetzt; `build.devPath`/`build.distDir` statt `frontendDist`/`devUrl`; `package.productName`/`package.version` statt Top-Level) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 013C (Tauri v1 Icon-Set erstellt: src-tauri/icons/32x32.png, 128x128.png, icon.ico — generiert aus PraxisQM-Brand-Farben Primary Blue #163A5F und Accent Teal #008C8C, QM-Monogramm-Design) aktualisiert | Saskia / Bolt |
 
 ---
 

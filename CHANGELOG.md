@@ -2,6 +2,39 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.20] - 07.08.2026
+
+### Tauri v1 Icon-Set erstellt (Prompt 013C)
+
+Der Tauri-Build schlug fehl, weil `tauri.conf.json` Icon-Dateien referenziert,
+die nicht im Repository existierten. Der Tauri v1 Build-Prozess benötigt
+`icons/icon.ico` zwingend für die Generierung der Windows-Ressourcendatei
+(.rc/.res) während des Kompilierens.
+
+#### Ursache
+
+Die `tauri.conf.json` referenzierte drei Icon-Dateien unter `src-tauri/icons/`,
+aber das Verzeichnis existierte nicht und keine Icon-Dateien waren im
+Repository vorhanden. Es gab auch keine vorhandenen PraxisQM-Logo-Assets,
+die hätten wiederverwendet werden können.
+
+#### Korrektur
+
+- Neue Icon-Dateien erstellt unter `src-tauri/icons/`:
+  - `32x32.png` (PNG, 32×32)
+  - `128x128.png` (PNG, 128×128)
+  - `icon.ico` (ICO, multi-size: 256/128/64/48/32/16)
+- Design: QM-Monogramm in Weiß auf Primary-Blue-Hintergrund (#163A5F)
+  mit Accent-Teal-Element (#008C8C), passend zu den PraxisQM-Brand-Farben
+  aus dem Design-Token-System
+- Keine Änderungen an tauri.conf.json, Dependencies oder Anwendungscode
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Rust-Compilation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `cargo test` und `cargo build` verifiziert werden
+
 ## [0.9.19] - 07.08.2026
 
 ### tauri.conf.json auf Tauri v1-Schema korrigiert (Prompt 013B)
