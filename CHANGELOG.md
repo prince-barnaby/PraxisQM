@@ -2,6 +2,40 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.11] - 07.08.2026
+
+### Hinzugefügt
+
+- Statische Mitarbeiterübersicht auf der Seite „Mitarbeiter" unter der Route `/mitarbeiter`
+- Werkzeugleiste mit Seitentitel „Mitarbeiter", Kurzbeschreibung und Mitarbeiterzähler („3 Mitarbeiter")
+- Button „Neuer Mitarbeiter" (deaktiviert, da keine dokumentierte Route für das Erstellungsformular existiert)
+- Einklappbarer Filterbereich (Standard: eingeklappt) mit drei dokumentierten Filterkriterien: Funktion, Bereich, Aktivstatus (alle Platzhalter, nicht funktional)
+- Tabellarische Desktop-Darstellung aller Mitarbeitenden mit dokumentierten Feldern: Name, Vorname, Funktion, Bereich, Status, E-Mail, Telefon, Eintrittsdatum, Austrittsdatum
+- Drei klar gekennzeichnete Mock-Platzhalter-Einträge zur Veranschaulichung von Layout und Komponenten
+- Wiederverwendbare Komponenten: `EmployeeToolbar`, `EmployeeFilters`, `EmployeeList`, `EmployeeRow`
+- Bestehende `StatusBadge`-Komponente wiederverwendet (Variante `success` für „aktiv", `neutral` für „inaktiv")
+- Bestehende `EmptyState`-Komponente wiederverwendet („Keine Mitarbeiter vorhanden")
+- Mitarbeiterzeilen mit Hover-State, Keyboard-Focus und visueller Anzeige für spätere Detailnavigation
+- Accessibility: `aria-expanded` für einklappbare Filter, `aria-label`, `scope`, Tabellen-Semantik
+
+### Dokumentation
+
+- UI Style Guide (005C) um Abschnitt „Mitarbeiterübersicht / Mitarbeiter-Tabellenstandard" ergänzt mit verbindlichen Regeln:
+  - „Das Mitarbeiterregister und die Benutzerverwaltung sind getrennte Bereiche."
+  - „Die Mitarbeiterübersicht verwendet eine klassische tabellarische Desktop-Darstellung."
+  - „Benutzerkonto-, Rollen- und Berechtigungsdaten dürfen nicht im Mitarbeiterregister vermischt werden."
+- Component Library (005D) um Mitarbeiter-Komponenten ergänzt
+- Code Map aktualisiert
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine echten Mitarbeiterdaten
+- Keine funktionierende Filterlogik
+- Keine Mitarbeiterdetail-Navigation (keine dokumentierte Route vorhanden)
+- Kein Mitarbeiter-Erstellungsformular (nicht dokumentiert)
+- Keine Benutzerkonto-, Rollen- oder Berechtigungsdaten im Mitarbeiterregister
+- Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Dokumentenmodul, Archivmodul oder Routing bestehender Seiten
+
 ## [0.9.10] - 07.08.2026
 
 ### Hinzugefügt

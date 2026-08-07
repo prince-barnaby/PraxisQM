@@ -1,0 +1,12 @@
+.pqm-mitarbeiter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-2);
+  max-width: 1200px;
+}
+
+.pqm-mitarbeiter__hint {
+  font-size: 0.78rem;
+  color: var(--pqm-color-neutral);
+  font-style: italic;
+}

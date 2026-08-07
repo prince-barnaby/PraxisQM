@@ -1,0 +1,65 @@
+.pqm-employee-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--pqm-space-2);
+}
+
+.pqm-employee-toolbar__heading {
+  flex: 1 1 100%;
+}
+
+.pqm-employee-toolbar__title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-employee-toolbar__subtitle {
+  font-size: 0.9rem;
+  color: var(--pqm-color-neutral);
+  margin-top: 2px;
+}
+
+.pqm-employee-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pqm-space-2);
+  flex: 1 1 100%;
+}
+
+.pqm-employee-toolbar__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--pqm-radius);
+  background-color: var(--pqm-color-primary);
+  color: var(--pqm-color-background);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: var(--pqm-font-family);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.pqm-employee-toolbar__button:hover {
+  opacity: 0.85;
+}
+
+.pqm-employee-toolbar__button:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: 2px;
+}
+
+.pqm-employee-toolbar__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pqm-employee-toolbar__count {
+  flex: 1 1 100%;
+  font-size: 0.8rem;
+  color: var(--pqm-color-neutral);
+}

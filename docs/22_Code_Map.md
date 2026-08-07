@@ -33,7 +33,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Navigation | Sidebar, Header, Seitenwechsel | `src/components/` | aktiv |
 | Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `src/pages/`, `src/components/documents/` | vorbereitet |
 | Archiv | Archivierte Dokumente und Wiederherstellung | `src/pages/`, `src/components/archive/` | vorbereitet |
-| Mitarbeiter | Mitarbeiterverwaltung, Rollen, Schulungen | `src/` | geplant |
+| Mitarbeiter | Mitarbeiterregister, Übersicht der Mitarbeitenden | `src/pages/`, `src/components/employees/` | vorbereitet |
 | Einstellungen | Praxisdaten, Systemoptionen, Backup-Einstellungen | `src/` | geplant |
 | Datenhaltung | lokale Speicherung und Datenmodell | `database/` / `src/` | geplant |
 | Backup | Export, Import, Sicherung, Wiederherstellung | `src/` | geplant |
@@ -88,8 +88,12 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Archiv-Filter | Archiv | `src/components/archive/ArchiveFilters.tsx` | `ArchiveFilters` | Einklappbarer Filterbereich mit dokumentierten Archiv-Filtern: Kategorie, Unterkategorie, Verantwortliche Person, Archivierungszeitraum, Status | vorbereitet |
 | Archiv-Liste | Archiv | `src/components/archive/ArchiveList.tsx` | `ArchiveList` | Tabellarische Übersicht archivierter Dokumente; zeigt `EmptyState` bei leerem Eingabearray | vorbereitet |
 | Archiv-Zeile | Archiv | `src/components/archive/ArchiveRow.tsx` | `ArchiveRow` | Tabellenzeile mit archivspezifischen Feldern; Hover-State, Keyboard-Focus, visuelle Anzeige einer künftigen Archivdetailansicht | vorbereitet |
-| Mitarbeiterliste | Mitarbeiter | `src/` | noch offen | Zeigt Mitarbeitende der Praxis | geplant |
-| Button „Mitarbeiter hinzufügen“ | Mitarbeiter | `src/` | noch offen | Öffnet Formular für neuen Mitarbeiter | geplant |
+| Mitarbeiter-Seite | Mitarbeiter | `src/pages/Mitarbeiter.tsx` | `Mitarbeiter` | Statische Mitarbeiterübersicht mit Werkzeugleiste, Filtern und Liste | vorbereitet |
+| Mitarbeiter-Werkzeugleiste | Mitarbeiter | `src/components/employees/EmployeeToolbar.tsx` | `EmployeeToolbar` | Werkzeugleiste mit Seitentitel „Mitarbeiter”, Kurzbeschreibung und Mitarbeiterzähler | vorbereitet |
+| Mitarbeiter-Filter | Mitarbeiter | `src/components/employees/EmployeeFilters.tsx` | `EmployeeFilters` | Einklappbarer Filterbereich mit drei dokumentierten Filtern: Funktion, Bereich, Aktivstatus (Platzhalter, nicht funktional); Standard: eingeklappt | vorbereitet |
+| Mitarbeiterliste | Mitarbeiter | `src/components/employees/EmployeeList.tsx` | `EmployeeList` | Tabellarische Übersicht mit Mock-Platzhalter-Einträgen; sticky Tabellenkopf, optimierte Spaltengewichtung; zeigt `EmptyState` bei leerem Eingabearray | vorbereitet |
+| Mitarbeiterzeile | Mitarbeiter | `src/components/employees/EmployeeRow.tsx` | `EmployeeRow` | Eine Tabellenzeile mit allen dokumentierten Mitarbeiterfeldern; Hover-State, Keyboard-Focus, Monospace für Eintritts-/Austrittsdatum | vorbereitet |
+| Button „Neuer Mitarbeiter” | Mitarbeiter | `src/components/employees/EmployeeToolbar.tsx` | `EmployeeToolbar` | Platzhalter, deaktiviert – kein dokumentiertes Formular vorhanden | vorbereitet |
 | Einstellungen-Seite | Einstellungen | `src/` | noch offen | System- und Praxiseinstellungen | geplant |
 
 ---
@@ -132,6 +136,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Prompt 004 – Dokumentenübersicht | Dokumente | `src/pages/Dokumente.tsx`, `src/pages/Dokumente.css`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css`, `src/components/documents/DocumentFilters.tsx`, `src/components/documents/DocumentFilters.css`, `src/components/documents/DocumentList.tsx`, `src/components/documents/DocumentList.css`, `src/components/documents/DocumentRow.tsx`, `src/components/documents/StatusBadge.tsx`, `src/components/documents/StatusBadge.css`, `src/components/documents/EmptyState.tsx`, `src/components/documents/EmptyState.css` | vorbereitet |
 | Prompt 005 – Archivgrundlage | Archiv | noch offen | geplant |
 | Prompt 009 – Archivübersicht UI | Archiv | `src/pages/Archiv.tsx`, `src/pages/Archiv.css`, `src/components/archive/ArchiveToolbar.tsx`, `src/components/archive/ArchiveToolbar.css`, `src/components/archive/ArchiveFilters.tsx`, `src/components/archive/ArchiveFilters.css`, `src/components/archive/ArchiveList.tsx`, `src/components/archive/ArchiveList.css`, `src/components/archive/ArchiveRow.tsx` | vorbereitet |
+| Prompt 010 – Mitarbeiterübersicht UI | Mitarbeiter | `src/pages/Mitarbeiter.tsx`, `src/pages/Mitarbeiter.css`, `src/components/employees/EmployeeToolbar.tsx`, `src/components/employees/EmployeeToolbar.css`, `src/components/employees/EmployeeFilters.tsx`, `src/components/employees/EmployeeFilters.css`, `src/components/employees/EmployeeList.tsx`, `src/components/employees/EmployeeList.css`, `src/components/employees/EmployeeRow.tsx` | vorbereitet |
 | Prompt 005 – Dokumentdetailseite | Dokumente | `src/pages/DokumentDetail.tsx`, `src/pages/DokumentDetail.css`, `src/components/documents/DocumentMetadata.tsx`, `src/components/documents/DocumentMetadata.css`, `src/components/documents/TagList.tsx`, `src/components/documents/TagList.css`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/components/documents/DocumentHistory.tsx`, `src/components/documents/DocumentHistory.css`, `src/App.tsx` | vorbereitet |
 | Prompt 007 – Neue-Dokument-Formular | Dokumente | `src/pages/DokumentNeu.tsx`, `src/pages/DokumentNeu.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentForm.css`, `src/components/documents/DocumentFormSection.tsx`, `src/components/documents/DocumentFormSection.css`, `src/components/documents/FormField.tsx`, `src/components/documents/FormField.css`, `src/App.tsx`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css` | vorbereitet |
 | Prompt 008 – Dokument-Bearbeitungsformular | Dokumente | `src/pages/DokumentBearbeiten.tsx`, `src/pages/DokumentBearbeiten.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/pages/DokumentDetail.tsx`, `src/App.tsx` | vorbereitet |
@@ -154,6 +159,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 007 (Neue-Dokument-Formular: DokumentNeu, DocumentForm, DocumentFormSection, FormField, Route `/dokumente/neu`, Button „Neues Dokument" aktiviert) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 008 (Dokument-Bearbeitungsformular: DokumentBearbeiten, DocumentForm edit-Modus, DocumentActionBar onEdit, Route `/dokumente/:id/bearbeiten`) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 009 (Archivübersicht UI: Archiv, ArchiveToolbar, ArchiveFilters, ArchiveList, ArchiveRow; Feld Archivierungsdatum dokumentiert) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 010 (Mitarbeiterübersicht UI: Mitarbeiter, EmployeeToolbar, EmployeeFilters, EmployeeList, EmployeeRow; Trennung Mitarbeiterregister und Benutzerverwaltung dokumentiert) aktualisiert | Saskia / Bolt |
 
 ---
 

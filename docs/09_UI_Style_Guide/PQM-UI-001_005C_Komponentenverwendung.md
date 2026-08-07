@@ -166,3 +166,68 @@ Die folgenden Entscheidungen sind verbindlich für die Archivübersicht und gelt
 
 - Bestehende Tabellen-, Badge- und EmptyState-Komponenten werden wiederverwendet, wo immer möglich.
 - Es werden keine redundanten Komponenten erstellt.
+
+## Mitarbeiterübersicht / Mitarbeiter-Tabellenstandard
+
+Die folgenden Entscheidungen sind verbindlich für die Mitarbeiterübersicht und gelten als UI-Standard für das Mitarbeiterregister in PraxisQM.
+
+### Trennungsregel
+
+- **Das Mitarbeiterregister und die Benutzerverwaltung sind getrennte Bereiche.**
+- **Die Mitarbeiterübersicht verwendet eine klassische tabellarische Desktop-Darstellung.**
+- **Benutzerkonto-, Rollen- und Berechtigungsdaten dürfen nicht im Mitarbeiterregister vermischt werden.**
+- Das Mitarbeiterregister dient ausschließlich der Verwaltung aller Mitarbeitenden der Praxis als verantwortliche Personen (ADR-004).
+- Benutzerkonten, Login-Namen, Passwörter, Rollen und Berechtigungen werden nicht im Mitarbeiterregister geführt.
+
+### Darstellung
+
+- Die Mitarbeiterübersicht ist eine **klassische tabellarische Desktop-Ansicht**.
+- Die Tabelle darf **nicht** durch Karten, Kacheln, Listen-Cards, Accordion-Elemente oder andere alternative Darstellungsformen ersetzt werden.
+- Das visuelle Erscheinungsbild entspricht der Dokumenten- und Archivübersicht: gleiche Spaltenstruktur-Prinzipien, dezente Farbgebung auf Basis der Design Tokens.
+
+### Tabellenkopf
+
+- Der Tabellenkopf ist **sticky**, wie in der Dokumentenübersicht.
+
+### Spalten
+
+- Die Mitarbeitertabelle zeigt folgende Felder: Name, Vorname, Funktion, Bereich, Status, E-Mail, Telefon, Eintrittsdatum, Austrittsdatum.
+- Keine undocumented Felder hinzufügen.
+
+### Filterbereich
+
+- Der Filterbereich ist **standardmäßig eingeklappt**.
+- Im ausgeklappten Zustand werden die dokumentierten Filter angezeigt: Funktion, Bereich, Aktivstatus.
+- Die Filter bleiben nicht funktional, bis die Datenbankanbindung implementiert wird.
+
+### Statusanzeige
+
+- Der Aktivstatus wird über die vorhandene `StatusBadge`-Komponente dargestellt (Variante `success` für „aktiv", `neutral` für „inaktiv").
+- Es wird kein zweites mitarbeiterspezifisches Badge-System eingeführt.
+- Es werden keine weiteren Beschäftigungsstatus erfunden.
+
+### Mitarbeiterzähler
+
+- Oberhalb der Tabelle wird ein Mitarbeiterzähler angezeigt (z. B. „3 Mitarbeiter").
+- Der Zähler ist so implementiert, dass er später einen dynamischen Datenbankwert darstellen kann.
+
+### Leerer Zustand
+
+- Bei leerem Mitarbeiterregister wird die vorhandene `EmptyState`-Komponente angezeigt.
+- Text: „Keine Mitarbeiter vorhanden."
+
+### Zeilen
+
+- Mitarbeiterzeilen haben einen **dezenten Hover-State** und **sichtbaren Keyboard-Focus**.
+- Zeilen haben eine visuelle Anzeige, dass sie später eine Mitarbeiterdetailansicht öffnen können.
+- Es wird keine Mitarbeiterdetail-Navigation implementiert, es sei denn, eine bestehende dokumentierte Route erfordert dies.
+
+### Button „Neuer Mitarbeiter"
+
+- Der Button „Neuer Mitarbeiter" bleibt deaktiviert, da keine dokumentierte Route für das Mitarbeiter-Erstellungsformular existiert.
+- Es wird kein Mitarbeiter-Erstellungsformular implementiert, es sei denn, es ist explizit dokumentiert und erforderlich.
+
+### Komponenten-Wiederverwendung
+
+- Bestehende Tabellen-, Badge- und EmptyState-Komponenten werden wiederverwendet, wo immer möglich.
+- Es werden keine redundanten Komponenten erstellt.
