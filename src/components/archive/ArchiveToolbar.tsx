@@ -1,3 +1,5 @@
+import "./ArchiveToolbar.css";
+
 interface ArchiveToolbarProps {
   resultCount: number;
 }
