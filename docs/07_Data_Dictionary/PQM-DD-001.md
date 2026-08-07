@@ -32,8 +32,6 @@ Mitarbeiterregister der Praxis – alle Mitarbeitenden, die als verantwortliche 
 | Verantwortungsposition | Liste<String> | Multi-Value-Feld. Null, eine oder mehrere Verantwortungspositionen (z. B. QM-Beauftragte, Datenschutzbeauftragte, Hygienebeauftragte). Many-to-many-Beziehung: employee ↔ Verantwortungsposition. |
 | Zugeordneter QM-Bereich | Liste<String> | Multi-Value-Feld. Null, ein oder mehrere zugeordnete QM-Bereiche (z. B. Datenschutz, Patientendokumentation, Röntgeneinweisung). Many-to-many-Beziehung: employee ↔ QM-Bereich. |
 | Aktivstatus | Boolean | Aktiv / inaktiv. Wird über StatusBadge dargestellt (success = aktiv, neutral = inaktiv). |
-| E-Mail | String | Kontakt-E-Mail-Adresse |
-| Telefonnummer | String | Kontakt-Telefonnummer |
 | Eintrittsdatum | Date | Eintrittsdatum in die Praxis |
 | Austrittsdatum | Date | Austrittsdatum aus der Praxis (leer / „—" bei aktiven Mitarbeitenden) |
 

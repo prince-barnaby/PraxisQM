@@ -12,8 +12,6 @@ export interface EmployeeRowData {
   active: boolean;
   activeLabel: string;
   activeVariant: BadgeVariant;
-  email: string;
-  phone: string;
   entryDate: string;
   exitDate: string;
 }
@@ -62,8 +60,6 @@ export default function EmployeeRow({ employee: emp }: EmployeeRowProps) {
       <td className="pqm-employee-row__status">
         <StatusBadge label={emp.activeLabel} variant={emp.activeVariant} />
       </td>
-      <td className="pqm-employee-row__email">{emp.email}</td>
-      <td className="pqm-employee-row__phone">{emp.phone}</td>
       <td className="pqm-employee-row__entry-date">{emp.entryDate}</td>
       <td className="pqm-employee-row__exit-date">{emp.exitDate}</td>
     </tr>

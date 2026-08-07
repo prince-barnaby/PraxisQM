@@ -2,6 +2,22 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.12] - 07.08.2026
+
+### Entfernt
+
+- Felder **E-Mail** und **Telefonnummer** vollständig aus dem Mitarbeiterregister entfernt
+- Beide Felder aus der Mitarbeitertabelle, Platzhalterdaten, EmployeeRowData-Interface und CSS entfernt
+- Beide Felder aus DB-003 Employees-Felddefinitionen im Data Dictionary (PQM-DD-001) entfernt
+- Beide Felder aus DB-003 Employees-Felddefinitionen in PQM-SDD-004B entfernt
+- UI Style Guide und Component Library entsprechend aktualisiert
+
+### Geändert
+
+- Die finalen DB-003 Employees-Felder sind: Name, Vorname, Position, Verantwortungsposition (Multi-Value), Zugeordneter QM-Bereich (Multi-Value), Aktivstatus, Eintrittsdatum, Austrittsdatum
+- Spaltengewichtung der Mitarbeitertabelle für 9 Spalten angepasst
+- Multi-Value-Implementierung für Verantwortungsposition und QM-Bereich bleibt unverändert
+
 ## [0.9.11] - 07.08.2026
 
 ### Hinzugefügt
@@ -10,7 +26,7 @@ Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 - Werkzeugleiste mit Seitentitel „Mitarbeiter", Kurzbeschreibung und Mitarbeiterzähler („3 Mitarbeiter")
 - Button „Neuer Mitarbeiter" (deaktiviert, da keine dokumentierte Route für das Erstellungsformular existiert)
 - Einklappbarer Filterbereich (Standard: eingeklappt) mit drei dokumentierten Filterkriterien: Funktion, Bereich, Aktivstatus (alle Platzhalter, nicht funktional)
-- Tabellarische Desktop-Darstellung aller Mitarbeitenden mit dokumentierten Feldern: Name, Vorname, Funktion, Bereich, Verantwortungsposition, QM-Bereich, Status, E-Mail, Telefon, Eintrittsdatum, Austrittsdatum
+- Tabellarische Desktop-Darstellung aller Mitarbeitenden mit dokumentierten Feldern: Name, Vorname, Funktion, Bereich, Verantwortungsposition, QM-Bereich, Status, Eintrittsdatum, Austrittsdatum
 - Multi-Value-Felder **Verantwortungsposition** und **Zugeordneter QM-Bereich** als kompakte Badges/Chips dargestellt:
   - Verantwortungsposition: Primary Blue mit hellem Hintergrund
   - QM-Bereich: Accent Teal mit hellem Hintergrund

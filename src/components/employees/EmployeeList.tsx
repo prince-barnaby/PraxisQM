@@ -31,8 +31,6 @@ export default function EmployeeList({ employees }: EmployeeListProps) {
             <th scope="col">Verantwortungsposition</th>
             <th scope="col">QM-Bereich</th>
             <th scope="col">Status</th>
-            <th scope="col">E-Mail</th>
-            <th scope="col">Telefon</th>
             <th scope="col">Eintritt</th>
             <th scope="col">Austritt</th>
           </tr>

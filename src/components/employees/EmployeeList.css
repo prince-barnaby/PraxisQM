@@ -94,23 +94,12 @@
 
 .pqm-employee-list__table th:nth-child(8),
 .pqm-employee-list__table td:nth-child(8) {
-  width: auto;
-  min-width: 160px;
+  width: 100px;
 }
 
 .pqm-employee-list__table th:nth-child(9),
 .pqm-employee-list__table td:nth-child(9) {
-  width: 110px;
-}
-
-.pqm-employee-list__table th:nth-child(10),
-.pqm-employee-list__table td:nth-child(10) {
-  width: 90px;
-}
-
-.pqm-employee-list__table th:nth-child(11),
-.pqm-employee-list__table td:nth-child(11) {
-  width: 90px;
+  width: 100px;
 }
 
 .pqm-employee-row__name {
@@ -121,12 +110,6 @@
 .pqm-employee-row__firstname,
 .pqm-employee-row__role,
 .pqm-employee-row__department {
-  color: var(--pqm-color-neutral);
-  white-space: nowrap;
-}
-
-.pqm-employee-row__email,
-.pqm-employee-row__phone {
   color: var(--pqm-color-neutral);
   white-space: nowrap;
 }

@@ -191,7 +191,7 @@ Die folgenden Entscheidungen sind verbindlich für die Mitarbeiterübersicht und
 
 ### Spalten
 
-- Die Mitarbeitertabelle zeigt folgende Felder: Name, Vorname, Funktion, Bereich, Verantwortungsposition, QM-Bereich, Status, E-Mail, Telefon, Eintrittsdatum, Austrittsdatum.
+- Die Mitarbeitertabelle zeigt folgende Felder: Name, Vorname, Funktion, Bereich, Verantwortungsposition, QM-Bereich, Status, Eintrittsdatum, Austrittsdatum.
 - Keine undocumented Felder hinzufügen.
 
 ### Multi-Value-Felder
