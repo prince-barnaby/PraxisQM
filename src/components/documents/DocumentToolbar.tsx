@@ -1,4 +1,5 @@
 import { Plus, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import "./DocumentToolbar.css";
 
 interface DocumentToolbarProps {
@@ -6,6 +7,8 @@ interface DocumentToolbarProps {
 }
 
 export default function DocumentToolbar({ resultCount }: DocumentToolbarProps) {
+  const navigate = useNavigate();
+
   return (
     <header className="pqm-document-toolbar">
       <div className="pqm-document-toolbar__heading">
@@ -30,8 +33,8 @@ export default function DocumentToolbar({ resultCount }: DocumentToolbarProps) {
         <button
           type="button"
           className="pqm-document-toolbar__button"
-          disabled
-          aria-label="Neues Dokument erstellen – Platzhalter, nicht funktional"
+          onClick={() => navigate("/dokumente/neu")}
+          aria-label="Neues Dokument erstellen"
         >
           <Plus size={18} aria-hidden="true" />
           Neues Dokument

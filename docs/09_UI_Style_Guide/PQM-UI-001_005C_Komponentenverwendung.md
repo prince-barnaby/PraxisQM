@@ -74,4 +74,36 @@ Die folgenden Entscheidungen sind verbindlich für die Dokumentenübersicht und 
 
 - Das Layout ist für eine Desktop-Anwendung optimiert.
 - Die Dokumentenliste soll auf einem normalen Praxis-PC gut scanbar sein.
-- Übersichtlichkeit wird gegenüber dekorativem Design bevorzugt.
+- Übersichtlichkeit wird gegenüber dekorativem Design bevorzugut.
+
+## Dokumentformular / Formularstandard
+
+Die folgenden Regeln sind verbindlich für das Erstellen und Bearbeiten von Dokumenten.
+
+### Wiederverwendung
+
+- **Die Workflows zum Erstellen und Bearbeiten von Dokumenten müssen dieselben Formularkomponenten wiederverwenden, wo immer möglich.**
+- Diese Regel ist verbindlich und gilt für alle zukünftigen Erweiterungen der Dokumentformulare.
+
+### Layout
+
+- Das Formular ist für Desktop optimiert mit klaren Abschnitten.
+- Felder verwenden lesbare Beschriftungen und angemessenen Abstand.
+- Zweispaltiges Layout für kurze Felder, einspaltiges Layout für lange Textfelder.
+- Die Dokumentnummer ist schreibgeschützt und wird automatisch vergeben (Platzhalter: „wird automatisch vergeben").
+
+### Felder
+
+- Es werden ausschließlich dokumentierte Dokumentfelder verwendet: Dokumentnummer, Titel, Kategorie, Unterkategorie, Version, Status, Verantwortliche Person, Gültig bis, Beschreibung, Tags.
+- Keine undocumented Felder hinzufügen.
+
+### Datei-Upload
+
+- Der Datei-Upload-Bereich ist klar abgesetzt und als Platzhalter markiert.
+- Der Button „PDF auswählen" ist deaktiviert und öffnet keinen Datei-Dialog.
+
+### Aktionen
+
+- „Abbrechen" navigiert zur Dokumentenübersicht.
+- „Dokument anlegen" ist deaktiviert und als Platzhalter markiert.
+- Es wird kein erfolgreiches Speichern simuliert.

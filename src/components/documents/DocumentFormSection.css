@@ -1,0 +1,20 @@
+.pqm-form-section {
+  border: 1px solid var(--pqm-color-surface);
+  border-radius: var(--pqm-radius);
+  padding: var(--pqm-space-2);
+  margin: 0;
+}
+
+.pqm-form-section__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--pqm-color-primary);
+  padding: 0 var(--pqm-space-1);
+}
+
+.pqm-form-section__body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pqm-space-2);
+  margin-top: var(--pqm-space-1);
+}

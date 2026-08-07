@@ -2,6 +2,39 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.8] - 07.08.2026
+
+### Hinzugefügt
+
+- Statische Seite zum Anlegen eines neuen Dokuments unter der Route `/dokumente/neu`
+- Wiederverwendbare Formularkomponente `DocumentForm` mit Modus-Prop (`create` | `edit`) für spätere Wiederverwendung beim Bearbeiten
+- `DocumentFormSection` als Abschnitts-Wrapper (fieldset/legend) für strukturierte Formularbereiche
+- `FormField` als wiederverwendbarer Field-Wrapper mit Label, Hint und Flex-Layout
+- Formularfelder ausschließlich für dokumentierte Felder: Dokumentnummer (read-only, „wird automatisch vergeben"), Titel, Kategorie, Unterkategorie, Version, Status, Verantwortliche Person, Gültig bis, Beschreibung, Tags
+- Datei-Upload-Bereich mit PDF-Icon, Platzhalter-Text und deaktiviertem „PDF auswählen"-Button
+- Formular-Aktionen: „Abbrechen" (navigiert zur Dokumentenübersicht) und „Dokument anlegen" (deaktiviert, Platzhalter)
+- Zurück-Link zur Dokumentenübersicht
+- Accessibility: labels, aria-labels, keyboard focus, disabled states
+
+### Geändert
+
+- Button „Neues Dokument" in der Dokumentenübersicht ist jetzt aktiv und navigiert zur Route `/dokumente/neu`
+- Route `/dokumente/neu` vor `/dokumente/:id` registriert, damit der statische Pfad Vorrang hat
+
+### Dokumentation
+
+- UI Style Guide (005C) um Abschnitt „Dokumentformular / Formularstandard" ergänzt mit verbindlicher Regel: „Die Workflows zum Erstellen und Bearbeiten von Dokumenten müssen dieselben Formularkomponenten wiederverwenden, wo immer möglich."
+- Component Library (005D) um `DocumentForm`, `DocumentFormSection`, `FormField` ergänzt; `DocumentToolbar` aktualisiert
+- Code Map aktualisiert
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine Dateispeicherung, kein echter Datei-Upload
+- Keine Speichern-Funktionalität — „Dokument anlegen" ist deaktiviert
+- Keine Validierung, keine Filter, keine Suche
+- Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Dokumentenübersicht oder Detailseite
+- Keine neuen Mock-Daten
+
 ## [0.9.7] - 07.08.2026
 
 ### Geändert

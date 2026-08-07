@@ -64,7 +64,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dashboard-Karte „Mitarbeiter“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Schnellübersicht Mitarbeiter (Platzhalter-Wert) | vorbereitet |
 | Dashboard-Karte „Archiv“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Schnellzugriff Archiv (Platzhalter-Wert) | vorbereitet |
 | Dashboard-Karte „Systemstatus“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Anzeige lokaler Systeminformationen (Platzhalter-Wert) | vorbereitet |
-| Button „Neues Dokument“ | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Startet später den Dokumenten-Upload (Platzhalter, deaktiviert) | vorbereitet |
+| Button „Neues Dokument” | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Navigiert zum Dokument-Erstellungsformular (`/dokumente/neu`) | aktiv |
 | Suchfeld Dokumente | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Filtert Dokumentenliste (Platzhalter, deaktiviert) | vorbereitet |
 | Filterbereich Dokumente | Dokumente | `src/components/documents/DocumentFilters.tsx` | `DocumentFilters` | Einklappbarer Filterbereich mit fünf dokumentierten Filtern (Platzhalter, nicht funktional); Standard: eingeklappt | vorbereitet |
 | Dokumentenliste | Dokumente | `src/components/documents/DocumentList.tsx` | `DocumentList` | Tabellarische Übersicht mit Mock-Platzhalter-Einträgen; sticky Tabellenkopf, optimierte Spaltengewichtung | vorbereitet |
@@ -77,6 +77,10 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Tag-Liste | Dokumente | `src/components/documents/TagList.tsx` | `TagList` | Anzeige von Schlagwörtern als Pills (Platzhalter) | vorbereitet |
 | Aktionsleiste | Dokumente | `src/components/documents/DocumentActionBar.tsx` | `DocumentActionBar` | Aktion-Buttons: Bearbeiten, PDF öffnen, Archivieren (Platzhalter, deaktiviert) | vorbereitet |
 | Versionshistorie | Dokumente | `src/components/documents/DocumentHistory.tsx` | `DocumentHistory` | Einfache Timeline der Versionshistorie (Platzhalter) | vorbereitet |
+| Dokumentformular | Dokumente | `src/components/documents/DocumentForm.tsx` | `DocumentForm` | Wiederverwendbares Formular für Erstellen und Bearbeiten; Felder: Dokumentnummer (read-only), Titel, Kategorie, Unterkategorie, Version, Status, Verantwortliche Person, Gültig bis, Beschreibung, Tags | vorbereitet |
+| Formular-Abschnitt | Dokumente | `src/components/documents/DocumentFormSection.tsx` | `DocumentFormSection` | Abschnitts-Wrapper für Formularbereiche (fieldset/legend) | vorbereitet |
+| Formular-Feld | Dokumente | `src/components/documents/FormField.tsx` | `FormField` | Wiederverwendbarer Field-Wrapper mit Label, Hint und Flex-Layout | vorbereitet |
+| Neue-Dokument-Seite | Dokumente | `src/pages/DokumentNeu.tsx` | `DokumentNeu` | Statische Seite zum Anlegen eines neuen Dokuments; verwendet `DocumentForm` im Modus `create` | vorbereitet |
 | Button „Dokument archivieren“ | Dokumente / Archiv | `src/` | noch offen | Verschiebt Dokument ins Archiv | geplant |
 | Mitarbeiterliste | Mitarbeiter | `src/` | noch offen | Zeigt Mitarbeitende der Praxis | geplant |
 | Button „Mitarbeiter hinzufügen“ | Mitarbeiter | `src/` | noch offen | Öffnet Formular für neuen Mitarbeiter | geplant |
@@ -122,6 +126,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Prompt 004 – Dokumentenübersicht | Dokumente | `src/pages/Dokumente.tsx`, `src/pages/Dokumente.css`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css`, `src/components/documents/DocumentFilters.tsx`, `src/components/documents/DocumentFilters.css`, `src/components/documents/DocumentList.tsx`, `src/components/documents/DocumentList.css`, `src/components/documents/DocumentRow.tsx`, `src/components/documents/StatusBadge.tsx`, `src/components/documents/StatusBadge.css`, `src/components/documents/EmptyState.tsx`, `src/components/documents/EmptyState.css` | vorbereitet |
 | Prompt 005 – Archivgrundlage | Archiv | noch offen | geplant |
 | Prompt 005 – Dokumentdetailseite | Dokumente | `src/pages/DokumentDetail.tsx`, `src/pages/DokumentDetail.css`, `src/components/documents/DocumentMetadata.tsx`, `src/components/documents/DocumentMetadata.css`, `src/components/documents/TagList.tsx`, `src/components/documents/TagList.css`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/components/documents/DocumentHistory.tsx`, `src/components/documents/DocumentHistory.css`, `src/App.tsx` | vorbereitet |
+| Prompt 007 – Neue-Dokument-Formular | Dokumente | `src/pages/DokumentNeu.tsx`, `src/pages/DokumentNeu.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentForm.css`, `src/components/documents/DocumentFormSection.tsx`, `src/components/documents/DocumentFormSection.css`, `src/components/documents/FormField.tsx`, `src/components/documents/FormField.css`, `src/App.tsx`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css` | vorbereitet |
 
 ---
 
@@ -138,6 +143,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 004A (Dokumentenübersicht UX-Verfeinerung: einklappbare Filter, sticky Tabellenkopf, Spaltengewichtung, Zeilen-Hover/Focus, Dokumentenzähler) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 005 (Dokumentdetailseite: DokumentDetail, DocumentMetadata, TagList, DocumentActionBar, DocumentHistory, Route `/dokumente/:id`) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 006 (Navigation Dokumentenliste → Detailansicht: DocumentRow onClick/Enter, useParams in DokumentDetail, Zurück-Link) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 007 (Neue-Dokument-Formular: DokumentNeu, DocumentForm, DocumentFormSection, FormField, Route `/dokumente/neu`, Button „Neues Dokument" aktiviert) aktualisiert | Saskia / Bolt |
 
 ---
 

@@ -1,0 +1,78 @@
+.pqm-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pqm-form-field__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pqm-color-neutral);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pqm-form-field__hint {
+  font-size: 0.75rem;
+  color: var(--pqm-color-neutral);
+  font-style: italic;
+  margin: 0;
+}
+
+.pqm-form-field input,
+.pqm-form-field select,
+.pqm-form-field textarea {
+  padding: 8px 12px;
+  border: 1px solid var(--pqm-color-surface);
+  border-radius: var(--pqm-radius);
+  font-size: 0.9rem;
+  font-family: var(--pqm-font-family);
+  color: var(--pqm-color-primary);
+  background-color: var(--pqm-color-background);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.pqm-form-field input:focus,
+.pqm-form-field select:focus,
+.pqm-form-field textarea:focus {
+  border-color: var(--pqm-color-accent);
+}
+
+.pqm-form-field input:disabled,
+.pqm-form-field select:disabled,
+.pqm-form-field textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background-color: var(--pqm-color-surface);
+}
+
+.pqm-form-field input::placeholder,
+.pqm-form-field textarea::placeholder {
+  color: var(--pqm-color-neutral);
+  font-style: italic;
+}
+
+.pqm-form-field--full {
+  flex: 1 1 100%;
+}
+
+.pqm-form-field--half {
+  flex: 1 1 calc(50% - var(--pqm-space-2) / 2);
+  min-width: 200px;
+}
+
+.pqm-form-field--compact {
+  flex: 0 1 160px;
+}
+
+.pqm-form-field--readonly {
+  flex: 1 1 100%;
+}
+
+.pqm-form-field--readonly input {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--pqm-color-neutral);
+  background-color: var(--pqm-color-surface);
+}

@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import AppShell from "./components/AppShell";
 import Startseite from "./pages/Startseite";
 import Dokumente from "./pages/Dokumente";
+import DokumentNeu from "./pages/DokumentNeu";
 import Archiv from "./pages/Archiv";
 import DokumentDetail from "./pages/DokumentDetail";
 import Mitarbeiter from "./pages/Mitarbeiter";
@@ -13,6 +14,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Startseite />} />
         <Route path="/dokumente" element={<Dokumente />} />
+        <Route path="/dokumente/neu" element={<DokumentNeu />} />
         <Route path="/dokumente/:id" element={<DokumentDetail />} />
         <Route path="/archiv" element={<Archiv />} />
         <Route path="/mitarbeiter" element={<Mitarbeiter />} />
