@@ -2,6 +2,39 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.18] - 07.08.2026
+
+### tauri-build Dependency korrigiert (Prompt 013 Korrektur)
+
+Die Dependency `tauri-build = "^1.6"` konnte nicht aufgelöst werden, da
+`tauri-build` nie eine 1.6.x Veröffentlichung hatte. Die letzte v1.x
+Version ist 1.5.6. Der `tauri` Crate selbst hat Versionen 1.6.0–1.8.3,
+aber `tauri-build` blieb bei 1.5.x.
+
+#### Korrektur
+
+- `tauri-build`: `^1.6` → `^1.5` (kompatibel mit `tauri` 1.6.x–1.8.x)
+- `tempfile` dev-dependency hinzugefügt (für Rust-Tests in database.rs)
+
+#### Ursache
+
+`tauri-build` folgte nicht der Versionsnummer des `tauri` Crates.
+Während `tauri` 1.6–1.8 erreichte, blieb `tauri-build` bei 1.5.x.
+Die `^1.6` Anforderung war von Anfang an nicht auflösbar.
+
+#### Kompatibilität
+
+- `tauri` 1.6.x ist kompatibel mit `tauri-build` 1.5.x (Build-Time-Helper,
+  keine API-Änderungen im Config-Format zwischen 1.5 und 1.8)
+- `rusqlite` 0.31, `uuid` 1.x, `tempfile` 3.x sind kompatibel mit Rust 1.97.1
+- Kein Tauri Major-Version-Wechsel — das Projekt bleibt auf Tauri v1
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Rust-Compilation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `cargo test` und `cargo build` verifiziert werden
+
 ## [0.9.17] - 07.08.2026
 
 ### Initiale SQLite-Foundation implementiert (Prompt 013)
