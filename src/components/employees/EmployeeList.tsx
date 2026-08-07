@@ -6,15 +6,35 @@ import EmptyState from "../documents/EmptyState";
 
 interface EmployeeListProps {
   employees: EmployeeRowData[];
+  loading?: boolean;
+  error?: string | null;
 }
 
-export default function EmployeeList({ employees }: EmployeeListProps) {
+export default function EmployeeList({ employees, loading, error }: EmployeeListProps) {
+  if (loading) {
+    return (
+      <div className="pqm-employee-list pqm-employee-list--state">
+        <p className="pqm-employee-list__message">Mitarbeiter werden geladen …</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pqm-employee-list pqm-employee-list--state">
+        <p className="pqm-employee-list__message pqm-employee-list__message--error">
+          Fehler beim Laden der Mitarbeiter: {error}
+        </p>
+      </div>
+    );
+  }
+
   if (employees.length === 0) {
     return (
       <EmptyState
         icon={Users}
-        title="Keine Mitarbeiter vorhanden"
-        message="Es wurden noch keine Mitarbeitenden angelegt. Diese Ansicht ist ein Platzhalter."
+        title="Noch keine Mitarbeitenden erfasst"
+        message="Es wurden noch keine Mitarbeitenden angelegt. Klicken Sie auf \u201eNeuer Mitarbeiter\u201c, um einen Eintrag zu erstellen."
       />
     );
   }
@@ -26,8 +46,7 @@ export default function EmployeeList({ employees }: EmployeeListProps) {
           <tr>
             <th scope="col">Name</th>
             <th scope="col">Vorname</th>
-            <th scope="col">Funktion</th>
-            <th scope="col">Bereich</th>
+            <th scope="col">Position</th>
             <th scope="col">Verantwortungsposition</th>
             <th scope="col">QM-Bereich</th>
             <th scope="col">Status</th>

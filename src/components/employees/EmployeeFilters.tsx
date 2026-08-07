@@ -3,8 +3,9 @@ import { Filter, ChevronDown } from "lucide-react";
 import "./EmployeeFilters.css";
 
 const FILTER_LABELS = [
-  "Funktion",
-  "Bereich",
+  "Position",
+  "Verantwortungsposition",
+  "QM-Bereich",
   "Aktivstatus",
 ] as const;
 

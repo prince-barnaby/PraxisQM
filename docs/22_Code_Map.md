@@ -33,7 +33,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Navigation | Sidebar, Header, Seitenwechsel | `src/components/` | aktiv |
 | Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `src/pages/`, `src/components/documents/` | vorbereitet |
 | Archiv | Archivierte Dokumente und Wiederherstellung | `src/pages/`, `src/components/archive/` | vorbereitet |
-| Mitarbeiter | Mitarbeiterregister, Übersicht der Mitarbeitenden | `src/pages/`, `src/components/employees/` | vorbereitet |
+| Mitarbeiter | Mitarbeiterregister, Übersicht der Mitarbeitenden, Persistenz in SQLite | `src/pages/`, `src/components/employees/`, `src/lib/` | aktiv |
 | Einstellungen | Konfigurationsbereiche, Systeminformationen | `src/pages/`, `src/components/settings/` | vorbereitet |
 | Datenhaltung | lokale Speicherung und Datenmodell | `database/` / `src/` | geplant |
 | Backup | Export, Import, Sicherung, Wiederherstellung | `src/` | geplant |
@@ -179,6 +179,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 013C (Tauri v1 Icon-Set erstellt: src-tauri/icons/32x32.png, 128x128.png, icon.ico — generiert aus PraxisQM-Brand-Farben Primary Blue #163A5F und Accent Teal #008C8C, QM-Monogramm-Design) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 013D (Rust-Compiler-Fehler in SQLite-Foundation behoben: rusqlite::Error::InvalidParameter → InvalidQuery (nicht in 0.31 vorhanden); app.path().app_data_dir() → app.path_resolver().app_data_dir() (v1-API); database_path(&app.handle()) statt app.handle() (Referenz statt Owned); unused Manager-Import entfernt) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 013E (rusqlite::Error::InvalidQuery ist ein Unit-Variant ohne Daten — Aufruf mit String-Argument verursacht E0618; korrigiert zu Error::SqliteFailure(ffi::Error::new(SQLITE_CONSTRAINT), Some(msg))) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 014 (Mitarbeiter-Persistenz End-to-End implementiert: Rust-Backend mit list_employees/create_employee/list_responsibilities/list_qm_areas Commands, SQLite-Transaktion, Entwicklungs-Stammdaten-Seed, Frontend mit EmployeeForm/Multi-Select/MitarbeiterNeu-Seite, Tauri invoke API-Wrapper, Placeholder-Daten durch echte DB-Daten ersetzt) aktualisiert | Saskia / Bolt |
 
 ---
 

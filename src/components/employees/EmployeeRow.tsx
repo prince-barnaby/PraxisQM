@@ -5,8 +5,7 @@ export interface EmployeeRowData {
   id: string;
   lastName: string;
   firstName: string;
-  role: string;
-  department: string;
+  position: string;
   responsibilityRoles: string[];
   qmAreas: string[];
   active: boolean;
@@ -25,12 +24,11 @@ export default function EmployeeRow({ employee: emp }: EmployeeRowProps) {
     <tr
       className="pqm-employee-row"
       tabIndex={0}
-      aria-label={`${emp.lastName}, ${emp.firstName} – ${emp.role}`}
+      aria-label={`${emp.lastName}, ${emp.firstName} – ${emp.position}`}
     >
       <td className="pqm-employee-row__name">{emp.lastName}</td>
       <td className="pqm-employee-row__firstname">{emp.firstName}</td>
-      <td className="pqm-employee-row__role">{emp.role}</td>
-      <td className="pqm-employee-row__department">{emp.department}</td>
+      <td className="pqm-employee-row__role">{emp.position}</td>
       <td className="pqm-employee-row__responsibility-roles">
         {emp.responsibilityRoles.length > 0 ? (
           <div className="pqm-employee-row__chips">

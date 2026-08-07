@@ -3,9 +3,13 @@ import "./EmployeeToolbar.css";
 
 interface EmployeeToolbarProps {
   resultCount: number;
+  onNewEmployee?: () => void;
 }
 
-export default function EmployeeToolbar({ resultCount }: EmployeeToolbarProps) {
+export default function EmployeeToolbar({
+  resultCount,
+  onNewEmployee,
+}: EmployeeToolbarProps) {
   return (
     <header className="pqm-employee-toolbar">
       <div className="pqm-employee-toolbar__heading">
@@ -19,8 +23,9 @@ export default function EmployeeToolbar({ resultCount }: EmployeeToolbarProps) {
         <button
           type="button"
           className="pqm-employee-toolbar__button"
-          disabled
-          aria-label="Neuen Mitarbeiter anlegen – Platzhalter, nicht funktional"
+          onClick={onNewEmployee}
+          disabled={!onNewEmployee}
+          aria-label="Neuen Mitarbeiter anlegen"
         >
           <Plus size={18} aria-hidden="true" />
           Neuer Mitarbeiter

@@ -2,6 +2,62 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.23] - 07.08.2026
+
+### Mitarbeiter-Persistenz End-to-End implementiert (Prompt 014)
+
+Die Mitarbeiterverwaltung ist nun mit dem SQLite-Backend verbunden. Dies ist
+die erste End-to-End-Persistenzfunktion in PraxisQM.
+
+#### Backend (Rust / Tauri)
+
+- **Tauri Commands hinzugefügt:**
+  - `cmd_list_employees` — lädt alle Mitarbeiter mit Verantwortungspositionen
+    und QM-Bereichen über JOINs
+  - `cmd_create_employee` — erstellt Mitarbeiter und Zuordnungen in einer
+    SQLite-Transaktion (Rollback bei Fehler)
+  - `cmd_list_responsibilities` — lädt Verantwortungspositionen (Stammdaten)
+  - `cmd_list_qm_areas` — lädt QM-Bereiche (Stammdaten)
+- **Datenmodelle:** `Employee`, `MasterDataItem`, `CreateEmployeeInput`
+  (mit serde Serialize/Deserialize)
+- **Transaktionssicherheit:** `create_employee` verwendet eine Transaktion
+  — bei ungültigen Zuordnungen werden alle Änderungen zurückgerollt
+- **Stammdaten-Seed:** Bei leerer Datenbank werden Entwicklungswerte für
+  Verantwortungspositionen und QM-Bereiche eingefügt (klar als
+  Entwicklungsdaten markiert, keine Produktionsdaten)
+- **Verbindungspooling:** `DbState(Mutex<Connection>)` als Tauri State
+- **UUID-Generierung:** Backend-seitig, nicht im Frontend
+- **Tests:** 8 neue Rust-Tests für Mitarbeiter-Persistenz (create, list,
+  zero/multiple assignments, transaction rollback, persisted assignments)
+
+#### Frontend (React)
+
+- **Neue Komponenten:**
+  - `EmployeeForm` — Formular mit Multi-Select-Checkbox-Listen für
+    Verantwortungspositionen und QM-Bereiche
+  - `MitarbeiterNeu` — Seite zum Anlegen neuer Mitarbeiter
+  - `src/lib/employeeApi.ts` — Tauri invoke API-Wrapper mit TypeScript-Typen
+- **Aktualisierte Komponenten:**
+  - `EmployeeRow` — `role` → `position`, `department` entfernt,
+    `responsibilityRoles`/`qmAreas` als String-Arrays
+  - `EmployeeList` — Spalten aktualisiert (Funktion → Position, Bereich →
+    QM-Bereich), Loading/Error-State hinzugefügt, EmptyState mit deutscher
+    Meldung
+  - `EmployeeToolbar` — "Neuer Mitarbeiter"-Button aktiviert
+  - `EmployeeFilters` — Filter-Labels aktualisiert
+  - `Mitarbeiter` — lädt echte Daten vom Backend, ersetzt Placeholder-Daten
+- **Routing:** Route `/mitarbeiter/neu` hinzugefügt
+- **Validierung:** Name, Vorname, Position, Aktivstatus, Eintrittsdatum
+  als Pflichtfelder; Austrittsdatum optional
+- **ADR-004-Trennung:** Keine Benutzerkonten werden beim Anlegen eines
+  Mitarbeiters erstellt
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Rust-Compilation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `cargo test` und `cargo build` verifiziert werden
+
 ## [0.9.22] - 07.08.2026
 
 ### rusqlite::Error::InvalidQuery Unit-Variant-Fehler behoben (Prompt 013E)

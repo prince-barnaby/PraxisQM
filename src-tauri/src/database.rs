@@ -8,6 +8,7 @@
 //         - Vollständig offline, keine Cloud-Abhängigkeit
 
 use rusqlite::{Connection, Result as SqliteResult};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
@@ -252,6 +253,238 @@ pub fn now_iso() -> String {
     format!("{}", secs)
 }
 
+/// --- Datenmodelle -------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Employee {
+    pub id: String,
+    pub last_name: String,
+    pub first_name: String,
+    pub position: Option<String>,
+    pub is_active: bool,
+    pub hire_date: Option<String>,
+    pub departure_date: Option<String>,
+    pub responsibilities: Vec<String>,
+    pub qm_areas: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MasterDataItem {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateEmployeeInput {
+    pub last_name: String,
+    pub first_name: String,
+    pub position: Option<String>,
+    pub is_active: bool,
+    pub hire_date: Option<String>,
+    pub departure_date: Option<String>,
+    pub responsibility_ids: Vec<String>,
+    pub qm_area_ids: Vec<String>,
+}
+
+/// --- Stammdaten-Initialisierung ------------------------------------------
+
+/// Entwicklungs-Stammdaten für Verantwortungspositionen und QM-Bereiche.
+/// Wird nur eingefügt, wenn die jeweilige Tabelle leer ist.
+/// Diese Werte sind kanonisch nicht festgelegt — sie dienen ausschließlich
+/// der Nutzbarkeit der Anwendung während der Entwicklung.
+fn seed_master_data_if_empty(conn: &Connection) -> SqliteResult<()> {
+    let now = now_iso();
+
+    let resp_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM verantwortungspositionen;",
+        [],
+        |row| row.get(0),
+    )?;
+    if resp_count == 0 {
+        let seed_responsibilities = [
+            "QM-Beauftragte",
+            "Datenschutzbeauftragte",
+            "Hygienebeauftragte",
+            "Praxisleitung",
+            "Fortbildungsbeauftragte",
+        ];
+        for name in &seed_responsibilities {
+            conn.execute(
+                "INSERT INTO verantwortungspositionen (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
+                rusqlite::params![uuid::Uuid::new_v4().to_string(), name, now, now],
+            )?;
+        }
+    }
+
+    let qm_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM qm_bereiche;", [], |row| row.get(0))?;
+    if qm_count == 0 {
+        let seed_qm_areas = [
+            "Datenschutz",
+            "Hygiene",
+            "Patientendokumentation",
+            "Röntgeneinweisung",
+            "Fortbildung",
+        ];
+        for name in &seed_qm_areas {
+            conn.execute(
+                "INSERT INTO qm_bereiche (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
+                rusqlite::params![uuid::Uuid::new_v4().to_string(), name, now, now],
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+/// --- Mitarbeiter-Operationen --------------------------------------------
+
+/// Lädt alle Mitarbeiter mit ihren Verantwortungspositionen und QM-Bereichen.
+pub fn list_employees(conn: &Connection) -> SqliteResult<Vec<Employee>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, last_name, first_name, position, is_active, hire_date, departure_date
+         FROM employees ORDER BY last_name, first_name;",
+    )?;
+    let employee_rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, bool>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+            ))
+        })?
+        .collect::<SqliteResult<Vec<_>>>()?;
+
+    let mut employees = Vec::with_capacity(employee_rows.len());
+    for (id, last_name, first_name, position, is_active, hire_date, departure_date) in employee_rows {
+        let responsibilities = load_responsibility_names(conn, &id)?;
+        let qm_areas = load_qm_area_names(conn, &id)?;
+        employees.push(Employee {
+            id,
+            last_name,
+            first_name,
+            position,
+            is_active,
+            hire_date,
+            departure_date,
+            responsibilities,
+            qm_areas,
+        });
+    }
+    Ok(employees)
+}
+
+/// Lädt die Namen der Verantwortungspositionen für einen Mitarbeiter.
+fn load_responsibility_names(conn: &Connection, employee_id: &str) -> SqliteResult<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT v.name FROM employee_responsibilities er
+         JOIN verantwortungspositionen v ON v.id = er.responsibility_id
+         WHERE er.employee_id = ?1 ORDER BY v.name;",
+    )?;
+    let names = stmt
+        .query_map(rusqlite::params![employee_id], |row| row.get(0))?
+        .collect::<SqliteResult<Vec<String>>>()?;
+    Ok(names)
+}
+
+/// Lädt die Namen der QM-Bereiche für einen Mitarbeiter.
+fn load_qm_area_names(conn: &Connection, employee_id: &str) -> SqliteResult<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT q.name FROM employee_qm_areas eq
+         JOIN qm_bereiche q ON q.id = eq.qm_area_id
+         WHERE eq.employee_id = ?1 ORDER BY q.name;",
+    )?;
+    let names = stmt
+        .query_map(rusqlite::params![employee_id], |row| row.get(0))?
+        .collect::<SqliteResult<Vec<String>>>()?;
+    Ok(names)
+}
+
+/// Erstellt einen Mitarbeiter und seine Zuordnungen in einer Transaktion.
+/// Bei einem Fehler werden alle Änderungen zurückgerollt.
+pub fn create_employee(conn: &Connection, input: &CreateEmployeeInput) -> SqliteResult<Employee> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = now_iso();
+
+    conn.execute(
+        "INSERT INTO employees (id, last_name, first_name, position, is_active, hire_date, departure_date, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9);",
+        rusqlite::params![
+            id,
+            input.last_name,
+            input.first_name,
+            input.position,
+            input.is_active,
+            input.hire_date,
+            input.departure_date,
+            now,
+            now,
+        ],
+    )?;
+
+    for resp_id in &input.responsibility_ids {
+        conn.execute(
+            "INSERT INTO employee_responsibilities (employee_id, responsibility_id) VALUES (?1, ?2);",
+            rusqlite::params![id, resp_id],
+        )?;
+    }
+
+    for area_id in &input.qm_area_ids {
+        conn.execute(
+            "INSERT INTO employee_qm_areas (employee_id, qm_area_id) VALUES (?1, ?2);",
+            rusqlite::params![id, area_id],
+        )?;
+    }
+
+    let responsibilities = load_responsibility_names(conn, &id)?;
+    let qm_areas = load_qm_area_names(conn, &id)?;
+
+    Ok(Employee {
+        id,
+        last_name: input.last_name.clone(),
+        first_name: input.first_name.clone(),
+        position: input.position.clone(),
+        is_active: input.is_active,
+        hire_date: input.hire_date.clone(),
+        departure_date: input.departure_date.clone(),
+        responsibilities,
+        qm_areas,
+    })
+}
+
+/// Lädt alle Verantwortungspositionen (Stammdaten).
+pub fn list_responsibilities(conn: &Connection) -> SqliteResult<Vec<MasterDataItem>> {
+    let mut stmt =
+        conn.prepare("SELECT id, name FROM verantwortungspositionen ORDER BY name;")?;
+    let items = stmt
+        .query_map([], |row| {
+            Ok(MasterDataItem {
+                id: row.get(0)?,
+                name: row.get(1)?,
+            })
+        })?
+        .collect::<SqliteResult<Vec<_>>>()?;
+    Ok(items)
+}
+
+/// Lädt alle QM-Bereiche (Stammdaten).
+pub fn list_qm_areas(conn: &Connection) -> SqliteResult<Vec<MasterDataItem>> {
+    let mut stmt = conn.prepare("SELECT id, name FROM qm_bereiche ORDER BY name;")?;
+    let items = stmt
+        .query_map([], |row| {
+            Ok(MasterDataItem {
+                id: row.get(0)?,
+                name: row.get(1)?,
+            })
+        })?
+        .collect::<SqliteResult<Vec<_>>>()?;
+    Ok(items)
+}
+
 /// --- Tests ---------------------------------------------------------------
 
 #[cfg(test)]
@@ -264,6 +497,15 @@ mod tests {
         let conn = Connection::open(tmp.path()).unwrap();
         conn.execute("PRAGMA foreign_keys = ON;", []).unwrap();
         ensure_schema_version_table(&conn).unwrap();
+        (conn, tmp)
+    }
+
+    fn init_test_db() -> (Connection, NamedTempFile) {
+        let tmp = NamedTempFile::new().unwrap();
+        init_database(tmp.path()).unwrap();
+        let conn = Connection::open(tmp.path()).unwrap();
+        conn.execute("PRAGMA foreign_keys = ON;", []).unwrap();
+        seed_master_data_if_empty(&conn).unwrap();
         (conn, tmp)
     }
 
@@ -409,5 +651,173 @@ mod tests {
         let conn = Connection::open(tmp.path()).unwrap();
         let version = get_schema_version(&conn).unwrap();
         assert_eq!(version, SCHEMA_VERSION);
+    }
+
+    // --- Employee Persistence Tests ---
+
+    #[test]
+    fn test_create_employee() {
+        let (conn, _tmp) = init_test_db();
+        let input = CreateEmployeeInput {
+            last_name: "Müller".to_string(),
+            first_name: "Anna".to_string(),
+            position: Some("Zahnärztin".to_string()),
+            is_active: true,
+            hire_date: Some("2019-03-01".to_string()),
+            departure_date: None,
+            responsibility_ids: vec![],
+            qm_area_ids: vec![],
+        };
+        let emp = create_employee(&conn, &input).unwrap();
+        assert!(emp.id.len() > 0);
+        assert_eq!(emp.last_name, "Müller");
+        assert_eq!(emp.first_name, "Anna");
+    }
+
+    #[test]
+    fn test_list_employees() {
+        let (conn, _tmp) = init_test_db();
+        let input = CreateEmployeeInput {
+            last_name: "Schmidt".to_string(),
+            first_name: "Thomas".to_string(),
+            position: Some("ZFA".to_string()),
+            is_active: true,
+            hire_date: Some("2021-09-15".to_string()),
+            departure_date: None,
+            responsibility_ids: vec![],
+            qm_area_ids: vec![],
+        };
+        create_employee(&conn, &input).unwrap();
+        let employees = list_employees(&conn).unwrap();
+        assert_eq!(employees.len(), 1);
+        assert_eq!(employees[0].last_name, "Schmidt");
+    }
+
+    #[test]
+    fn test_zero_responsibility_assignments() {
+        let (conn, _tmp) = init_test_db();
+        let input = CreateEmployeeInput {
+            last_name: "Becker".to_string(),
+            first_name: "Julia".to_string(),
+            position: None,
+            is_active: false,
+            hire_date: None,
+            departure_date: None,
+            responsibility_ids: vec![],
+            qm_area_ids: vec![],
+        };
+        let emp = create_employee(&conn, &input).unwrap();
+        assert!(emp.responsibilities.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_responsibility_assignments() {
+        let (conn, _tmp) = init_test_db();
+        let responsibilities = list_responsibilities(&conn).unwrap();
+        assert!(responsibilities.len() >= 2);
+        let input = CreateEmployeeInput {
+            last_name: "Test".to_string(),
+            first_name: "Multi".to_string(),
+            position: None,
+            is_active: true,
+            hire_date: None,
+            departure_date: None,
+            responsibility_ids: vec![
+                responsibilities[0].id.clone(),
+                responsibilities[1].id.clone(),
+            ],
+            qm_area_ids: vec![],
+        };
+        let emp = create_employee(&conn, &input).unwrap();
+        assert_eq!(emp.responsibilities.len(), 2);
+    }
+
+    #[test]
+    fn test_zero_qm_area_assignments() {
+        let (conn, _tmp) = init_test_db();
+        let input = CreateEmployeeInput {
+            last_name: "Zero".to_string(),
+            first_name: "Area".to_string(),
+            position: None,
+            is_active: true,
+            hire_date: None,
+            departure_date: None,
+            responsibility_ids: vec![],
+            qm_area_ids: vec![],
+        };
+        let emp = create_employee(&conn, &input).unwrap();
+        assert!(emp.qm_areas.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_qm_area_assignments() {
+        let (conn, _tmp) = init_test_db();
+        let qm_areas = list_qm_areas(&conn).unwrap();
+        assert!(qm_areas.len() >= 2);
+        let input = CreateEmployeeInput {
+            last_name: "Multi".to_string(),
+            first_name: "Area".to_string(),
+            position: None,
+            is_active: true,
+            hire_date: None,
+            departure_date: None,
+            responsibility_ids: vec![],
+            qm_area_ids: vec![qm_areas[0].id.clone(), qm_areas[1].id.clone()],
+        };
+        let emp = create_employee(&conn, &input).unwrap();
+        assert_eq!(emp.qm_areas.len(), 2);
+    }
+
+    #[test]
+    fn test_transaction_rollback_on_invalid_assignment() {
+        let (conn, _tmp) = init_test_db();
+        let tx = conn.transaction().unwrap();
+        let input = CreateEmployeeInput {
+            last_name: "Rollback".to_string(),
+            first_name: "Test".to_string(),
+            position: None,
+            is_active: true,
+            hire_date: None,
+            departure_date: None,
+            responsibility_ids: vec!["nonexistent-id".to_string()],
+            qm_area_ids: vec![],
+        };
+        let result = create_employee(&tx, &input);
+        assert!(result.is_err());
+        tx.rollback().unwrap();
+        let employees = list_employees(&conn).unwrap();
+        assert!(employees.is_empty(), "Mitarbeiter sollte nach Rollback nicht existieren");
+    }
+
+    #[test]
+    fn test_persisted_assignments_load_correctly() {
+        let (conn, _tmp) = init_test_db();
+        let responsibilities = list_responsibilities(&conn).unwrap();
+        let qm_areas = list_qm_areas(&conn).unwrap();
+        let input = CreateEmployeeInput {
+            last_name: "Persist".to_string(),
+            first_name: "Check".to_string(),
+            position: Some("Praxismanagerin".to_string()),
+            is_active: true,
+            hire_date: Some("2020-01-15".to_string()),
+            departure_date: None,
+            responsibility_ids: vec![responsibilities[0].id.clone()],
+            qm_area_ids: vec![qm_areas[0].id.clone()],
+        };
+        let created = create_employee(&conn, &input).unwrap();
+        let employees = list_employees(&conn).unwrap();
+        let loaded = employees.iter().find(|e| e.id == created.id).unwrap();
+        assert_eq!(loaded.responsibilities.len(), 1);
+        assert_eq!(loaded.qm_areas.len(), 1);
+        assert_eq!(loaded.position.as_deref(), Some("Praxismanagerin"));
+    }
+
+    #[test]
+    fn test_seed_master_data() {
+        let (conn, _tmp) = init_test_db();
+        let responsibilities = list_responsibilities(&conn).unwrap();
+        assert!(!responsibilities.is_empty());
+        let qm_areas = list_qm_areas(&conn).unwrap();
+        assert!(!qm_areas.is_empty());
     }
 }
