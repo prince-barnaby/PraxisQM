@@ -68,7 +68,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Suchfeld Dokumente | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Filtert Dokumentenliste (Platzhalter, deaktiviert) | vorbereitet |
 | Filterbereich Dokumente | Dokumente | `src/components/documents/DocumentFilters.tsx` | `DocumentFilters` | Einklappbarer Filterbereich mit fünf dokumentierten Filtern (Platzhalter, nicht funktional); Standard: eingeklappt | vorbereitet |
 | Dokumentenliste | Dokumente | `src/components/documents/DocumentList.tsx` | `DocumentList` | Tabellarische Übersicht mit Mock-Platzhalter-Einträgen; sticky Tabellenkopf, optimierte Spaltengewichtung | vorbereitet |
-| Dokumentenzeile | Dokumente | `src/components/documents/DocumentRow.tsx` | `DocumentRow` | Eine Tabellenzeile mit allen dokumentierten Dokumentfeldern; Hover-State, Keyboard-Focus, Monospace für Nummer/Version | vorbereitet |
+| Dokumentenzeile | Dokumente | `src/components/documents/DocumentRow.tsx` | `DocumentRow` | Eine Tabellenzeile mit allen dokumentierten Dokumentfeldern; Hover-State, Keyboard-Focus, Monospace für Nummer/Version; komplette Zeile navigiert zur Detailansicht (`/dokumente/{nummer}`) | aktiv |
 | Status-Badge | Dokumente | `src/components/documents/StatusBadge.tsx` | `StatusBadge` | Wiederverwendbare Badge für Status und Gültigkeit | aktiv |
 | Empty State | Dokumente | `src/components/documents/EmptyState.tsx` | `EmptyState` | Platzhalter für leeren Zustand der Dokumentenliste | aktiv |
 | Dokumente-Seite | Dokumente | `src/pages/Dokumente.tsx` | `Dokumente` | Statische Dokumentenübersicht mit Toolbar, Filtern und Liste | vorbereitet |
@@ -137,6 +137,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 004 (Dokumentenübersicht UI: DocumentToolbar, DocumentFilters, DocumentList, DocumentRow, StatusBadge, EmptyState) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 004A (Dokumentenübersicht UX-Verfeinerung: einklappbare Filter, sticky Tabellenkopf, Spaltengewichtung, Zeilen-Hover/Focus, Dokumentenzähler) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 005 (Dokumentdetailseite: DokumentDetail, DocumentMetadata, TagList, DocumentActionBar, DocumentHistory, Route `/dokumente/:id`) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 006 (Navigation Dokumentenliste → Detailansicht: DocumentRow onClick/Enter, useParams in DokumentDetail, Zurück-Link) aktualisiert | Saskia / Bolt |
 
 ---
 

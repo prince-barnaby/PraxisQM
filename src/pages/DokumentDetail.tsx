@@ -1,3 +1,4 @@
+import { useParams } from "react-router-dom";
 import { FileText, ChevronLeft } from "lucide-react";
 import StatusBadge from "../components/documents/StatusBadge";
 import DocumentMetadata from "../components/documents/DocumentMetadata";
@@ -9,11 +10,10 @@ import type { HistoryEntry } from "../components/documents/DocumentHistory";
 import "./DokumentDetail.css";
 
 const PLACEHOLDER_TITLE = "Platzhalter-Dokument 1";
-const PLACEHOLDER_NUMBER = "PQM-0001";
 const PLACEHOLDER_PDF = "platzhalter-dokument-1.pdf";
 
 const METADATA_ENTRIES: MetadataEntry[] = [
-  { label: "Dokumentnummer", value: PLACEHOLDER_NUMBER, mono: true },
+  { label: "Dokumentnummer", value: "", mono: true },
   { label: "Titel", value: PLACEHOLDER_TITLE },
   { label: "Kategorie", value: "Platzhalter" },
   { label: "Unterkategorie", value: "Platzhalter" },
@@ -37,26 +37,35 @@ const HISTORY_ENTRIES: HistoryEntry[] = [
 ];
 
 export default function DokumentDetail() {
+  const { id } = useParams();
+  const documentNumber = id ?? "Unbekannt";
+
+  const metadata = METADATA_ENTRIES.map((entry) =>
+    entry.label === "Dokumentnummer"
+      ? { ...entry, value: documentNumber }
+      : entry
+  );
+
   return (
     <div className="pqm-dokument-detail">
       <a
         href="/dokumente"
         className="pqm-dokument-detail__back"
-        aria-label="Zurück zur Dokumentenübersicht"
+        aria-label="Zurück zu Dokumenten"
       >
         <ChevronLeft size={16} aria-hidden="true" />
-        Zurück zur Übersicht
+        Zurück zu Dokumenten
       </a>
 
       <header className="pqm-dokument-detail__header">
         <div className="pqm-dokument-detail__header-main">
           <h2 className="pqm-dokument-detail__title">{PLACEHOLDER_TITLE}</h2>
-          <span className="pqm-dokument-detail__number">{PLACEHOLDER_NUMBER}</span>
+          <span className="pqm-dokument-detail__number">{documentNumber}</span>
         </div>
         <StatusBadge label="aktiv" variant="success" />
       </header>
 
-      <DocumentMetadata entries={METADATA_ENTRIES} />
+      <DocumentMetadata entries={metadata} />
 
       <section
         className="pqm-dokument-detail__card"

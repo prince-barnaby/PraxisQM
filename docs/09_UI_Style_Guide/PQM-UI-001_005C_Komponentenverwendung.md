@@ -58,9 +58,17 @@ Die folgenden Entscheidungen sind verbindlich für die Dokumentenübersicht und 
 
 - Dokumentenzeilen haben einen **dezenten Hover-State** (leichte Hintergrundänderung).
 - Zeilen haben einen **sichtbaren Keyboard-Focus** (Akzent-Umrandung).
-- Es wird **kein Cursor oder keine visuelle Interaktion** verwendet, die eine nicht vorhandene Funktionalität vortäuscht.
-- Es ist **noch keine Navigation oder onClick-Funktion** implementiert.
-- Langfristig werden Dokumentenzeilen vollständig zur Detailansicht navigieren.
+- Die komplette Dokumentenzeile ist das **Navigationsziel** zum Öffnen der Dokumentdetailansicht.
+- Navigation funktioniert über **Mausklick** und **Enter-Taste**.
+- Die Route wird aus der Dokumentennummer gebildet (z. B. PQM-0001 → `/dokumente/PQM-0001`).
+- Es werden **keine separaten „Öffnen"-Buttons** in der Tabelle hinzugefügt.
+- Zeilen haben `role="link"` und einen Pointer-Cursor, da die Navigation jetzt funktional ist.
+- Bestehende Hover- und Focus-Stile bleiben erhalten.
+
+### Navigation zur Detailansicht
+
+- **Die komplette Dokumenttabellenzeile ist das Navigationsziel zum Öffnen der Dokumentdetailansicht.**
+- Diese Regel ist verbindlich und gilt für alle zukünftigen Erweiterungen der Dokumentenliste.
 
 ### Desktop-first
 

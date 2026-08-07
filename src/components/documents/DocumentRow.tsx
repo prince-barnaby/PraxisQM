@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { BadgeVariant } from "./StatusBadge";
 import StatusBadge from "./StatusBadge";
 
@@ -27,8 +28,28 @@ export default function DocumentRow({
   statusIcon,
   validityIcon,
 }: DocumentRowProps) {
+  const navigate = useNavigate();
+
+  const handleActivate = () => {
+    navigate(`/dokumente/${doc.documentNumber}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleActivate();
+    }
+  };
+
   return (
-    <tr className="pqm-document-row" tabIndex={0}>
+    <tr
+      className="pqm-document-row"
+      tabIndex={0}
+      role="link"
+      aria-label={`Dokument ${doc.documentNumber} – ${doc.title} öffnen`}
+      onClick={handleActivate}
+      onKeyDown={handleKeyDown}
+    >
       <td className="pqm-document-row__number">{doc.documentNumber}</td>
       <td className="pqm-document-row__title">{doc.title}</td>
       <td className="pqm-document-row__category">{doc.category}</td>

@@ -2,6 +2,31 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.7] - 07.08.2026
+
+### Geändert
+
+- Dokumentenzeilen in der Dokumentenübersicht sind jetzt klickbar und navigieren zur Detailansicht (`/dokumente/{Dokumentennummer}`)
+- Navigation funktioniert über Mausklick und Enter-Taste
+- Zeilen haben `role="link"`, `aria-label` und Pointer-Cursor für Accessibility
+- Bestehende Hover- und Focus-Stile bleiben unverändert
+- Dokumentdetailseite liest den Route-Parameter (`:id`) und zeigt ihn als Dokumentennummer an
+- Zurück-Link auf der Detailseite von „Zurück zur Übersicht" auf „Zurück zu Dokumenten" geändert
+- Keine separaten „Öffnen"-Buttons hinzugefügt — die komplette Zeile ist das Navigationsziel
+
+### Dokumentation
+
+- UI Style Guide (005C) um verbindliche Navigationsregel ergänzt: „Die komplette Dokumenttabellenzeile ist das Navigationsziel zum Öffnen der Dokumentdetailansicht."
+- Component Library (005D) — DocumentRow-Verhalten aktualisiert (Navigation aktiv)
+- Code Map aktualisiert
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine echten Dokumentdaten
+- Keine Änderungen am Tabellendesign oder den bestehenden Spalten
+- Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Routing bestehender Seiten
+- Keine Such-, Filter-, Bearbeiten- oder Archivierungsfunktionalität
+
 ## [0.9.6] - 07.08.2026
 
 ### Hinzugefügt
