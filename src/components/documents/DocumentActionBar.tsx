@@ -3,9 +3,10 @@ import "./DocumentActionBar.css";
 
 interface DocumentActionBarProps {
   pdfFileName: string;
+  onEdit?: () => void;
 }
 
-export default function DocumentActionBar({ pdfFileName }: DocumentActionBarProps) {
+export default function DocumentActionBar({ pdfFileName, onEdit }: DocumentActionBarProps) {
   return (
     <div
       className="pqm-action-bar"
@@ -15,8 +16,9 @@ export default function DocumentActionBar({ pdfFileName }: DocumentActionBarProp
       <button
         type="button"
         className="pqm-action-bar__button pqm-action-bar__button--primary"
-        disabled
-        aria-label="Bearbeiten – Platzhalter, nicht funktional"
+        onClick={onEdit}
+        disabled={!onEdit}
+        aria-label="Bearbeiten"
       >
         <Pencil size={16} aria-hidden="true" />
         Bearbeiten

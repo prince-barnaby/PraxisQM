@@ -5,6 +5,7 @@ import Dokumente from "./pages/Dokumente";
 import DokumentNeu from "./pages/DokumentNeu";
 import Archiv from "./pages/Archiv";
 import DokumentDetail from "./pages/DokumentDetail";
+import DokumentBearbeiten from "./pages/DokumentBearbeiten";
 import Mitarbeiter from "./pages/Mitarbeiter";
 import Einstellungen from "./pages/Einstellungen";
 
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/dokumente" element={<Dokumente />} />
         <Route path="/dokumente/neu" element={<DokumentNeu />} />
         <Route path="/dokumente/:id" element={<DokumentDetail />} />
+        <Route path="/dokumente/:id/bearbeiten" element={<DokumentBearbeiten />} />
         <Route path="/archiv" element={<Archiv />} />
         <Route path="/mitarbeiter" element={<Mitarbeiter />} />
         <Route path="/einstellungen" element={<Einstellungen />} />

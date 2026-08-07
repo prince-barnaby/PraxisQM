@@ -75,12 +75,13 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dokumentdetail-Seite | Dokumente | `src/pages/DokumentDetail.tsx` | `DokumentDetail` | Statische Dokumentdetailansicht mit Metadaten, Beschreibung, Datei, Tags, Aktionen und Historie | vorbereitet |
 | Metadaten-Komponente | Dokumente | `src/components/documents/DocumentMetadata.tsx` | `DocumentMetadata` | Zweispaltige Metadaten-Tabelle (Platzhalter) | vorbereitet |
 | Tag-Liste | Dokumente | `src/components/documents/TagList.tsx` | `TagList` | Anzeige von Schlagwörtern als Pills (Platzhalter) | vorbereitet |
-| Aktionsleiste | Dokumente | `src/components/documents/DocumentActionBar.tsx` | `DocumentActionBar` | Aktion-Buttons: Bearbeiten, PDF öffnen, Archivieren (Platzhalter, deaktiviert) | vorbereitet |
+| Aktionsleiste | Dokumente | `src/components/documents/DocumentActionBar.tsx` | `DocumentActionBar` | Aktion-Buttons: Bearbeiten (navigiert zur Bearbeitungsroute), PDF öffnen, Archivieren (Platzhalter, deaktiviert) | aktiv |
 | Versionshistorie | Dokumente | `src/components/documents/DocumentHistory.tsx` | `DocumentHistory` | Einfache Timeline der Versionshistorie (Platzhalter) | vorbereitet |
-| Dokumentformular | Dokumente | `src/components/documents/DocumentForm.tsx` | `DocumentForm` | Wiederverwendbares Formular für Erstellen und Bearbeiten; Felder: Dokumentnummer (read-only), Titel, Kategorie, Unterkategorie, Version, Status, Verantwortliche Person, Gültig bis, Beschreibung, Tags | vorbereitet |
+| Dokumentformular | Dokumente | `src/components/documents/DocumentForm.tsx` | `DocumentForm` | Wiederverwendbares Formular für Erstellen (`create`) und Bearbeiten (`edit`); Felder: Dokumentnummer (read-only), Titel, Kategorie, Unterkategorie, Version, Status, Verantwortliche Person, Gültig bis, Beschreibung, Tags | vorbereitet |
 | Formular-Abschnitt | Dokumente | `src/components/documents/DocumentFormSection.tsx` | `DocumentFormSection` | Abschnitts-Wrapper für Formularbereiche (fieldset/legend) | vorbereitet |
 | Formular-Feld | Dokumente | `src/components/documents/FormField.tsx` | `FormField` | Wiederverwendbarer Field-Wrapper mit Label, Hint und Flex-Layout | vorbereitet |
 | Neue-Dokument-Seite | Dokumente | `src/pages/DokumentNeu.tsx` | `DokumentNeu` | Statische Seite zum Anlegen eines neuen Dokuments; verwendet `DocumentForm` im Modus `create` | vorbereitet |
+| Bearbeiten-Seite | Dokumente | `src/pages/DokumentBearbeiten.tsx` | `DokumentBearbeiten` | Statische Seite zum Bearbeiten eines bestehenden Dokuments; verwendet `DocumentForm` im Modus `edit` | vorbereitet |
 | Button „Dokument archivieren“ | Dokumente / Archiv | `src/` | noch offen | Verschiebt Dokument ins Archiv | geplant |
 | Mitarbeiterliste | Mitarbeiter | `src/` | noch offen | Zeigt Mitarbeitende der Praxis | geplant |
 | Button „Mitarbeiter hinzufügen“ | Mitarbeiter | `src/` | noch offen | Öffnet Formular für neuen Mitarbeiter | geplant |
@@ -127,6 +128,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Prompt 005 – Archivgrundlage | Archiv | noch offen | geplant |
 | Prompt 005 – Dokumentdetailseite | Dokumente | `src/pages/DokumentDetail.tsx`, `src/pages/DokumentDetail.css`, `src/components/documents/DocumentMetadata.tsx`, `src/components/documents/DocumentMetadata.css`, `src/components/documents/TagList.tsx`, `src/components/documents/TagList.css`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/components/documents/DocumentHistory.tsx`, `src/components/documents/DocumentHistory.css`, `src/App.tsx` | vorbereitet |
 | Prompt 007 – Neue-Dokument-Formular | Dokumente | `src/pages/DokumentNeu.tsx`, `src/pages/DokumentNeu.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentForm.css`, `src/components/documents/DocumentFormSection.tsx`, `src/components/documents/DocumentFormSection.css`, `src/components/documents/FormField.tsx`, `src/components/documents/FormField.css`, `src/App.tsx`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css` | vorbereitet |
+| Prompt 008 – Dokument-Bearbeitungsformular | Dokumente | `src/pages/DokumentBearbeiten.tsx`, `src/pages/DokumentBearbeiten.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/pages/DokumentDetail.tsx`, `src/App.tsx` | vorbereitet |
 
 ---
 
@@ -144,6 +146,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 005 (Dokumentdetailseite: DokumentDetail, DocumentMetadata, TagList, DocumentActionBar, DocumentHistory, Route `/dokumente/:id`) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 006 (Navigation Dokumentenliste → Detailansicht: DocumentRow onClick/Enter, useParams in DokumentDetail, Zurück-Link) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 007 (Neue-Dokument-Formular: DokumentNeu, DocumentForm, DocumentFormSection, FormField, Route `/dokumente/neu`, Button „Neues Dokument" aktiviert) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 008 (Dokument-Bearbeitungsformular: DokumentBearbeiten, DocumentForm edit-Modus, DocumentActionBar onEdit, Route `/dokumente/:id/bearbeiten`) aktualisiert | Saskia / Bolt |
 
 ---
 

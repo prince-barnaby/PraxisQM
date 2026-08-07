@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { FileText, ChevronLeft } from "lucide-react";
 import StatusBadge from "../components/documents/StatusBadge";
 import DocumentMetadata from "../components/documents/DocumentMetadata";
@@ -38,6 +38,7 @@ const HISTORY_ENTRIES: HistoryEntry[] = [
 
 export default function DokumentDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const documentNumber = id ?? "Unbekannt";
 
   const metadata = METADATA_ENTRIES.map((entry) =>
@@ -101,7 +102,10 @@ export default function DokumentDetail() {
 
       <TagList tags={PLACEHOLDER_TAGS} />
 
-      <DocumentActionBar pdfFileName={PLACEHOLDER_PDF} />
+      <DocumentActionBar
+        pdfFileName={PLACEHOLDER_PDF}
+        onEdit={() => navigate(`/dokumente/${documentNumber}/bearbeiten`)}
+      />
 
       <DocumentHistory entries={HISTORY_ENTRIES} />
 

@@ -2,6 +2,38 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.9] - 07.08.2026
+
+### Hinzugefügt
+
+- Statische Seite zum Bearbeiten eines bestehenden Dokuments unter der Route `/dokumente/:id/bearbeiten`
+- `DocumentForm` wurde um den Edit-Modus erweitert (Props `documentNumber` und `pdfFileName` für edit mode)
+- Bearbeiten-Seite zeigt Platzhalterwerte für ein bestehendes Dokument an (Titel, Kategorie, Version, Status, etc.)
+- Dokumentnummer im Edit-Modus read-only und unveränderlich (aus Route-Parameter)
+- Datei-Bereich zeigt eine Platzhalter-PDF mit „PDF ersetzen"-Button (deaktiviert)
+- Zurück-Link zur Dokumentdetailansicht
+- „Abbrechen" navigiert zur Detailansicht, „Änderungen speichern" ist deaktiviert
+
+### Geändert
+
+- `DocumentActionBar` akzeptiert jetzt eine `onEdit`-Prop, die den „Bearbeiten"-Button aktiviert und zur Bearbeitungsroute navigiert
+- Dokumentdetailseite übergibt `onEdit`-Handler an `DocumentActionBar`
+- Route `/dokumente/:id/bearbeiten` in App.tsx registriert
+
+### Dokumentation
+
+- Component Library (005D) um beide `DocumentForm`-Modi und `DocumentActionBar`-Props ergänzt
+- Architektur-Regel dokumentiert: „Document creation and editing use the same DocumentForm component. Separate duplicate forms are not permitted."
+- Code Map aktualisiert
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine Dateispeicherung, kein echter Datei-Upload oder -Ersatz
+- Keine Speichern-Funktionalität — „Änderungen speichern" ist deaktiviert
+- Keine Validierung, keine Dirty-State-Logik
+- Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Dokumentenübersicht, Detailseite (visuell), Neue-Dokument-Formular oder Routing bestehender Seiten
+- Create-Modus bleibt unverändert
+
 ## [0.9.8] - 07.08.2026
 
 ### Hinzugefügt

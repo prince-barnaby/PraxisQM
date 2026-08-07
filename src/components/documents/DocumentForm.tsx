@@ -7,13 +7,38 @@ export type DocumentFormMode = "create" | "edit";
 
 interface DocumentFormProps {
   mode: DocumentFormMode;
+  documentNumber?: string;
+  pdfFileName?: string;
   onSubmit?: () => void;
   onCancel?: () => void;
 }
 
-export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
+export default function DocumentForm({
+  mode,
+  documentNumber,
+  pdfFileName,
+  onCancel,
+}: DocumentFormProps) {
   const isCreate = mode === "create";
   const submitLabel = isCreate ? "Dokument anlegen" : "Änderungen speichern";
+
+  const numberValue = isCreate
+    ? "wird automatisch vergeben"
+    : documentNumber ?? "Unbekannt";
+
+  const numberHint = isCreate
+    ? "wird automatisch vergeben"
+    : "Dokumentnummer ist unveränderlich";
+
+  const fileText = isCreate
+    ? "Noch keine Datei ausgewählt"
+    : pdfFileName ?? "platzhalter-dokument.pdf";
+
+  const fileHint = isCreate
+    ? "Platzhalter – Datei-Upload folgt später"
+    : "Platzhalter – Datei kann später ersetzt werden";
+
+  const fileButtonLabel = isCreate ? "PDF auswählen" : "PDF ersetzen";
 
   return (
     <form
@@ -25,16 +50,16 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
         <FormField
           label="Dokumentnummer"
           htmlFor="doc-number"
-          hint="wird automatisch vergeben"
+          hint={numberHint}
           className="pqm-form-field--readonly"
         >
           <input
             id="doc-number"
             type="text"
-            value="wird automatisch vergeben"
+            value={numberValue}
             readOnly
             disabled
-            aria-label="Dokumentnummer – wird automatisch vergeben"
+            aria-label={`Dokumentnummer – ${numberHint}`}
           />
         </FormField>
 
@@ -47,6 +72,7 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
             id="doc-title"
             type="text"
             placeholder="Dokumenttitel"
+            defaultValue={isCreate ? undefined : "Platzhalter-Dokument"}
             aria-label="Dokumenttitel"
           />
         </FormField>
@@ -58,7 +84,7 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
         >
           <select id="doc-category" disabled aria-label="Kategorie – Platzhalter">
             <option value="">Bitte wählen …</option>
-            <option disabled>Platzhalter</option>
+            <option selected={!isCreate}>Platzhalter</option>
           </select>
         </FormField>
 
@@ -73,7 +99,7 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
             aria-label="Unterkategorie – Platzhalter"
           >
             <option value="">Bitte wählen …</option>
-            <option disabled>Platzhalter</option>
+            <option selected={!isCreate}>Platzhalter</option>
           </select>
         </FormField>
 
@@ -86,6 +112,7 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
             id="doc-version"
             type="text"
             placeholder="1.0"
+            defaultValue={isCreate ? undefined : "1.0"}
             aria-label="Version"
           />
         </FormField>
@@ -97,7 +124,7 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
         >
           <select id="doc-status" disabled aria-label="Status – Platzhalter">
             <option value="">Bitte wählen …</option>
-            <option disabled>Platzhalter</option>
+            <option selected={!isCreate}>aktiv</option>
           </select>
         </FormField>
 
@@ -112,7 +139,7 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
             aria-label="Verantwortliche Person – Platzhalter"
           >
             <option value="">Bitte wählen …</option>
-            <option disabled>Platzhalter</option>
+            <option selected={!isCreate}>Platzhalter</option>
           </select>
         </FormField>
 
@@ -139,6 +166,11 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
             id="doc-description"
             rows={5}
             placeholder="Beschreibung des Dokuments …"
+            defaultValue={
+              isCreate
+                ? undefined
+                : "Platzhalter-Beschreibung für ein bestehendes Dokument."
+            }
             aria-label="Dokumentbeschreibung"
           />
         </FormField>
@@ -155,6 +187,7 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
             id="doc-tags"
             type="text"
             placeholder="Platzhalter-Tag, Platzhalter-Tag 2 …"
+            defaultValue={isCreate ? undefined : "Platzhalter-Tag 1, Platzhalter-Tag 2"}
             aria-label="Schlagwörter – Platzhalter"
           />
         </FormField>
@@ -165,19 +198,19 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
           <FileText size={32} aria-hidden="true" />
           <div className="pqm-document-form__file-info">
             <p className="pqm-document-form__file-text">
-              Noch keine Datei ausgewählt
+              {fileText}
             </p>
             <p className="pqm-document-form__file-hint">
-              Platzhalter – Datei-Upload folgt später
+              {fileHint}
             </p>
           </div>
           <button
             type="button"
             className="pqm-document-form__file-button"
             disabled
-            aria-label="PDF auswählen – Platzhalter, nicht funktional"
+            aria-label={`${fileButtonLabel} – Platzhalter, nicht funktional`}
           >
-            PDF auswählen
+            {fileButtonLabel}
           </button>
         </div>
       </DocumentFormSection>
@@ -187,7 +220,7 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
           type="button"
           className="pqm-document-form__cancel"
           onClick={onCancel}
-          aria-label="Abbrechen und zur Dokumentenübersicht zurückkehren"
+          aria-label="Abbrechen"
         >
           <X size={16} aria-hidden="true" />
           Abbrechen
@@ -204,3 +237,6 @@ export default function DocumentForm({ mode, onCancel }: DocumentFormProps) {
     </form>
   );
 }
+
+
+export default DocumentForm
