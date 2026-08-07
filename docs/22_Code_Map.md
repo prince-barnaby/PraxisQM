@@ -181,6 +181,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 013E (rusqlite::Error::InvalidQuery ist ein Unit-Variant ohne Daten — Aufruf mit String-Argument verursacht E0618; korrigiert zu Error::SqliteFailure(ffi::Error::new(SQLITE_CONSTRAINT), Some(msg))) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 014 (Mitarbeiter-Persistenz End-to-End implementiert: Rust-Backend mit list_employees/create_employee/list_responsibilities/list_qm_areas Commands, SQLite-Transaktion, Frontend mit EmployeeForm/Multi-Select/MitarbeiterNeu-Seite, Tauri invoke API-Wrapper, Placeholder-Daten durch echte DB-Daten ersetzt) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 014A (Rust-Kompilierungsfehler behoben: get_conn Lifetime durch direktes Locking ersetzt, Manager-Trait importiert, Transaction-Mutability korrigiert; automatische Stammdaten-Seeding entfernt — keine erfundenen Werte werden mehr in die AppData-Datenbank eingefügt; Test-Fixtures verwenden explizite temporäre Testdaten) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 014C (Falsche Tauri-Verfügbarkeitserkennung behoben: window.__TAURI__ durch window.__TAURI_IPC__ ersetzt, @tauri-apps/api v1.6 invoke importiert, Mitarbeiter-API verwendet korrekte Tauri v1 Frontend-API) aktualisiert | Saskia / Bolt |
 
 ---
 

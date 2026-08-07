@@ -2,6 +2,43 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.25] - 07.08.2026
+
+### Falsche Tauri-Verfügbarkeitserkennung im Mitarbeiter-API behoben (Prompt 014C)
+
+#### Ursache
+
+`src/lib/employeeApi.ts` verwendete eine eigene Erkennungslogik, die
+`window.__TAURI__?.invoke` prüfte, um festzustellen, ob die Anwendung in der
+Tauri-Desktop-Umgebung läuft. In Tauri v1 wird die `window.__TAURI__`
+Globalvariable jedoch nur befüllt, wenn in `tauri.conf.json` die Option
+`withGlobalTauri: true` gesetzt ist — was in diesem Repository nicht der
+Fall ist. Folglich schlug die Erkennung immer fehl, selbst innerhalb der
+echten Tauri-Desktop-Anwendung, und der Mitarbeiter-API-Wrapper warf
+fälschlich "Tauri nicht verfügbar – bitte als Desktop-App starten."
+
+#### Korrektur
+
+- `@tauri-apps/api` v1.6 Paket installiert (Tauri v1 Frontend-API)
+- `invoke` wird nun aus `@tauri-apps/api/tauri` importiert (Tauri v1 Standard)
+- Erkennungslogik geändert: prüft `window.__TAURI_IPC__` (in Tauri v1 immer
+  vorhanden, unabhängig von `withGlobalTauri`)
+- Browser-Modus (reiner Vite-Server ohne Tauri) zeigt weiterhin klare Meldung
+  "Desktop-App erforderlich"
+- Keine Mock-Daten, kein Browser-Fallback, keine Fehlerunterdrückung
+
+#### Geänderte Dateien
+
+- `package.json` — `@tauri-apps/api` v1.6 hinzugefügt
+- `src/lib/employeeApi.ts` — komplett neu geschrieben mit korrekter
+  Tauri v1 invoke-API und `__TAURI_IPC__`-Erkennung
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Runtime-Verifikation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `npm run tauri dev` verifiziert werden
+
 ## [0.9.24] - 07.08.2026
 
 ### Rust-Kompilierungsfehler behoben und automatische Stammdaten-Seeding entfernt (Prompt 014A)
