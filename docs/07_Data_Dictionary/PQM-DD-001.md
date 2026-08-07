@@ -1,7 +1,9 @@
 # Data Dictionary
 
-> **Status nach Prompt 012B:** Alle blockierenden Spezifikationslücken
-> aufgelöst. Die Datenbankspezifikation ist vollständig und konsistent.
+> **Status nach Prompt 012C:** Alle blockierenden Spezifikationslücken
+> aufgelöst. Verantwortungspositionen und QM-Bereiche sind als
+> normalisierte Masterdaten (DB-015, DB-016) mit UUID-Referenzen in
+> den Join-Tabellen (DB-013, DB-014) dokumentiert.
 > Siehe PQM-SDD-004B für die vollständigen Felddefinitionen,
 > Beziehungsspezifikation, Enum-Audit und Implementierungs-Readiness.
 
@@ -71,7 +73,7 @@ Mitarbeiterregister der Praxis. Getrennt von Benutzerverwaltung (ADR-004).
 | Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
 | Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
 
-Verantwortungsposition und QM-Bereich werden über DB-013 und DB-014 verwaltet (n:m).
+Verantwortungsposition und QM-Bereich werden über DB-013/DB-015 und DB-014/DB-016 verwaltet (normalisierte n:m-Beziehungen mit UUID-Referenzen).
 
 ### Entfernte Felder
 
@@ -85,8 +87,8 @@ Verantwortungsposition und QM-Bereich werden über DB-013 und DB-014 verwaltet (
 | Begriff | Bedeutung | Tabelle |
 |---|---|---|
 | Position | Berufliche Rolle in der Praxis | DB-003 |
-| Verantwortungsposition | QM-Verantwortung | DB-013 (Multi-Value) |
-| QM-Bereich | Qualitätsmanagementbereich | DB-014 (Multi-Value) |
+| Verantwortungsposition | QM-Verantwortung (Masterdaten) | DB-015 |
+| QM-Bereich | Qualitätsmanagementbereich (Masterdaten) | DB-016 |
 | Benutzerrolle | Software-Rolle (Gast, Editor, Admin) | DB-004 |
 | Benutzerberechtigung | Einzelberechtigung | DB-004 |
 | Dokumentkategorie | Dokument-Klassifizierung | DB-005 |
@@ -217,25 +219,56 @@ Verwaltung der Backup-Erinnerungen. **Klasse B — Implementierung verschoben.**
 
 ## DB-013 EmployeeResponsibilities
 
-Join-Tabelle: Employee ↔ Verantwortungsposition (n:m).
+Join-Tabelle: Mitarbeiter ↔ Verantwortungsposition (n:m). Referenziert UUIDs der Masterdaten-Tabelle DB-015.
 
 | Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
 |---|---|---|---|---|---|---|---|
 | Mitarbeiter | employee_id | UUID | Ja | Composite | DB-003 | — | Mitarbeiter |
-| Verantwortungsposition | responsibility | String | Ja | Composite | — | — | QM-Verantwortung |
+| Verantwortungsposition | responsibility_id | UUID | Ja | Composite | DB-015 | — | Verantwortungsposition (UUID-Referenz) |
 
-Composite PK: (`employee_id`, `responsibility`). Keine Zeitstempel.
+Composite PK: (`employee_id`, `responsibility_id`). Keine Zeitstempel (reine Join-Tabelle).
 
 ## DB-014 EmployeeQMAreas
 
-Join-Tabelle: Employee ↔ QM-Bereich (n:m).
+Join-Tabelle: Mitarbeiter ↔ QM-Bereich (n:m). Referenziert UUIDs der Masterdaten-Tabelle DB-016.
 
 | Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
 |---|---|---|---|---|---|---|---|
 | Mitarbeiter | employee_id | UUID | Ja | Composite | DB-003 | — | Mitarbeiter |
-| QM-Bereich | qm_area | String | Ja | Composite | — | — | QM-Bereich |
+| QM-Bereich | qm_area_id | UUID | Ja | Composite | DB-016 | — | QM-Bereich (UUID-Referenz) |
 
-Composite PK: (`employee_id`, `qm_area`). Keine Zeitstempel.
+Composite PK: (`employee_id`, `qm_area_id`). Keine Zeitstempel.
+
+## DB-015 Verantwortungspositionen
+
+Kanonische Masterdaten für Verantwortungspositionen. Zentral verwaltbare,
+wiederverwendbare organisatorische Stammdaten.
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Bezeichnung | name | String | Ja | — | — | Ja | Bezeichnung der Verantwortungsposition |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
+
+Löschverhalten: deferred — nicht dokumentiert.
+
+## DB-016 QMBereiche
+
+Kanonische Masterdaten für QM-Bereiche. Zentral verwaltbare,
+wiederverwendbare organisatorische Stammdaten.
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Bezeichnung | name | String | Ja | — | — | Ja | Bezeichnung des QM-Bereichs |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
+
+Löschverhalten: deferred — nicht dokumentiert. QM-Bereiche bleiben
+konzeptionell getrennt von Dokumentkategorien (DB-005), Unterkategorien
+(DB-006), Verantwortungspositionen (DB-015), Mitarbeiterpositionen (DB-003
+`position`), Benutzerrollen (DB-004 `role`) und Benutzerberechtigungen.
 
 ## Beziehungsspezifikation
 

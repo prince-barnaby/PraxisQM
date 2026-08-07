@@ -1,9 +1,10 @@
 # Kapitel 4B – Felddefinitionen
 
-> **Status nach Prompt 012B:** Alle blockierenden Spezifikationslücken
-> aufgelöst. Die Datenbankspezifikation ist vollständig und konsistent.
-> Siehe Abschnitt „Implementierungs-Readiness" am Ende für die
-> Klassifizierung der Tabellen.
+> **Status nach Prompt 012C:** Alle blockierenden Spezifikationslücken
+> aufgelöst. Verantwortungspositionen und QM-Bereiche sind als
+> normalisierte Masterdaten mit UUID-Referenzen in den Join-Tabellen
+> dokumentiert. Siehe Abschnitt „Implementierungs-Readiness" am Ende
+> für die Klassifizierung der Tabellen.
 
 ---
 
@@ -327,23 +328,15 @@ Join-Tabelle: Employee ↔ Verantwortungsposition (n:m).
 | Feldname | Technischer Name | Typ | Required | PK | FK | Unique | Default | Bedeutung | Lifecycle |
 |---|---|---|---|---|---|---|---|---|---|
 | Mitarbeiter | employee_id | UUID | Ja | Composite PK | DB-003 Employees | Nein | — | Fremdschlüssel zum Mitarbeiter | Unveränderlich nach Erstellung |
-| Verantwortungsposition | responsibility | String | Ja | Composite PK | — | Nein | — | Verantwortungsposition (z. B. QM-Beauftragte, Datenschutzbeauftragte) | Unveränderlich nach Erstellung |
+| Verantwortungsposition | responsibility_id | UUID | Ja | Composite PK | DB-015 Verantwortungspositionen | Nein | — | Fremdschlüssel zur Verantwortungsposition-Masterdaten-Tabelle | Unveränderlich nach Erstellung |
 
-- Primärschlüssel: Composite Key aus (`employee_id`, `responsibility`)
+- Primärschlüssel: Composite Key aus (`employee_id`, `responsibility_id`)
 - Ein Mitarbeiter kann null, eine oder mehrere Verantwortungspositionen haben.
 - Verantwortungspositionen sind **keine** Software-Rollen, **keine**
   Berechtigungen und **keine** Dokumentkategorien.
 - Keine `created_at` / `updated_at` (reine Join-Tabelle)
-- Verantwortungsposition wird als String-Wert gespeichert, da keine
-  separate Lookup-Tabelle für Verantwortungspositionen dokumentiert ist.
-
-### Warum keine separate Lookup-Tabelle?
-
-Eine separate Lookup-Tabelle für Verantwortungspositionen wäre nur
-erforderlich, wenn Verantwortungspositionen eigene Metadaten (z. B.
-Beschreibung, Status) oder eigene Lebenszyklen hätten. Die bestehende
-Dokumentation definiert keine solchen Metadaten. Daher wird
-Verantwortungsposition als String-Wert in der Join-Tabelle gespeichert.
+- Die Join-Tabelle referenziert UUIDs der Masterdaten-Tabelle DB-015,
+  keine String-Werte.
 
 ---
 
@@ -354,22 +347,15 @@ Join-Tabelle: Employee ↔ QM-Bereich (n:m).
 | Feldname | Technischer Name | Typ | Required | PK | FK | Unique | Default | Bedeutung | Lifecycle |
 |---|---|---|---|---|---|---|---|---|---|
 | Mitarbeiter | employee_id | UUID | Ja | Composite PK | DB-003 Employees | Nein | — | Fremdschlüssel zum Mitarbeiter | Unveränderlich nach Erstellung |
-| QM-Bereich | qm_area | String | Ja | Composite PK | — | Nein | — | QM-Bereich (z. B. Datenschutz, Hygiene, Röntgeneinweisung) | Unveränderlich nach Erstellung |
+| QM-Bereich | qm_area_id | UUID | Ja | Composite PK | DB-016 QMBereiche | Nein | — | Fremdschlüssel zur QM-Bereich-Masterdaten-Tabelle | Unveränderlich nach Erstellung |
 
-- Primärschlüssel: Composite Key aus (`employee_id`, `qm_area`)
+- Primärschlüssel: Composite Key aus (`employee_id`, `qm_area_id`)
 - Ein Mitarbeiter kann null, einem oder mehreren QM-Bereichen zugeordnet sein.
 - QM-Bereiche sind **keine** Dokumentkategorien, **keine** Software-Rollen
   und **keine** Berechtigungen.
 - Keine `created_at` / `updated_at` (reine Join-Tabelle)
-- QM-Bereich wird als String-Wert gespeichert, da keine separate
-  Lookup-Tabelle für QM-Bereiche dokumentiert ist.
-
-### Warum keine separate Lookup-Tabelle?
-
-Eine separate Lookup-Tabelle für QM-Bereiche wäre nur erforderlich, wenn
-QM-Bereiche eigene Metadaten oder eigene Lebenszyklen hätten. Die
-bestehende Dokumentation definiert keine solchen Metadaten. Daher wird
-QM-Bereich als String-Wert in der Join-Tabelle gespeichert.
+- Die Join-Tabelle referenziert UUIDs der Masterdaten-Tabelle DB-016,
+  keine String-Werte.
 
 ### Abgrenzung zu Dokumentkategorien
 
@@ -378,6 +364,65 @@ Dokumentkategorien strukturieren Dokumente. QM-Bereiche strukturieren
 Mitarbeiter-Verantwortungsbereiche. Eine zukünftige Anforderung könnte
 eine Abbildung zwischen QM-Bereichen und Dokumentkategorien definieren;
 diese existiert aktuell nicht.
+
+---
+
+## DB-015 Verantwortungspositionen
+
+Kanonische Masterdaten-Tabelle für Verantwortungspositionen.
+
+Verantwortungspositionen sind zentral verwaltbare, wiederverwendbare
+organisatorische Stammdaten. Sie unterstützen die zukünftige zentrale
+Verwaltung (Erstellen, Umbenennen, mehreren Mitarbeitenden zuweisen).
+
+| Feldname | Technischer Name | Typ | Required | PK | FK | Unique | Default | Bedeutung | Lifecycle |
+|---|---|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Generiert | Interner Primärschlüssel | Unveränderlich |
+| Bezeichnung | name | String | Ja | Nein | — | Ja | — | Bezeichnung der Verantwortungsposition | Editierbar |
+| Erstellt am | created_at | DateTime | Ja | Nein | — | Nein | Automatisch | Technischer Erstellungszeitpunkt | Automatisch |
+| Geändert am | updated_at | DateTime | Ja | Nein | — | Nein | Automatisch | Technischer Änderungszeitpunkt | Automatisch bei Änderung |
+
+- Beispiele wie „Datenschutzbeauftragte" oder „Hygienebeauftragte" sind
+  rein illustrativ und keine festen Werte.
+- Keine zusätzlichen Metadaten-Felder, da nicht dokumentiert.
+- Löschverhalten: **deferred** — nicht dokumentiert. Kein kaskadierendes
+  Löschen erfunden.
+
+---
+
+## DB-016 QMBereiche
+
+Kanonische Masterdaten-Tabelle für QM-Bereiche.
+
+QM-Bereiche sind zentral verwaltbare, wiederverwendbare organisatorische
+Stammdaten. Sie unterstützen die zukünftige zentrale Verwaltung (Erstellen,
+Umbenennen, mehreren Mitarbeitenden zuweisen).
+
+| Feldname | Technischer Name | Typ | Required | PK | FK | Unique | Default | Bedeutung | Lifecycle |
+|---|---|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Generiert | Interner Primärschlüssel | Unveränderlich |
+| Bezeichnung | name | String | Ja | Nein | — | Ja | — | Bezeichnung des QM-Bereichs | Editierbar |
+| Erstellt am | created_at | DateTime | Ja | Nein | — | Nein | Automatisch | Technischer Erstellungszeitpunkt | Automatisch |
+| Geändert am | updated_at | DateTime | Ja | Nein | — | Nein | Automatisch | Technischer Änderungszeitpunkt | Automatisch bei Änderung |
+
+- Beispiele wie „Datenschutz" oder „Hygiene" sind rein illustrativ und
+  keine festen Werte.
+- Keine zusätzlichen Metadaten-Felder, da nicht dokumentiert.
+- Löschverhalten: **deferred** — nicht dokumentiert. Kein kaskadierendes
+  Löschen erfunden.
+
+### Abgrenzung zu anderen Konzepten
+
+Ein QM-Bereich ist konzeptionell getrennt von:
+- Dokumentkategorien (DB-005 Categories)
+- Unterkategorien (DB-006 Subcategories)
+- Verantwortungspositionen (DB-015)
+- Mitarbeiterpositionen (DB-003 `position`)
+- Benutzerrollen (DB-004 `role`)
+- Benutzerberechtigungen
+
+Es wird **keine** Abbildung zwischen QM-Bereichen und Dokumentkategorien
+definiert, es sei denn eine zukünftige Anforderung fordert dies explizit.
 
 ---
 
@@ -390,8 +435,8 @@ diese existiert aktuell nicht.
 | DB-005 ↔ DB-006 | 1:n | FK in DB-006 → DB-005 | Nicht dokumentiert. Kein kaskadierendes Löschen. |
 | DB-001 ↔ DB-007 (via DB-008) | n:m | Join-Tabelle DB-008 | Nicht dokumentiert. |
 | DB-003 ↔ DB-004 | optional 1:1 | FK in DB-004 → DB-003 | ADR-004: Konzepte sind getrennt. Beziehung ist optional. Kein kaskadierendes Löschen. |
-| DB-003 ↔ Verantwortungsposition (via DB-013) | n:m | Join-Tabelle DB-013 | Kein kaskadierendes Löschen. |
-| DB-003 ↔ QM-Bereich (via DB-014) | n:m | Join-Tabelle DB-014 | Kein kaskadierendes Löschen. |
+| DB-003 ↔ DB-015 (via DB-013) | n:m | Join-Tabelle DB-013 (FK → DB-003, FK → DB-015) | Kein kaskadierendes Löschen dokumentiert. |
+| DB-003 ↔ DB-016 (via DB-014) | n:m | Join-Tabelle DB-014 (FK → DB-003, FK → DB-016) | Kein kaskadierendes Löschen dokumentiert. |
 | DB-009 ↔ DB-004 | n:1 | FK in DB-009 → DB-004 | AuditLog-Einträge sind unveränderlich. |
 | DB-009 ↔ DB-001 | n:1 | FK in DB-009 → DB-001 | AuditLog-Einträge sind unveränderlich. |
 | DB-010 ↔ DB-012 | 1:n | FK in DB-012 → DB-010 | Nicht dokumentiert. |
@@ -461,10 +506,12 @@ diese existiert aktuell nicht.
 | DB-012 BackupReminders | **B** | Backup-Erinnerungen sind spätere Implementierung. Status-Enum deferred. |
 | DB-013 EmployeeResponsibilities | **A** | Join-Tabelle für Mitarbeiter-Verantwortungspositionen. Erforderlich für n:m-Beziehung. |
 | DB-014 EmployeeQMAreas | **A** | Join-Tabelle für Mitarbeiter-QM-Bereiche. Erforderlich für n:m-Beziehung. |
+| DB-015 Verantwortungspositionen | **A** | Kanonische Masterdaten für Verantwortungspositionen. Erforderlich für normalisierte n:m-Beziehung. |
+| DB-016 QMBereiche | **A** | Kanonische Masterdaten für QM-Bereiche. Erforderlich für normalisierte n:m-Beziehung. |
 
 ### Klassifizierung
 
-- **A — Erforderlich für initiale SQLite-Foundation:** DB-001, DB-002, DB-003, DB-004, DB-005, DB-006, DB-007, DB-008, DB-009, DB-013, DB-014
+- **A — Erforderlich für initiale SQLite-Foundation:** DB-001, DB-002, DB-003, DB-004, DB-005, DB-006, DB-007, DB-008, DB-009, DB-013, DB-014, DB-015, DB-016
 - **B — Dokumentiert, Implementierung kann verschoben werden:** DB-010, DB-012
 - **C — Reserviert / zukünftige Spezifikation:** DB-011
 
@@ -474,7 +521,10 @@ diese existiert aktuell nicht.
 
 - [x] UUID-Strategie ist konsistent für alle Haupttabellen
 - [x] Dokumentennummern bleiben unabhängig von Datenbank-IDs
-- [x] Employee-Multi-Value-Beziehungen sind normalisiert (DB-013, DB-014)
+- [x] Employee-Multi-Value-Beziehungen sind normalisiert (DB-013 → DB-015, DB-014 → DB-016)
+- [x] Verantwortungspositionen und QM-Bereiche sind kanonische Masterdaten mit UUID-PK
+- [x] Join-Tabellen referenzieren UUIDs, keine String-Werte
+- [x] Namen existieren nur in ihren kanonischen Masterdaten-Entitäten
 - [x] User und Employee bleiben getrennt (ADR-004)
 - [x] Gast / Editor / Admin sind nur Software-Rollen
 - [x] Archivierungsdatum bleibt dokumentiert
@@ -495,3 +545,5 @@ diese existiert aktuell nicht.
 | Backup-Status-Enum | DB-010 Backups | Deferred | **Nein** — DB-010 ist Klasse B. |
 | Erinnerungsstatus-Enum | DB-012 BackupReminders | Deferred | **Nein** — DB-012 ist Klasse B. |
 | DB-011 Settings-Inhalt | DB-011 Settings | Reserviert | **Nein** — DB-011 ist Klasse C. |
+| Löschverhalten DB-015 Verantwortungspositionen | DB-015 | Deferred | **Nein** — Löschverhalten kann später definiert werden. |
+| Löschverhalten DB-016 QMBereiche | DB-016 | Deferred | **Nein** — Löschverhalten kann später definiert werden. |

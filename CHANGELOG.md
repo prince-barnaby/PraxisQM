@@ -2,6 +2,57 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.16] - 07.08.2026
+
+### Mitarbeiter-Verantwortungspositionen und QM-Bereiche normalisiert (Prompt 012C)
+
+Normalisierung der Employee-Multi-Value-Beziehungen von String-basierten
+Join-Tabellen zu kanonischen Masterdaten-Tabellen mit UUID-Referenzen.
+Dokumentation und Datenmodell-Spezifikation nur — keine Code-Änderungen.
+
+#### Neue Tabellen
+
+- **DB-015 Verantwortungspositionen** — Kanonische Masterdaten-Tabelle mit UUID-PK, eindeutiger Bezeichnung, created_at, updated_at. Zentral verwaltbare, wiederverwendbare organisatorische Stammdaten.
+- **DB-016 QMBereiche** — Kanonische Masterdaten-Tabelle mit UUID-PK, eindeutiger Bezeichnung, created_at, updated_at. Zentral verwaltbare, wiederverwendbare organisatorische Stammdaten.
+
+#### Refaktorierte Join-Tabellen
+
+- **DB-013 EmployeeResponsibilities** — `responsibility` (String) → `responsibility_id` (UUID FK → DB-015). Composite PK (`employee_id`, `responsibility_id`).
+- **DB-014 EmployeeQMAreas** — `qm_area` (String) → `qm_area_id` (UUID FK → DB-016). Composite PK (`employee_id`, `qm_area_id`).
+
+#### Entfernt
+
+- String-basierte Speicherung von Verantwortungsposition und QM-Bereich in Join-Tabellen (durch UUID-Referenzen ersetzt)
+- Begründungsabschnitte „Warum keine separate Lookup-Tabelle?" (durch Masterdaten-Tabellen obsolet)
+
+#### Dokumentiert
+
+- Zentrale Verwaltung: zukünftige UI darf autorisierten Benutzern Erstellen, Umbenennen und Zuweisung mehrerer Einträge ermöglichen
+- Löschverhalten für DB-015 und DB-016: deferred — nicht dokumentiert, kein kaskadierendes Löschen erfunden
+- QM-Bereiche bleiben konzeptionell getrennt von Dokumentkategorien, Unterkategorien, Verantwortungspositionen, Mitarbeiterpositionen, Benutzerrollen und Benutzerberechtigungen
+
+#### Konsistenz-Audit bestanden
+
+- Verantwortungspositionen und QM-Bereiche sind normalisierte Masterdaten
+- Join-Tabellen referenzieren UUIDs, keine String-Werte
+- Namen existieren nur in ihren kanonischen Masterdaten-Entitäten
+- Position bleibt getrennt von Verantwortungsposition
+- QM-Bereich bleibt getrennt von Dokumentkategorie
+- Keine komma-separierten Werte
+- Kein Frontend geändert, kein SQLite implementiert
+
+### Dokumentation
+
+- PQM-SDD-004B (Felddefinitionen): DB-015, DB-016 hinzugefügt; DB-013, DB-014 refaktoriert; Beziehungsspezifikation, Readiness, Konsistenz-Audit aktualisiert
+- PQM-DD-001 (Data Dictionary): DB-015, DB-016 hinzugefügt; DB-013, DB-014 refaktoriert; Begriffstabelle aktualisiert
+- PQM-SDD-004A (Tabellenübersicht): Masterdaten-Tabellen und Readiness-Klassifizierung aktualisiert
+- Code Map aktualisiert
+
+### Ergebnis
+
+**Initial SQLite foundation remains ready.** Alle Employee-Multi-Value-Beziehungen
+sind normalisiert. Keine blockierenden Lücken für die initiale SQLite-Foundation.
+
 ## [0.9.15] - 07.08.2026
 
 ### Datenbankspezifikation abgeschlossen (Prompt 012B)

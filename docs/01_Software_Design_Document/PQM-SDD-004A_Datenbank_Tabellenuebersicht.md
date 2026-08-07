@@ -17,10 +17,15 @@
 - DB-011 Settings: Programmeinstellungen (reserviert / noch nicht implementiert).
 - DB-012 BackupReminders: Verwaltung der Backup-Erinnerungen.
 
-### Join-Tabellen (Prompt 012B)
+### Join-Tabellen (Prompt 012B/012C)
 
-- DB-013 EmployeeResponsibilities: Verknüpfung Mitarbeiter ↔ Verantwortungsposition (n:m).
-- DB-014 EmployeeQMAreas: Verknüpfung Mitarbeiter ↔ QM-Bereich (n:m).
+- DB-013 EmployeeResponsibilities: Verknüpfung Mitarbeiter ↔ Verantwortungsposition (n:m). Referenziert DB-015 via UUID.
+- DB-014 EmployeeQMAreas: Verknüpfung Mitarbeiter ↔ QM-Bereich (n:m). Referenziert DB-016 via UUID.
+
+### Masterdaten-Tabellen (Prompt 012C)
+
+- DB-015 Verantwortungspositionen: Kanonische, zentral verwaltbare Stammdaten für Verantwortungspositionen.
+- DB-016 QMBereiche: Kanonische, zentral verwaltbare Stammdaten für QM-Bereiche.
 
 ### Primärschlüssel-Strategie
 
@@ -30,6 +35,6 @@
 
 ### Implementierungs-Readiness
 
-- **A (erforderlich für initiale SQLite-Foundation):** DB-001 bis DB-009, DB-013, DB-014
+- **A (erforderlich für initiale SQLite-Foundation):** DB-001 bis DB-009, DB-013, DB-014, DB-015, DB-016
 - **B (dokumentiert, Implementierung verschoben):** DB-010, DB-012
 - **C (reserviert / zukünftig):** DB-011
