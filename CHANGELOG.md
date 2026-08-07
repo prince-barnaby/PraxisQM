@@ -10,13 +10,31 @@ Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 - Werkzeugleiste mit Seitentitel „Mitarbeiter", Kurzbeschreibung und Mitarbeiterzähler („3 Mitarbeiter")
 - Button „Neuer Mitarbeiter" (deaktiviert, da keine dokumentierte Route für das Erstellungsformular existiert)
 - Einklappbarer Filterbereich (Standard: eingeklappt) mit drei dokumentierten Filterkriterien: Funktion, Bereich, Aktivstatus (alle Platzhalter, nicht funktional)
-- Tabellarische Desktop-Darstellung aller Mitarbeitenden mit dokumentierten Feldern: Name, Vorname, Funktion, Bereich, Status, E-Mail, Telefon, Eintrittsdatum, Austrittsdatum
-- Drei klar gekennzeichnete Mock-Platzhalter-Einträge zur Veranschaulichung von Layout und Komponenten
+- Tabellarische Desktop-Darstellung aller Mitarbeitenden mit dokumentierten Feldern: Name, Vorname, Funktion, Bereich, Verantwortungsposition, QM-Bereich, Status, E-Mail, Telefon, Eintrittsdatum, Austrittsdatum
+- Multi-Value-Felder **Verantwortungsposition** und **Zugeordneter QM-Bereich** als kompakte Badges/Chips dargestellt:
+  - Verantwortungsposition: Primary Blue mit hellem Hintergrund
+  - QM-Bereich: Accent Teal mit hellem Hintergrund
+  - Bei null Werten wird ein neutraler Platzhalter („—") angezeigt
+  - Ein Mitarbeiter mit mehreren Verantwortungspositionen und QM-Bereichen als Platzhalter-Beispiel
+  - Ein Mitarbeiter mit einer einzelnen Verantwortungsposition und einem QM-Bereich als Platzhalter-Beispiel
+  - Ein inaktiver Mitarbeiter ohne Verantwortungspositionen oder QM-Bereiche als Platzhalter-Beispiel
+- Drei klar gekennzeichnete Mock-Platzhalter-Einträge zur Veranschaulichung von Layout, Multi-Value-Feldern und Komponenten
 - Wiederverwendbare Komponenten: `EmployeeToolbar`, `EmployeeFilters`, `EmployeeList`, `EmployeeRow`
 - Bestehende `StatusBadge`-Komponente wiederverwendet (Variante `success` für „aktiv", `neutral` für „inaktiv")
 - Bestehende `EmptyState`-Komponente wiederverwendet („Keine Mitarbeiter vorhanden")
 - Mitarbeiterzeilen mit Hover-State, Keyboard-Focus und visueller Anzeige für spätere Detailnavigation
 - Accessibility: `aria-expanded` für einklappbare Filter, `aria-label`, `scope`, Tabellen-Semantik
+
+### Datenmodell-Dokumentation
+
+- DB-003 Employees-Felddefinitionen im Data Dictionary (PQM-DD-001) dokumentiert
+- DB-003 Employees-Felddefinitionen in den Felddefinitionen (PQM-SDD-004B) dokumentiert
+- Multi-Value-Felder **Verantwortungsposition** und **Zugeordneter QM-Bereich** als Many-to-Many-Beziehungen dokumentiert:
+  - employee ↔ Verantwortungsposition
+  - employee ↔ QM-Bereich
+  - Beide Felder dürfen nicht als einzelner String oder Single-Select modelliert werden
+  - Datenbank-Verknüpfungstabellen werden noch nicht implementiert
+  - Platzhalterwerte sind Beispiele und keine festen Geschäftsregeln
 
 ### Dokumentation
 
@@ -24,7 +42,8 @@ Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
   - „Das Mitarbeiterregister und die Benutzerverwaltung sind getrennte Bereiche."
   - „Die Mitarbeiterübersicht verwendet eine klassische tabellarische Desktop-Darstellung."
   - „Benutzerkonto-, Rollen- und Berechtigungsdaten dürfen nicht im Mitarbeiterregister vermischt werden."
-- Component Library (005D) um Mitarbeiter-Komponenten ergänzt
+- UI Style Guide (005C) um Abschnitt „Multi-Value-Felder" ergänzt
+- Component Library (005D) um Mitarbeiter-Komponenten ergänzt, inkl. Multi-Value-Chip-Darstellung
 - Code Map aktualisiert
 
 ### Nicht enthalten (bewusst)
@@ -34,6 +53,7 @@ Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 - Keine Mitarbeiterdetail-Navigation (keine dokumentierte Route vorhanden)
 - Kein Mitarbeiter-Erstellungsformular (nicht dokumentiert)
 - Keine Benutzerkonto-, Rollen- oder Berechtigungsdaten im Mitarbeiterregister
+- Keine Datenbank-Verknüpfungstabellen für Many-to-Many-Beziehungen
 - Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Dokumentenmodul, Archivmodul oder Routing bestehender Seiten
 
 ## [0.9.10] - 07.08.2026

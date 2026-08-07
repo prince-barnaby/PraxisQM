@@ -191,8 +191,21 @@ Die folgenden Entscheidungen sind verbindlich für die Mitarbeiterübersicht und
 
 ### Spalten
 
-- Die Mitarbeitertabelle zeigt folgende Felder: Name, Vorname, Funktion, Bereich, Status, E-Mail, Telefon, Eintrittsdatum, Austrittsdatum.
+- Die Mitarbeitertabelle zeigt folgende Felder: Name, Vorname, Funktion, Bereich, Verantwortungsposition, QM-Bereich, Status, E-Mail, Telefon, Eintrittsdatum, Austrittsdatum.
 - Keine undocumented Felder hinzufügen.
+
+### Multi-Value-Felder
+
+- Die Felder **Verantwortungsposition** und **Zugeordneter QM-Bereich** sind Multi-Value-Felder.
+- Ein Mitarbeiter kann null, eine oder mehrere Verantwortungspositionen haben.
+- Ein Mitarbeiter kann null, einem oder mehreren QM-Bereichen zugeordnet sein.
+- Beide Felder dürfen nicht als einzelner String oder als Single-Select-Wert dargestellt werden.
+- In der Tabelle werden mehrere Werte als **kompakte Badges/Chips** dargestellt:
+  - Verantwortungsposition: Primärfarbe (Primary Blue) mit hellem Hintergrund
+  - QM-Bereich: Akzentfarbe (Accent Teal) mit hellem Hintergrund
+- Bei null Werten wird ein neutraler Platzhalter („—") angezeigt.
+- Die Tabelle bleibt lesbar und desktop-orientiert, auch wenn mehrere Werte vorhanden sind.
+- Platzhalterwerte sind Beispiele und keine festen Geschäftsregeln.
 
 ### Filterbereich
 
