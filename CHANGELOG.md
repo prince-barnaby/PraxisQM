@@ -2,6 +2,63 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.26] - 07.08.2026
+
+### Stammdatenverwaltung für Verantwortungspositionen und QM-Bereiche (Prompt 015)
+
+Implementierung der CRUD-Stammdatenverwaltung für DB-015
+(Verantwortungspositionen) und DB-016 (QMBereiche) innerhalb der
+Einstellungen-Seite. Die Stammdatentabellen können nun über die UI
+gefüllt werden, anstatt leer zu bleiben.
+
+#### Backend (Rust / Tauri)
+
+- **Neue Tauri Commands:**
+  - `cmd_create_responsibility` — erstellt eine Verantwortungsposition
+    (UUID + Zeitstempel im Backend, UNIQUE-Constraint geprüft)
+  - `cmd_rename_responsibility` — benennt eine Verantwortungsposition um
+    (gleiche UUID, updated_at aktualisiert, Zuordnungen bleiben erhalten)
+  - `cmd_create_qm_area` — erstellt einen QM-Bereich
+  - `cmd_rename_qm_area` — benennt einen QM-Bereich um
+- **Neue Datenbankfunktionen:** `create_responsibility`,
+  `rename_responsibility`, `create_qm_area`, `rename_qm_area`
+- **Validierung:** Backend trimmt Eingaben, leere Bezeichnungen werden
+  abgelehnt, UNIQUE-Constraint-Fehler werden an das Frontend weitergegeben
+- **Bestehende Commands:** `cmd_list_responsibilities` und
+  `cmd_list_qm_areas` werden weiterhin verwendet
+- **Tests:** 12 neue Rust-Tests (create, list sorted, duplicate rejected,
+  rename, rename preserves ID, rename preserves assignment — jeweils für
+  Verantwortungspositionen und QM-Bereiche)
+
+#### Frontend (React)
+
+- **Neue Komponenten:**
+  - `MasterDataSection` — wiederverwendbare Komponente für
+    Stammdatenverwaltung (Anzeigen, Hinzufügen, Inline-Umbenennen)
+  - `src/lib/tauriInvoke.ts` — gemeinsamer Tauri-v1-invoke-Helper
+  (aus employeeApi.ts extrahiert)
+  - `src/lib/masterDataApi.ts` — API-Wrapper für die vier neuen Commands
+- **Aktualisierte Komponenten:**
+  - `Einstellungen` — "Kategorien & Unterkategorien"-Bereich zeigt nun
+    zwei MasterDataSection-Komponenten (Verantwortungspositionen und
+    QM-Bereiche) statt eines Platzhalters
+  - `employeeApi.ts` — verwendet nun den gemeinsamen tauriInvoke-Helper
+- **Mitarbeiterformular:** Keine Code-Änderungen erforderlich — lädt
+  Stammdaten weiterhin über fetchResponsibilities/fetchQmAreas, die nun
+  die befüllten Tabellen anzeigen
+
+#### Löschverhalten
+
+Löschverhalten für DB-015 und DB-016 ist im Data Dictionary als
+**deferred** markiert. Keine Löschfunktion implementiert. Keine
+Lösch-Buttons in der UI. Kein kaskadierendes Löschen erfunden.
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Rust-Compilation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `cargo test` und `cargo build` verifiziert werden
+
 ## [0.9.25] - 07.08.2026
 
 ### Falsche Tauri-Verfügbarkeitserkennung im Mitarbeiter-API behoben (Prompt 014C)

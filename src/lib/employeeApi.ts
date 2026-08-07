@@ -1,4 +1,4 @@
-import { invoke as tauriInvoke } from "@tauri-apps/api/tauri";
+import { invoke } from "./tauriInvoke";
 
 export interface Employee {
   id: string;
@@ -26,17 +26,6 @@ export interface CreateEmployeeInput {
   departure_date: string | null;
   responsibility_ids: string[];
   qm_area_ids: string[];
-}
-
-function isTauriAvailable(): boolean {
-  return typeof window !== "undefined" && "__TAURI_IPC__" in window;
-}
-
-async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  if (!isTauriAvailable()) {
-    throw new Error("Desktop-App erforderlich – bitte als Tauri-Desktop-App starten.");
-  }
-  return tauriInvoke<T>(cmd, args);
 }
 
 export async function fetchEmployees(): Promise<Employee[]> {

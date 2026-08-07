@@ -11,6 +11,15 @@ import SettingsNav, {
   type SettingsNavItem,
 } from "../components/settings/SettingsNav";
 import SettingsSection from "../components/settings/SettingsSection";
+import MasterDataSection from "../components/settings/MasterDataSection";
+import {
+  fetchResponsibilities,
+  createResponsibility,
+  renameResponsibility,
+  fetchQmAreas,
+  createQmArea,
+  renameQmArea,
+} from "../lib/masterDataApi";
 import "./Einstellungen.css";
 
 const SETTINGS_SECTIONS: SettingsNavItem[] = [
@@ -106,13 +115,32 @@ export default function Einstellungen() {
           {activeSection === "kategorien" && (
             <SettingsSection
               title="Kategorien & Unterkategorien"
-              description="Verwaltung der dokumentierten Kategorien und Unterkategorien"
+              description="Verwaltung von Verantwortungspositionen und QM-Bereichen"
             >
-              <div className="pqm-settings-placeholder">
-                In diesem Bereich werden zukünftig Kategorien und
-                Unterkategorien verwaltet. Die Verwaltung ist aktuell nicht
-                implementiert.
-              </div>
+              <MasterDataSection
+                title="Verantwortungspositionen"
+                description="Zentral verwaltbare QM-Verantwortungen, die Mitarbeitenden zugewiesen werden können."
+                inputLabel="Bezeichnung"
+                addButtonLabel="Verantwortungsposition hinzufügen"
+                emptyMessage="Noch keine Verantwortungspositionen angelegt."
+                loadingMessage="Verantwortungspositionen werden geladen …"
+                duplicateHint="Diese Bezeichnung existiert bereits."
+                fetchItems={fetchResponsibilities}
+                createItem={createResponsibility}
+                renameItem={renameResponsibility}
+              />
+              <MasterDataSection
+                title="QM-Bereiche"
+                description="Zentral verwaltbare Qualitätsmanagementbereiche, die Mitarbeitenden zugewiesen werden können."
+                inputLabel="Bezeichnung"
+                addButtonLabel="QM-Bereich hinzufügen"
+                emptyMessage="Noch keine QM-Bereiche angelegt."
+                loadingMessage="QM-Bereiche werden geladen …"
+                duplicateHint="Diese Bezeichnung existiert bereits."
+                fetchItems={fetchQmAreas}
+                createItem={createQmArea}
+                renameItem={renameQmArea}
+              />
             </SettingsSection>
           )}
 

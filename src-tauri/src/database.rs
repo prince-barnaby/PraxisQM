@@ -434,6 +434,48 @@ pub fn list_qm_areas(conn: &Connection) -> SqliteResult<Vec<MasterDataItem>> {
     Ok(items)
 }
 
+/// Erstellt eine neue Verantwortungsposition.
+pub fn create_responsibility(conn: &Connection, name: &str) -> SqliteResult<MasterDataItem> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = now_iso();
+    conn.execute(
+        "INSERT INTO verantwortungspositionen (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
+        rusqlite::params![id, name, now, now],
+    )?;
+    Ok(MasterDataItem { id, name: name.to_string() })
+}
+
+/// Benennt eine bestehende Verantwortungsposition um (gleiche UUID, updated_at wird aktualisiert).
+pub fn rename_responsibility(conn: &Connection, id: &str, new_name: &str) -> SqliteResult<MasterDataItem> {
+    let now = now_iso();
+    conn.execute(
+        "UPDATE verantwortungspositionen SET name = ?1, updated_at = ?2 WHERE id = ?3;",
+        rusqlite::params![new_name, now, id],
+    )?;
+    Ok(MasterDataItem { id: id.to_string(), name: new_name.to_string() })
+}
+
+/// Erstellt einen neuen QM-Bereich.
+pub fn create_qm_area(conn: &Connection, name: &str) -> SqliteResult<MasterDataItem> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = now_iso();
+    conn.execute(
+        "INSERT INTO qm_bereiche (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
+        rusqlite::params![id, name, now, now],
+    )?;
+    Ok(MasterDataItem { id, name: name.to_string() })
+}
+
+/// Benennt einen bestehenden QM-Bereich um (gleiche UUID, updated_at wird aktualisiert).
+pub fn rename_qm_area(conn: &Connection, id: &str, new_name: &str) -> SqliteResult<MasterDataItem> {
+    let now = now_iso();
+    conn.execute(
+        "UPDATE qm_bereiche SET name = ?1, updated_at = ?2 WHERE id = ?3;",
+        rusqlite::params![new_name, now, id],
+    )?;
+    Ok(MasterDataItem { id: id.to_string(), name: new_name.to_string() })
+}
+
 /// --- Tests ---------------------------------------------------------------
 
 #[cfg(test)]
@@ -783,6 +825,164 @@ mod tests {
         assert_eq!(loaded.responsibilities.len(), 1);
         assert_eq!(loaded.qm_areas.len(), 1);
         assert_eq!(loaded.position.as_deref(), Some("Praxismanagerin"));
+    }
+
+    // --- Master Data Management Tests (Prompt 015) ---
+
+    #[test]
+    fn test_create_responsibility() {
+        let (conn, _tmp) = init_test_db();
+        let item = create_responsibility(&conn, "Brandschutzbeauftragte").unwrap();
+        assert!(!item.id.is_empty());
+        assert_eq!(item.name, "Brandschutzbeauftragte");
+        let all = list_responsibilities(&conn).unwrap();
+        assert!(all.iter().any(|r| r.name == "Brandschutzbeauftragte"));
+    }
+
+    #[test]
+    fn test_list_responsibilities_sorted() {
+        let (conn, _tmp) = init_test_db();
+        create_responsibility(&conn, "Aaa").unwrap();
+        create_responsibility(&conn, "Zzz").unwrap();
+        let all = list_responsibilities(&conn).unwrap();
+        assert!(all.len() >= 4);
+        let names: Vec<&str> = all.iter().map(|r| r.name.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted);
+    }
+
+    #[test]
+    fn test_duplicate_responsibility_rejected() {
+        let (conn, _tmp) = init_test_db();
+        create_responsibility(&conn, "Fortbildungskoordinatorin").unwrap();
+        let result = create_responsibility(&conn, "Fortbildungskoordinatorin");
+        assert!(result.is_err(), "Duplikat sollte abgelehnt werden");
+    }
+
+    #[test]
+    fn test_rename_responsibility() {
+        let (conn, _tmp) = init_test_db();
+        let item = create_responsibility(&conn, "Altname").unwrap();
+        let renamed = rename_responsibility(&conn, &item.id, "Neuname").unwrap();
+        assert_eq!(renamed.id, item.id);
+        assert_eq!(renamed.name, "Neuname");
+        let all = list_responsibilities(&conn).unwrap();
+        assert!(all.iter().any(|r| r.name == "Neuname"));
+        assert!(!all.iter().any(|r| r.name == "Altname"));
+    }
+
+    #[test]
+    fn test_rename_responsibility_preserves_id() {
+        let (conn, _tmp) = init_test_db();
+        let item = create_responsibility(&conn, "TestRename").unwrap();
+        let original_id = item.id.clone();
+        rename_responsibility(&conn, &item.id, "TestRenamed").unwrap();
+        let all = list_responsibilities(&conn).unwrap();
+        let found = all.iter().find(|r| r.id == original_id).unwrap();
+        assert_eq!(found.name, "TestRenamed");
+    }
+
+    #[test]
+    fn test_rename_responsibility_preserves_assignment() {
+        let (conn, _tmp) = init_test_db();
+        let resp = create_responsibility(&conn, "AssignTest").unwrap();
+        let input = CreateEmployeeInput {
+            last_name: "Assign".to_string(),
+            first_name: "Check".to_string(),
+            position: None,
+            is_active: true,
+            hire_date: None,
+            departure_date: None,
+            responsibility_ids: vec![resp.id.clone()],
+            qm_area_ids: vec![],
+        };
+        let emp = create_employee(&conn, &input).unwrap();
+        assert_eq!(emp.responsibilities.len(), 1);
+        assert_eq!(emp.responsibilities[0], "AssignTest");
+        rename_responsibility(&conn, &resp.id, "AssignRenamed").unwrap();
+        let employees = list_employees(&conn).unwrap();
+        let loaded = employees.iter().find(|e| e.id == emp.id).unwrap();
+        assert_eq!(loaded.responsibilities.len(), 1);
+        assert_eq!(loaded.responsibilities[0], "AssignRenamed");
+    }
+
+    #[test]
+    fn test_create_qm_area() {
+        let (conn, _tmp) = init_test_db();
+        let item = create_qm_area(&conn, "Notfallmanagement").unwrap();
+        assert!(!item.id.is_empty());
+        assert_eq!(item.name, "Notfallmanagement");
+        let all = list_qm_areas(&conn).unwrap();
+        assert!(all.iter().any(|a| a.name == "Notfallmanagement"));
+    }
+
+    #[test]
+    fn test_list_qm_areas_sorted() {
+        let (conn, _tmp) = init_test_db();
+        create_qm_area(&conn, "Aaa").unwrap();
+        create_qm_area(&conn, "Zzz").unwrap();
+        let all = list_qm_areas(&conn).unwrap();
+        assert!(all.len() >= 4);
+        let names: Vec<&str> = all.iter().map(|a| a.name.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted);
+    }
+
+    #[test]
+    fn test_duplicate_qm_area_rejected() {
+        let (conn, _tmp) = init_test_db();
+        create_qm_area(&conn, "Abrechnung").unwrap();
+        let result = create_qm_area(&conn, "Abrechnung");
+        assert!(result.is_err(), "Duplikat sollte abgelehnt werden");
+    }
+
+    #[test]
+    fn test_rename_qm_area() {
+        let (conn, _tmp) = init_test_db();
+        let item = create_qm_area(&conn, "AltBereich").unwrap();
+        let renamed = rename_qm_area(&conn, &item.id, "NeuBereich").unwrap();
+        assert_eq!(renamed.id, item.id);
+        assert_eq!(renamed.name, "NeuBereich");
+        let all = list_qm_areas(&conn).unwrap();
+        assert!(all.iter().any(|a| a.name == "NeuBereich"));
+        assert!(!all.iter().any(|a| a.name == "AltBereich"));
+    }
+
+    #[test]
+    fn test_rename_qm_area_preserves_id() {
+        let (conn, _tmp) = init_test_db();
+        let item = create_qm_area(&conn, "AreaRename").unwrap();
+        let original_id = item.id.clone();
+        rename_qm_area(&conn, &item.id, "AreaRenamed").unwrap();
+        let all = list_qm_areas(&conn).unwrap();
+        let found = all.iter().find(|a| a.id == original_id).unwrap();
+        assert_eq!(found.name, "AreaRenamed");
+    }
+
+    #[test]
+    fn test_rename_qm_area_preserves_assignment() {
+        let (conn, _tmp) = init_test_db();
+        let area = create_qm_area(&conn, "AssignArea").unwrap();
+        let input = CreateEmployeeInput {
+            last_name: "AreaAssign".to_string(),
+            first_name: "Check".to_string(),
+            position: None,
+            is_active: true,
+            hire_date: None,
+            departure_date: None,
+            responsibility_ids: vec![],
+            qm_area_ids: vec![area.id.clone()],
+        };
+        let emp = create_employee(&conn, &input).unwrap();
+        assert_eq!(emp.qm_areas.len(), 1);
+        assert_eq!(emp.qm_areas[0], "AssignArea");
+        rename_qm_area(&conn, &area.id, "AssignAreaRenamed").unwrap();
+        let employees = list_employees(&conn).unwrap();
+        let loaded = employees.iter().find(|e| e.id == emp.id).unwrap();
+        assert_eq!(loaded.qm_areas.len(), 1);
+        assert_eq!(loaded.qm_areas[0], "AssignAreaRenamed");
     }
 
 }
