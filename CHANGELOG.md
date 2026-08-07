@@ -2,6 +2,87 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.17] - 07.08.2026
+
+### Initiale SQLite-Foundation implementiert (Prompt 013)
+
+Erste Persistenz-Implementierung für PraxisQM. Lokale SQLite-Datenbank
+im Tauri-Backend, vollständig offline. Keine UI-Anbindung, keine
+Backup-Funktionalität, keine Authentifizierung.
+
+#### Abhängigkeiten
+
+- `rusqlite` 0.31 (mit `bundled` Feature für statische SQLite-Einbindung)
+- `uuid` 1.x (mit `v4` Feature für UUID-Generierung)
+
+#### Implementierung
+
+- **`src-tauri/src/database.rs`** — Datenbankmodul mit:
+  - Kanonischem Schema für alle 13 Class-A Tabellen
+  - Idempotenter Initialisierung (sicher bei wiederholtem Aufruf)
+  - Schema-Versionierung via `schema_version` Tabelle
+  - Foreign-Key-Enforcement (`PRAGMA foreign_keys = ON`)
+  - 6 Unit-Tests (Schema-Erstellung, Idempotenz, Tabellen-Existenz, FK-Enforcement, UNIQUE-Constraints, Join-Tabellen-FKs)
+- **`src-tauri/src/main.rs`** — Tauri-Setup-Hook initialisiert Datenbank beim Start
+- **`src-tauri/Cargo.toml`** — rusqlite und uuid Dependencies hinzugefügt
+- **`.gitignore`** — SQLite-Dateien (`*.sqlite`, `*.db`, WAL/SHM/Journal) ignoriert
+
+#### Implementierte Tabellen (Class-A)
+
+| DB-Nr | Tabellenname | Typ |
+|---|---|---|
+| DB-001 | documents | Haupttabelle |
+| DB-002 | document_versions | Haupttabelle |
+| DB-003 | employees | Haupttabelle |
+| DB-004 | users | Haupttabelle |
+| DB-005 | categories | Haupttabelle |
+| DB-006 | subcategories | Haupttabelle |
+| DB-007 | keyword_dictionary | Haupttabelle |
+| DB-008 | document_tags | Join-Tabelle (Composite PK) |
+| DB-009 | audit_log | Haupttabelle |
+| DB-013 | employee_responsibilities | Join-Tabelle (Composite PK) |
+| DB-014 | employee_qm_areas | Join-Tabelle (Composite PK) |
+| DB-015 | verantwortungspositionen | Haupttabelle |
+| DB-016 | qm_bereiche | Haupttabelle |
+
+#### Bewusst nicht implementiert
+
+- DB-010 Backups (Class B — Backup-Funktionalität später)
+- DB-011 Settings (Class C — reserviert)
+- DB-012 BackupReminders (Class B — später)
+
+#### Foreign-Key-Verhalten
+
+- `PRAGMA foreign_keys = ON` wird bei jeder Initialisierung aktiviert
+- Kein CASCADE — wo Löschverhalten nicht dokumentiert ist, wird RESTRICT verwendet (SQLite-Standard)
+- DB-013 referenziert: `employee_id` → employees, `responsibility_id` → verantwortungspositionen
+- DB-014 referenziert: `employee_id` → employees, `qm_area_id` → qm_bereiche
+
+#### Datenbank-Strategie
+
+- **Location:** Tauri `app_data_dir` (betriebssystemspezifisches App-Data-Verzeichnis)
+- **Dateiname:** `praxisqm.sqlite`
+- **Initialisierung:** Idempotent — `CREATE TABLE IF NOT EXISTS` für alle Tabellen
+- **Schema-Versionierung:** `schema_version` Tabelle mit Versionsnummer und Zeitstempel
+- **WAL-Modus:** Nicht explizit aktiviert (Standard-Journal-Modus)
+
+#### Verifikation
+
+- Frontend-Build: bestanden (TypeScript + Vite)
+- Rust-Compilation: nicht verfügbar in dieser Umgebung (kein Cargo-Toolchain)
+- Rust-Tests: geschrieben, aber nicht ausführbar (kein Cargo-Toolchain)
+- Rust-Code muss vor Deployment mit `cargo test` und `cargo build` verifiziert werden
+
+### Dokumentation
+
+- Code Map: Prompt 013 Eintrag hinzugefügt
+- CHANGELOG: Version 0.9.17
+
+### Ergebnis
+
+**SQLite foundation implemented.** Rust-Compilation und Tests müssen in
+einer Umgebung mit Rust-Toolchain verifiziert werden. Frontend-Build bestanden.
+
 ## [0.9.16] - 07.08.2026
 
 ### Mitarbeiter-Verantwortungspositionen und QM-Bereiche normalisiert (Prompt 012C)
