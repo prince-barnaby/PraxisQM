@@ -2,6 +2,59 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.14] - 07.08.2026
+
+### Datenmodell-Audit (Prompt 012)
+
+Vollständiger Audit der Datenbankspezifikation DB-001 bis DB-012. Dokumentation
+und Datenmodell-Spezifikation nur — keine Code-Änderungen, keine Datenbankanbindung.
+
+#### Korrigiert
+
+- DB-003 Employees: Feld „Funktion" zu „Position" umbenannt (entspricht UI-Implementierung)
+- DB-003 Employees: Feld „Bereich" entfernt (nicht Teil des dokumentierten Mitarbeitermodells)
+- DB-003 Employees: Felder E-Mail und Telefonnummer als entfernt dokumentiert (bereits in 0.9.12 aus UI entfernt)
+
+#### Hinzugefügt
+
+- Vollständige Beziehungsspezifikation für alle dokumentierten Tabellen (Kardinalität, FK-Richtung, Lösch-/Archivierungsverhalten)
+- Enum / Status-Audit für alle Status- und Enum-Felder
+- Identifikatoren- und Zeitstempel-Audit (Primärschlüssel-Strategie, Dokumentennummer vs. ID, created_at/updated_at)
+- Begriffliche Trennung dokumentiert: Position vs. Verantwortungsposition vs. QM-Bereich vs. Benutzerrolle vs. Benutzerberechtigung
+- Archivierungsdatum (DateTime) vollständig in Felddefinitionen und Data Dictionary dokumentiert
+- DB-011 Settings als „unresolved" dokumentiert — keine erfundenen Key/Value-Paare
+
+#### Strukturelle Lücke gemeldet
+
+- DB-003 Many-to-Many: Join-Tabellen DB-003a (EmployeeResponsibilities) und DB-003b (EmployeeQMAreas) vorgeschlagen — müssen vor SQLite-Implementierung freigegeben werden
+
+#### Blockierende Spezifikationslücken dokumentiert
+
+- Primärschlüssel-Strategie für alle Tabellen
+- Felddefinitionen für DB-002, DB-004, DB-005, DB-006, DB-007, DB-008, DB-009, DB-010, DB-011, DB-012
+- User ↔ Employee Referenz (optional, nicht dokumentiert)
+- Enum-Definitionen: Benutzerrollen, Backup-Status, Erinnerungsstatus
+- created_at / updated_at Zeitstempel für alle Tabellen
+- Lösch-/Archivierungsverhalten für alle Tabellen außer DB-001
+
+### Dokumentation
+
+- PQM-SDD-004B (Felddefinitionen) um vollständigen Audit ergänzt
+- PQM-DD-001 (Data Dictionary) aktualisiert und mit Referenzen auf SDD-004B versehen
+- Code Map aktualisiert
+
+### Ergebnis
+
+**SQLite-Implementierung ist blockiert.** 16 blockierende Spezifikationslücken
+müssen vor der Implementierung geklärt werden. Siehe PQM-SDD-004B für Details.
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine Migrationen, keine SQLite-Dateien
+- Keine Code-Änderungen, keine Frontend-Änderungen
+- Keine Implementierung von Repositorys oder Backend-Logik
+- Keine erfundenen Felder, Defaults oder Geschäftsregeln
+
 ## [0.9.13] - 07.08.2026
 
 ### Hinzugefügt
