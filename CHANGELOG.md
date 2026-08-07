@@ -2,6 +2,57 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.24] - 07.08.2026
+
+### Rust-Kompilierungsfehler behoben und automatische Stammdaten-Seeding entfernt (Prompt 014A)
+
+#### Behobene Compiler-Fehler
+
+1. **E0106 — `get_conn` Lifetime:** Die Hilfsfunktion `get_conn`, die einen
+   `MutexGuard` aus einer `State`-Referenz zurückgab, konnte keine Lifetime
+   ableiten. Die Funktion wurde entfernt; jeder Command sperrt die Verbindung
+   nun direkt mit `state.0.lock()`.
+2. **E0599 — `app.manage()` nicht gefunden:** Der `Manager`-Trait war nicht
+   importiert. `use tauri::Manager` wurde hinzugefügt.
+3. **E0596 — `conn` nicht mutierbar:** Der Transaktions-Test rief
+   `conn.transaction()` auf einer nicht-mutablen `Connection` auf. Der Test
+   deklariert `conn` nun als `mut`.
+4. **E0603 — `seed_master_data_if_empty` privat:** Die Funktion war privat
+   und wurde aus `main.rs` aufgerufen. Der Aufruf wurde entfernt (siehe unten).
+
+#### Entfernung der automatischen Stammdaten-Seeding
+
+Prompt 014 forderte, dass bei leeren Stammdatentabellen gestoppt und gemeldet
+werden sollte, bevor erfundene Werte eingefügt werden. Die Implementierung
+hat stattdessen erfundene Entwicklungswerte automatisch eingefügt.
+
+**Korrektur:**
+- `seed_master_data_if_empty` vollständig entfernt
+- Startup-Aufruf in `main.rs` entfernt
+- Die echte PraxisQM-Datenbank wird nicht mehr automatisch befüllt
+- Leere DB-015/DB-016-Tabellen sind akzeptabel
+- Das Frontend zeigt eine neutrale Meldung bei leeren Auswahllisten
+- Test-Stammdaten werden nur in der temporären Testdatenbank eingefügt
+
+**Zuvor erfundene Seed-Werte (zur getrennten Überprüfung):**
+- Verantwortungspositionen: QM-Beauftragte, Datenschutzbeauftragte,
+  Hygienebeauftragte, Praxisleitung, Fortbildungsbeauftragte
+- QM-Bereiche: Datenschutz, Hygiene, Patientendokumentation,
+  Röntgeneinweisung, Fortbildung
+
+#### Test-Anpassungen
+
+- `test_seed_master_data` entfernt
+- `init_test_db` fügt nun explizite Test-Fixture-Daten über
+  `insert_test_master_data` in die temporäre Testdatenbank ein
+- Alle übrigen Mitarbeiter-Persistenz-Tests bleiben erhalten
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Rust-Compilation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `cargo test` und `cargo build` verifiziert werden
+
 ## [0.9.23] - 07.08.2026
 
 ### Mitarbeiter-Persistenz End-to-End implementiert (Prompt 014)
@@ -22,9 +73,8 @@ die erste End-to-End-Persistenzfunktion in PraxisQM.
   (mit serde Serialize/Deserialize)
 - **Transaktionssicherheit:** `create_employee` verwendet eine Transaktion
   — bei ungültigen Zuordnungen werden alle Änderungen zurückgerollt
-- **Stammdaten-Seed:** Bei leerer Datenbank werden Entwicklungswerte für
-  Verantwortungspositionen und QM-Bereiche eingefügt (klar als
-  Entwicklungsdaten markiert, keine Produktionsdaten)
+- **Stammdaten:** Keine automatische Seeding — DB-015/DB-016 bleiben leer bis
+  kanonische Werte genehmigt sind (siehe Prompt 014A)
 - **Verbindungspooling:** `DbState(Mutex<Connection>)` als Tauri State
 - **UUID-Generierung:** Backend-seitig, nicht im Frontend
 - **Tests:** 8 neue Rust-Tests für Mitarbeiter-Persistenz (create, list,

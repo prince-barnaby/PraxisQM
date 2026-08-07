@@ -13,18 +13,14 @@ mod database;
 use database::{CreateEmployeeInput, Employee, MasterDataItem};
 use rusqlite::Connection;
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{Manager, State};
 
 struct DbState(Mutex<Connection>);
-
-fn get_conn(state: &State<DbState>) -> std::sync::MutexGuard<'_, Connection> {
-    state.0.lock().expect("Datenbank-Verbindung gesperrt")
-}
 
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            let db_path = database::database_path(&app.handle());
+            let db_path = database::database_path(app.handle());
             match database::init_database(&db_path) {
                 Ok(()) => {
                     println!("PraxisQM: SQLite-Datenbank initialisiert: {}", db_path.display());
@@ -37,8 +33,6 @@ fn main() {
             let conn = Connection::open(&db_path).expect("Datenbankverbindung fehlgeschlagen");
             conn.execute("PRAGMA foreign_keys = ON;", [])
                 .expect("Foreign-Key-Enforcement fehlgeschlagen");
-            database::seed_master_data_if_empty(&conn)
-                .expect("Stammdaten-Initialisierung fehlgeschlagen");
             app.manage(DbState(Mutex::new(conn)));
             Ok(())
         })
@@ -54,7 +48,7 @@ fn main() {
 
 #[tauri::command]
 fn cmd_list_employees(state: State<DbState>) -> Result<Vec<Employee>, String> {
-    let conn = get_conn(&state);
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     database::list_employees(&conn).map_err(|e| e.to_string())
 }
 
@@ -63,7 +57,7 @@ fn cmd_create_employee(
     input: CreateEmployeeInput,
     state: State<DbState>,
 ) -> Result<Employee, String> {
-    let conn = get_conn(&state);
+    let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     match database::create_employee(&tx, &input) {
         Ok(emp) => {
@@ -79,12 +73,12 @@ fn cmd_create_employee(
 
 #[tauri::command]
 fn cmd_list_responsibilities(state: State<DbState>) -> Result<Vec<MasterDataItem>, String> {
-    let conn = get_conn(&state);
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     database::list_responsibilities(&conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn cmd_list_qm_areas(state: State<DbState>) -> Result<Vec<MasterDataItem>, String> {
-    let conn = get_conn(&state);
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     database::list_qm_areas(&conn).map_err(|e| e.to_string())
 }

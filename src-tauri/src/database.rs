@@ -286,57 +286,6 @@ pub struct CreateEmployeeInput {
     pub qm_area_ids: Vec<String>,
 }
 
-/// --- Stammdaten-Initialisierung ------------------------------------------
-
-/// Entwicklungs-Stammdaten für Verantwortungspositionen und QM-Bereiche.
-/// Wird nur eingefügt, wenn die jeweilige Tabelle leer ist.
-/// Diese Werte sind kanonisch nicht festgelegt — sie dienen ausschließlich
-/// der Nutzbarkeit der Anwendung während der Entwicklung.
-fn seed_master_data_if_empty(conn: &Connection) -> SqliteResult<()> {
-    let now = now_iso();
-
-    let resp_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM verantwortungspositionen;",
-        [],
-        |row| row.get(0),
-    )?;
-    if resp_count == 0 {
-        let seed_responsibilities = [
-            "QM-Beauftragte",
-            "Datenschutzbeauftragte",
-            "Hygienebeauftragte",
-            "Praxisleitung",
-            "Fortbildungsbeauftragte",
-        ];
-        for name in &seed_responsibilities {
-            conn.execute(
-                "INSERT INTO verantwortungspositionen (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
-                rusqlite::params![uuid::Uuid::new_v4().to_string(), name, now, now],
-            )?;
-        }
-    }
-
-    let qm_count: i64 =
-        conn.query_row("SELECT COUNT(*) FROM qm_bereiche;", [], |row| row.get(0))?;
-    if qm_count == 0 {
-        let seed_qm_areas = [
-            "Datenschutz",
-            "Hygiene",
-            "Patientendokumentation",
-            "Röntgeneinweisung",
-            "Fortbildung",
-        ];
-        for name in &seed_qm_areas {
-            conn.execute(
-                "INSERT INTO qm_bereiche (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
-                rusqlite::params![uuid::Uuid::new_v4().to_string(), name, now, now],
-            )?;
-        }
-    }
-
-    Ok(())
-}
-
 /// --- Mitarbeiter-Operationen --------------------------------------------
 
 /// Lädt alle Mitarbeiter mit ihren Verantwortungspositionen und QM-Bereichen.
@@ -505,8 +454,30 @@ mod tests {
         init_database(tmp.path()).unwrap();
         let conn = Connection::open(tmp.path()).unwrap();
         conn.execute("PRAGMA foreign_keys = ON;", []).unwrap();
-        seed_master_data_if_empty(&conn).unwrap();
+        insert_test_master_data(&conn);
         (conn, tmp)
+    }
+
+    /// Fügt explizite Test-Stammdaten in die temporäre Testdatenbank ein.
+    /// Diese Daten werden niemals in die echte PraxisQM-Datenbank geschrieben.
+    fn insert_test_master_data(conn: &Connection) {
+        let now = now_iso();
+        let responsibilities = ["QM-Beauftragte", "Hygienebeauftragte"];
+        for name in &responsibilities {
+            conn.execute(
+                "INSERT INTO verantwortungspositionen (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
+                rusqlite::params![uuid::Uuid::new_v4().to_string(), name, now, now],
+            )
+            .unwrap();
+        }
+        let qm_areas = ["Datenschutz", "Hygiene"];
+        for name in &qm_areas {
+            conn.execute(
+                "INSERT INTO qm_bereiche (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
+                rusqlite::params![uuid::Uuid::new_v4().to_string(), name, now, now],
+            )
+            .unwrap();
+        }
     }
 
     #[test]
@@ -770,7 +741,7 @@ mod tests {
 
     #[test]
     fn test_transaction_rollback_on_invalid_assignment() {
-        let (conn, _tmp) = init_test_db();
+        let (mut conn, _tmp) = init_test_db();
         let tx = conn.transaction().unwrap();
         let input = CreateEmployeeInput {
             last_name: "Rollback".to_string(),
@@ -794,6 +765,8 @@ mod tests {
         let (conn, _tmp) = init_test_db();
         let responsibilities = list_responsibilities(&conn).unwrap();
         let qm_areas = list_qm_areas(&conn).unwrap();
+        assert!(!responsibilities.is_empty(), "Test-Stammdaten fehlen");
+        assert!(!qm_areas.is_empty(), "Test-Stammdaten fehlen");
         let input = CreateEmployeeInput {
             last_name: "Persist".to_string(),
             first_name: "Check".to_string(),
@@ -812,12 +785,4 @@ mod tests {
         assert_eq!(loaded.position.as_deref(), Some("Praxismanagerin"));
     }
 
-    #[test]
-    fn test_seed_master_data() {
-        let (conn, _tmp) = init_test_db();
-        let responsibilities = list_responsibilities(&conn).unwrap();
-        assert!(!responsibilities.is_empty());
-        let qm_areas = list_qm_areas(&conn).unwrap();
-        assert!(!qm_areas.is_empty());
-    }
 }
