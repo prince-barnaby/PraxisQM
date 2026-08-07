@@ -1,0 +1,28 @@
+.pqm-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-2);
+}
+
+.pqm-settings-section__header {
+  border-bottom: 1px solid var(--pqm-color-surface);
+  padding-bottom: var(--pqm-space-1);
+}
+
+.pqm-settings-section__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-settings-section__description {
+  font-size: 0.85rem;
+  color: var(--pqm-color-neutral);
+  margin-top: 4px;
+}
+
+.pqm-settings-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-2);
+}

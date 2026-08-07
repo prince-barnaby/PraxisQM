@@ -167,7 +167,82 @@ Die folgenden Entscheidungen sind verbindlich für die Archivübersicht und gelt
 - Bestehende Tabellen-, Badge- und EmptyState-Komponenten werden wiederverwendet, wo immer möglich.
 - Es werden keine redundanten Komponenten erstellt.
 
-## Mitarbeiterübersicht / Mitarbeiter-Tabellenstandard
+## Einstellungsoberfläche / Settings-Layout-Standard
+
+Die folgenden Entscheidungen sind verbindlich für die Einstellungsseite und gelten als UI-Standard für die Einstellungsoberfläche in PraxisQM.
+
+### Dokumentationspflicht
+
+- Die Einstellungsoberfläche enthält nur dokumentierte Konfigurationsbereiche.
+- Neue Einstellungsoptionen dürfen nicht ohne vorherige Dokumentation eingeführt werden.
+
+### Darstellung
+
+- Die Einstellungsseite verwendet ein **zweispaltiges Desktop-Layout** mit linker Navigationsleiste und rechtem Inhaltsbereich.
+- Die linke Navigation listet alle dokumentierten Einstellungsbereiche als anklickbare Einträge.
+- Der rechte Inhaltsbereich zeigt den aktuell ausgewählten Einstellungsbereich.
+- Es werden **keine Dashboard-Karten** verwendet — die Seite fühlt sich wie eine Desktop-Einstellungsoberfläche an.
+
+### Navigation
+
+- Die Einstellungsnavigation ist eine vertikale Liste von Bereichsnamen mit Icons.
+- Der aktive Bereich wird durch `aria-current="true"` und eine visuelle Hervorhebung markiert (Akzentfarbe links, Primary Blue Text).
+- Navigation funktioniert über Mausklick und Tastatur.
+- Die Navigation ist semantisch als `<nav>` mit `aria-label` markiert.
+
+### Inhaltsbereich
+
+- Jeder Einstellungsbereich zeigt einen Titel, eine Kurzbeschreibung und Platzhalter-Inhalt.
+- Platzhalter-Inhalte sind eindeutig als Platzhalter gekennzeichnet.
+- Es werden keine funktionalen Steuerelemente implementiert, es sei denn sie sind explizit erforderlich.
+
+### Bereiche
+
+- Die folgenden Einstellungsbereiche sind dokumentiert und werden angezeigt:
+  - Allgemein
+  - Dokumentennummerierung
+  - Kategorien & Unterkategorien
+  - Benutzerverwaltung
+  - Backup
+  - Systeminformationen
+- Keine undocumented Bereiche hinzufügen.
+
+### Dokumentennummerierung
+
+- Die Dokumentennummerierung wird als **schreibgeschützte Platzhalterinformation** dargestellt.
+- Es wird keine manuelle Bearbeitung bereits vergebener Dokumentennummern ermöglicht.
+- ADR-001 bleibt gewahrt: Dokumentennummern sind automatisch, unveränderlich und werden niemals wiederverwendet.
+
+### Kategorien
+
+- Der Kategorien-Bereich zeigt einen Platzhalter für die zukünftige Verwaltung von Kategorien und Unterkategorien.
+- Es wird kein CRUD implementiert.
+
+### Benutzerverwaltung
+
+- Die Benutzerverwaltung ist ein zukünftiger Einstiegspunkt und als Platzhalter markiert.
+- **Benutzerverwaltung und Mitarbeiterregister sind getrennte Bereiche** (ADR-004).
+- Benutzerkonten, Rollen und Berechtigungen werden nicht im Mitarbeiterregister geführt.
+
+### Backup
+
+- Der Backup-Bereich zeigt einen statischen Platzhalter.
+- Es wird klar angezeigt, dass die Backup-Funktionalität nicht implementiert ist.
+- Es werden keine Dateioperationen oder Zeitpläne implementiert.
+
+### Systeminformationen
+
+- Der Systeminformationsbereich zeigt schreibgeschützte Platzhalterinformationen:
+  - PraxisQM-Version
+  - Anwendungsarchitektur
+  - Offline-Status
+- Es werden nur dokumentierte Werte verwendet.
+- Es werden keine erfundenen Umgebungsinformationen angezeigt.
+
+### Desktop-first
+
+- Das Layout ist für eine Desktop-Anwendung optimiert.
+- Auf mobilen Viewports wird das Layout einspaltig; die Navigation erscheint oberhalb des Inhaltsbereichs.
 
 Die folgenden Entscheidungen sind verbindlich für die Mitarbeiterübersicht und gelten als UI-Standard für das Mitarbeiterregister in PraxisQM.
 

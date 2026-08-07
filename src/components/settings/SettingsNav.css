@@ -1,0 +1,51 @@
+.pqm-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pqm-settings-nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pqm-settings-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--pqm-space-1);
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 0 var(--pqm-radius) var(--pqm-radius) 0;
+  background-color: transparent;
+  color: var(--pqm-color-neutral);
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: var(--pqm-font-family);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.pqm-settings-nav__item:hover {
+  background-color: var(--pqm-color-surface);
+  color: var(--pqm-color-primary);
+}
+
+.pqm-settings-nav__item:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: -2px;
+}
+
+.pqm-settings-nav__item--active {
+  background-color: var(--pqm-color-surface);
+  color: var(--pqm-color-primary);
+  border-left-color: var(--pqm-color-accent);
+  font-weight: 600;
+}

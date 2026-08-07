@@ -2,6 +2,40 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.13] - 07.08.2026
+
+### Hinzugefügt
+
+- Statische Einstellungsübersicht auf der Seite „Einstellungen" unter der Route `/einstellungen`
+- Zweispaltiges Desktop-Layout mit linker Navigationsleiste und rechtem Inhaltsbereich
+- Sechs dokumentierte Einstellungsbereiche: Allgemein, Dokumentennummerierung, Kategorien & Unterkategorien, Benutzerverwaltung, Backup, Systeminformationen
+- Einstellungsnavigation mit Icons, `aria-current` für aktiven Bereich, Keyboard-Focus
+- Bereich „Dokumentennummerierung" als schreibgeschützte Platzhalterinformation (ADR-001: automatisch, unveränderlich, nie wiederverwendet)
+- Bereich „Systeminformationen" mit PraxisQM-Version, Architektur und Offline-Status (ADR-002, ADR-027)
+- Bereich „Backup" als statischer Platzhalter mit Warnung, dass die Funktionalität nicht implementiert ist
+- Bereich „Benutzerverwaltung" als Platzhalter, getrennt vom Mitarbeiterregister (ADR-004)
+- Responsive Layout: einspaltig auf mobilen Viewports
+- Wiederverwendbare Komponenten: `SettingsNav`, `SettingsSection`
+- Accessibility: semantische `<nav>`, `aria-current`, `aria-label`, Keyboard-Navigation
+
+### Dokumentation
+
+- UI Style Guide (005C) um Abschnitt „Einstellungsoberfläche / Settings-Layout-Standard" ergänzt mit verbindlichen Regeln:
+  - „Die Einstellungsoberfläche enthält nur dokumentierte Konfigurationsbereiche."
+  - „Neue Einstellungsoptionen dürfen nicht ohne vorherige Dokumentation eingeführt werden."
+- Component Library (005D) um Einstellungs-Komponenten ergänzt
+- Code Map aktualisiert
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine Persistenz
+- Keine funktionalen Steuerelemente oder Konfigurationsänderungen
+- Keine Authentifizierung oder Rollenlogik
+- Keine Dateioperationen oder Backup-Scheduling
+- Keine CRUD-Operationen für Kategorien
+- Keine Benutzerkontoverwaltung
+- Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Dokumentenmodul, Archivmodul, Mitarbeitermodul oder Routing bestehender Seiten
+
 ## [0.9.12] - 07.08.2026
 
 ### Entfernt

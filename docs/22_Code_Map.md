@@ -34,7 +34,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `src/pages/`, `src/components/documents/` | vorbereitet |
 | Archiv | Archivierte Dokumente und Wiederherstellung | `src/pages/`, `src/components/archive/` | vorbereitet |
 | Mitarbeiter | Mitarbeiterregister, Übersicht der Mitarbeitenden | `src/pages/`, `src/components/employees/` | vorbereitet |
-| Einstellungen | Praxisdaten, Systemoptionen, Backup-Einstellungen | `src/` | geplant |
+| Einstellungen | Konfigurationsbereiche, Systeminformationen | `src/pages/`, `src/components/settings/` | vorbereitet |
 | Datenhaltung | lokale Speicherung und Datenmodell | `database/` / `src/` | geplant |
 | Backup | Export, Import, Sicherung, Wiederherstellung | `src/` | geplant |
 | Desktop Runtime | Tauri-Projektstruktur | `src-tauri/` | vorbereitet |
@@ -94,7 +94,9 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Mitarbeiterliste | Mitarbeiter | `src/components/employees/EmployeeList.tsx` | `EmployeeList` | Tabellarische Übersicht mit Mock-Platzhalter-Einträgen; sticky Tabellenkopf, optimierte Spaltengewichtung; zeigt `EmptyState` bei leerem Eingabearray | vorbereitet |
 | Mitarbeiterzeile | Mitarbeiter | `src/components/employees/EmployeeRow.tsx` | `EmployeeRow` | Eine Tabellenzeile mit allen dokumentierten Mitarbeiterfeldern; Hover-State, Keyboard-Focus, Monospace für Eintritts-/Austrittsdatum; Multi-Value-Felder Verantwortungsposition und QM-Bereich als kompakte Chips | vorbereitet |
 | Button „Neuer Mitarbeiter” | Mitarbeiter | `src/components/employees/EmployeeToolbar.tsx` | `EmployeeToolbar` | Platzhalter, deaktiviert – kein dokumentiertes Formular vorhanden | vorbereitet |
-| Einstellungen-Seite | Einstellungen | `src/` | noch offen | System- und Praxiseinstellungen | geplant |
+| Einstellungen-Seite | Einstellungen | `src/pages/Einstellungen.tsx` | `Einstellungen` | Statische Einstellungsübersicht mit zweispaltigem Desktop-Layout (Navigation + Inhaltsbereich) | vorbereitet |
+| Einstellungs-Navigation | Einstellungen | `src/components/settings/SettingsNav.tsx` | `SettingsNav` | Vertikale Navigationsleiste für Einstellungsbereiche; aria-current für aktiven Bereich | vorbereitet |
+| Einstellungs-Abschnitt | Einstellungen | `src/components/settings/SettingsSection.tsx` | `SettingsSection` | Wrapper für Einstellungsbereich mit Titel, Beschreibung und Inhalt | vorbereitet |
 
 ---
 
@@ -138,6 +140,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Prompt 009 – Archivübersicht UI | Archiv | `src/pages/Archiv.tsx`, `src/pages/Archiv.css`, `src/components/archive/ArchiveToolbar.tsx`, `src/components/archive/ArchiveToolbar.css`, `src/components/archive/ArchiveFilters.tsx`, `src/components/archive/ArchiveFilters.css`, `src/components/archive/ArchiveList.tsx`, `src/components/archive/ArchiveList.css`, `src/components/archive/ArchiveRow.tsx` | vorbereitet |
 | Prompt 010 – Mitarbeiterübersicht UI | Mitarbeiter | `src/pages/Mitarbeiter.tsx`, `src/pages/Mitarbeiter.css`, `src/components/employees/EmployeeToolbar.tsx`, `src/components/employees/EmployeeToolbar.css`, `src/components/employees/EmployeeFilters.tsx`, `src/components/employees/EmployeeFilters.css`, `src/components/employees/EmployeeList.tsx`, `src/components/employees/EmployeeList.css`, `src/components/employees/EmployeeRow.tsx` | vorbereitet |
 | Prompt 010 – Multi-Value-Felder Verantwortungsposition und QM-Bereich | Mitarbeiter, Datenmodell | `docs/07_Data_Dictionary/PQM-DD-001.md`, `docs/01_Software_Design_Document/PQM-SDD-004B_Felddefinitionen.md`, `src/components/employees/EmployeeRow.tsx` | dokumentiert |
+| Prompt 011 – Einstellungsübersicht UI | Einstellungen | `src/pages/Einstellungen.tsx`, `src/pages/Einstellungen.css`, `src/components/settings/SettingsNav.tsx`, `src/components/settings/SettingsNav.css`, `src/components/settings/SettingsSection.tsx`, `src/components/settings/SettingsSection.css` | vorbereitet |
 | Prompt 005 – Dokumentdetailseite | Dokumente | `src/pages/DokumentDetail.tsx`, `src/pages/DokumentDetail.css`, `src/components/documents/DocumentMetadata.tsx`, `src/components/documents/DocumentMetadata.css`, `src/components/documents/TagList.tsx`, `src/components/documents/TagList.css`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/components/documents/DocumentHistory.tsx`, `src/components/documents/DocumentHistory.css`, `src/App.tsx` | vorbereitet |
 | Prompt 007 – Neue-Dokument-Formular | Dokumente | `src/pages/DokumentNeu.tsx`, `src/pages/DokumentNeu.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentForm.css`, `src/components/documents/DocumentFormSection.tsx`, `src/components/documents/DocumentFormSection.css`, `src/components/documents/FormField.tsx`, `src/components/documents/FormField.css`, `src/App.tsx`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css` | vorbereitet |
 | Prompt 008 – Dokument-Bearbeitungsformular | Dokumente | `src/pages/DokumentBearbeiten.tsx`, `src/pages/DokumentBearbeiten.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/pages/DokumentDetail.tsx`, `src/App.tsx` | vorbereitet |
@@ -162,6 +165,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 009 (Archivübersicht UI: Archiv, ArchiveToolbar, ArchiveFilters, ArchiveList, ArchiveRow; Feld Archivierungsdatum dokumentiert) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 010 (Mitarbeiterübersicht UI: Mitarbeiter, EmployeeToolbar, EmployeeFilters, EmployeeList, EmployeeRow; Trennung Mitarbeiterregister und Benutzerverwaltung dokumentiert) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 010 Multi-Value-Felder (Verantwortungsposition, QM-Bereich als Many-to-Many dokumentiert in Data Dictionary und Felddefinitionen; Chips-Darstellung in EmployeeRow) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 011 (Einstellungsübersicht UI: Einstellungen, SettingsNav, SettingsSection; dokumentierte Bereiche: Allgemein, Dokumentennummerierung, Kategorien, Benutzerverwaltung, Backup, Systeminformationen) aktualisiert | Saskia / Bolt |
 
 ---
 

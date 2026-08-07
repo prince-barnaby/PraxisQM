@@ -1,0 +1,107 @@
+.pqm-einstellungen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-2);
+  max-width: 1200px;
+}
+
+.pqm-einstellungen__header {
+  border-bottom: 1px solid var(--pqm-color-surface);
+  padding-bottom: var(--pqm-space-1);
+}
+
+.pqm-einstellungen__title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-einstellungen__subtitle {
+  font-size: 0.9rem;
+  color: var(--pqm-color-neutral);
+  margin-top: 2px;
+}
+
+.pqm-einstellungen__layout {
+  display: flex;
+  gap: var(--pqm-space-3);
+  align-items: flex-start;
+}
+
+.pqm-einstellungen__nav {
+  flex: 0 0 220px;
+  position: sticky;
+  top: var(--pqm-space-2);
+}
+
+.pqm-einstellungen__content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pqm-einstellungen__hint {
+  font-size: 0.78rem;
+  color: var(--pqm-color-neutral);
+  font-style: italic;
+}
+
+/* Settings info rows */
+.pqm-settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-1);
+}
+
+.pqm-settings-info__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pqm-space-2);
+  padding: var(--pqm-space-1) 0;
+  border-bottom: 1px solid var(--pqm-color-surface);
+}
+
+.pqm-settings-info__row:last-child {
+  border-bottom: none;
+}
+
+.pqm-settings-info__label {
+  flex: 0 0 200px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-settings-info__value {
+  flex: 1 1 auto;
+  font-size: 0.85rem;
+  color: var(--pqm-color-neutral);
+}
+
+.pqm-settings-info__value--mono {
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.pqm-settings-placeholder {
+  padding: var(--pqm-space-2);
+  background-color: var(--pqm-color-surface);
+  border-radius: var(--pqm-radius);
+  font-size: 0.85rem;
+  color: var(--pqm-color-neutral);
+  line-height: 1.5;
+}
+
+.pqm-settings-placeholder--warning {
+  border-left: 3px solid var(--pqm-color-warning);
+}
+
+@media (max-width: 768px) {
+  .pqm-einstellungen__layout {
+    flex-direction: column;
+  }
+
+  .pqm-einstellungen__nav {
+    flex: 0 0 auto;
+    position: static;
+  }
+}
