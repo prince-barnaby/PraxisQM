@@ -41,7 +41,7 @@ export default function DocumentToolbar({ resultCount }: DocumentToolbarProps) {
         className="pqm-document-toolbar__count"
         aria-label={`Anzahl Treffer: ${resultCount}`}
       >
-        {resultCount} Einträge
+        {resultCount} Dokumente
       </p>
     </header>
   );

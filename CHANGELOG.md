@@ -2,6 +2,31 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.5] - 07.08.2026
+
+### Geändert
+
+- Filterbereich der Dokumentenübersicht ist jetzt einklappbar (Standard: eingeklappt) mit kompakter Schaltfläche, Filter-Icon und Pfeil-Indikator
+- Dokumentenzähler von „Einträge" auf „Dokumente" geändert
+- Tabellenkopf der Dokumentenliste ist sticky — Spaltenüberschriften bleiben beim vertikalen Scrollen sichtbar
+- Spaltengewichtung für Desktop optimiert: Titel erhält den meisten Platz, Dokumentennummer/Status/Gültigkeit/Version kompakt, Kategorie/Unterkategorie/Verantwortlich mittel
+- Dokumentenzeilen haben dezenten Hover-State und sichtbaren Keyboard-Focus (tabIndex)
+- Dokumentennummern und Versionen in Monospace-Schrift dargestellt
+- Kein Pointer-Cursor auf Zeilen, um keine nicht vorhandene Funktionalität vorzutäuschen
+
+### Dokumentation
+
+- UI Style Guide (005C) um Abschnitt „Dokumentenübersicht / Tabellenstandard" ergänzt — alle UX-Entscheidungen sind jetzt verbindlich dokumentiert
+- Component Library (005D) um alle sechs Dokumenten-Komponenten mit neuem Verhalten ergänzt
+- Code Map aktualisiert
+
+### Nicht enthalten (bewusst)
+
+- Keine funktionierende Filterlogik oder Suche
+- Keine Datenbankanbindung
+- Keine Dokumentendetailansicht oder Navigation aus Tabellenzeilen
+- Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Routing, bestehenden Status-/Gültigkeitsfarben, Dokumentfeldern oder Datenmodell
+
 ## [0.9.4] - 07.08.2026
 
 ### Hinzugefügt

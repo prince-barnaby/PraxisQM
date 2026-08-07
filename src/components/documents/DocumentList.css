@@ -3,6 +3,8 @@
   border: 1px solid var(--pqm-color-surface);
   border-radius: var(--pqm-radius);
   overflow-x: auto;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .pqm-document-list__table {
@@ -12,6 +14,9 @@
 }
 
 .pqm-document-list__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   text-align: left;
   padding: var(--pqm-space-1) var(--pqm-space-2);
   font-size: 0.75rem;
@@ -19,6 +24,7 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--pqm-color-neutral);
+  background-color: var(--pqm-color-background);
   border-bottom: 1px solid var(--pqm-color-surface);
   white-space: nowrap;
 }
@@ -32,6 +38,11 @@
   background-color: var(--pqm-color-surface);
 }
 
+.pqm-document-list__table tbody tr:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: -2px;
+}
+
 .pqm-document-list__table tbody tr:last-child {
   border-bottom: none;
 }
@@ -40,6 +51,48 @@
   padding: var(--pqm-space-1) var(--pqm-space-2);
   color: var(--pqm-color-primary);
   vertical-align: middle;
+}
+
+/* Spaltengewichtung für Desktop */
+.pqm-document-list__table th:nth-child(1),
+.pqm-document-list__table td:nth-child(1) {
+  width: 110px;
+}
+
+.pqm-document-list__table th:nth-child(2),
+.pqm-document-list__table td:nth-child(2) {
+  width: auto;
+  min-width: 180px;
+}
+
+.pqm-document-list__table th:nth-child(3),
+.pqm-document-list__table td:nth-child(3) {
+  width: 130px;
+}
+
+.pqm-document-list__table th:nth-child(4),
+.pqm-document-list__table td:nth-child(4) {
+  width: 130px;
+}
+
+.pqm-document-list__table th:nth-child(5),
+.pqm-document-list__table td:nth-child(5) {
+  width: 100px;
+}
+
+.pqm-document-list__table th:nth-child(6),
+.pqm-document-list__table td:nth-child(6) {
+  width: 140px;
+}
+
+.pqm-document-list__table th:nth-child(7),
+.pqm-document-list__table td:nth-child(7) {
+  width: 110px;
+}
+
+.pqm-document-list__table th:nth-child(8),
+.pqm-document-list__table td:nth-child(8) {
+  width: 70px;
 }
 
 .pqm-document-row__number {
@@ -59,4 +112,9 @@
 .pqm-document-row__version {
   color: var(--pqm-color-neutral);
   white-space: nowrap;
+}
+
+.pqm-document-row__version {
+  font-family: monospace;
+  font-size: 0.8rem;
 }

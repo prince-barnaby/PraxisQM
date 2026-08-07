@@ -28,7 +28,7 @@ export default function DocumentRow({
   validityIcon,
 }: DocumentRowProps) {
   return (
-    <tr className="pqm-document-row">
+    <tr className="pqm-document-row" tabIndex={0}>
       <td className="pqm-document-row__number">{doc.documentNumber}</td>
       <td className="pqm-document-row__title">{doc.title}</td>
       <td className="pqm-document-row__category">{doc.category}</td>

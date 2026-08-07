@@ -66,9 +66,9 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dashboard-Karte „Systemstatus“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Anzeige lokaler Systeminformationen (Platzhalter-Wert) | vorbereitet |
 | Button „Neues Dokument“ | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Startet später den Dokumenten-Upload (Platzhalter, deaktiviert) | vorbereitet |
 | Suchfeld Dokumente | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Filtert Dokumentenliste (Platzhalter, deaktiviert) | vorbereitet |
-| Filterbereich Dokumente | Dokumente | `src/components/documents/DocumentFilters.tsx` | `DocumentFilters` | Statische Filter: Kategorie, Unterkategorie, Status, Verantwortliche Person, Gültigkeit (Platzhalter) | vorbereitet |
-| Dokumentenliste | Dokumente | `src/components/documents/DocumentList.tsx` | `DocumentList` | Tabellarische Übersicht mit Mock-Platzhalter-Einträgen | vorbereitet |
-| Dokumentenzeile | Dokumente | `src/components/documents/DocumentRow.tsx` | `DocumentRow` | Eine Tabellenzeile mit allen dokumentierten Dokumentfeldern | vorbereitet |
+| Filterbereich Dokumente | Dokumente | `src/components/documents/DocumentFilters.tsx` | `DocumentFilters` | Einklappbarer Filterbereich mit fünf dokumentierten Filtern (Platzhalter, nicht funktional); Standard: eingeklappt | vorbereitet |
+| Dokumentenliste | Dokumente | `src/components/documents/DocumentList.tsx` | `DocumentList` | Tabellarische Übersicht mit Mock-Platzhalter-Einträgen; sticky Tabellenkopf, optimierte Spaltengewichtung | vorbereitet |
+| Dokumentenzeile | Dokumente | `src/components/documents/DocumentRow.tsx` | `DocumentRow` | Eine Tabellenzeile mit allen dokumentierten Dokumentfeldern; Hover-State, Keyboard-Focus, Monospace für Nummer/Version | vorbereitet |
 | Status-Badge | Dokumente | `src/components/documents/StatusBadge.tsx` | `StatusBadge` | Wiederverwendbare Badge für Status und Gültigkeit | aktiv |
 | Empty State | Dokumente | `src/components/documents/EmptyState.tsx` | `EmptyState` | Platzhalter für leeren Zustand der Dokumentenliste | aktiv |
 | Dokumente-Seite | Dokumente | `src/pages/Dokumente.tsx` | `Dokumente` | Statische Dokumentenübersicht mit Toolbar, Filtern und Liste | vorbereitet |
@@ -129,6 +129,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-06 | Code Map für Prompt 003 (Dashboard-Grundlayout, DashboardGrid, DashboardCard) aktualisiert | Saskia / Bolt |
 | 2026-08-06 | Code Map für Dashboard-Visual-Improvement (klickbare Karten, Navigationspfeil, Hover-Animation, kompakteres Layout) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 004 (Dokumentenübersicht UI: DocumentToolbar, DocumentFilters, DocumentList, DocumentRow, StatusBadge, EmptyState) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 004A (Dokumentenübersicht UX-Verfeinerung: einklappbare Filter, sticky Tabellenkopf, Spaltengewichtung, Zeilen-Hover/Focus, Dokumentenzähler) aktualisiert | Saskia / Bolt |
 
 ---
 
