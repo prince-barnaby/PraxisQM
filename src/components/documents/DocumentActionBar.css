@@ -1,0 +1,40 @@
+.pqm-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pqm-space-1);
+  padding: var(--pqm-space-2);
+  background-color: var(--pqm-color-surface);
+  border-radius: var(--pqm-radius);
+}
+
+.pqm-action-bar__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--pqm-color-neutral);
+  border-radius: var(--pqm-radius);
+  background-color: var(--pqm-color-background);
+  color: var(--pqm-color-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--pqm-font-family);
+  cursor: not-allowed;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.pqm-action-bar__button--primary {
+  border-color: var(--pqm-color-primary);
+  background-color: var(--pqm-color-primary);
+  color: var(--pqm-color-background);
+}
+
+.pqm-action-bar__button--danger {
+  border-color: var(--pqm-color-error);
+  color: var(--pqm-color-error);
+}
+
+.pqm-action-bar__button:disabled {
+  cursor: not-allowed;
+}

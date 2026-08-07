@@ -1,0 +1,34 @@
+.pqm-tag-list {
+  background-color: var(--pqm-color-background);
+  border: 1px solid var(--pqm-color-surface);
+  border-radius: var(--pqm-radius);
+  padding: var(--pqm-space-2);
+}
+
+.pqm-tag-list__heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--pqm-color-primary);
+  margin-bottom: var(--pqm-space-1);
+}
+
+.pqm-tag-list__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pqm-space-1);
+}
+
+.pqm-tag-list__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--pqm-color-accent);
+  background-color: color-mix(in srgb, var(--pqm-color-accent) 12%, transparent);
+  border-radius: 999px;
+  white-space: nowrap;
+}

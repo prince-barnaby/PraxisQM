@@ -72,6 +72,11 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Status-Badge | Dokumente | `src/components/documents/StatusBadge.tsx` | `StatusBadge` | Wiederverwendbare Badge für Status und Gültigkeit | aktiv |
 | Empty State | Dokumente | `src/components/documents/EmptyState.tsx` | `EmptyState` | Platzhalter für leeren Zustand der Dokumentenliste | aktiv |
 | Dokumente-Seite | Dokumente | `src/pages/Dokumente.tsx` | `Dokumente` | Statische Dokumentenübersicht mit Toolbar, Filtern und Liste | vorbereitet |
+| Dokumentdetail-Seite | Dokumente | `src/pages/DokumentDetail.tsx` | `DokumentDetail` | Statische Dokumentdetailansicht mit Metadaten, Beschreibung, Datei, Tags, Aktionen und Historie | vorbereitet |
+| Metadaten-Komponente | Dokumente | `src/components/documents/DocumentMetadata.tsx` | `DocumentMetadata` | Zweispaltige Metadaten-Tabelle (Platzhalter) | vorbereitet |
+| Tag-Liste | Dokumente | `src/components/documents/TagList.tsx` | `TagList` | Anzeige von Schlagwörtern als Pills (Platzhalter) | vorbereitet |
+| Aktionsleiste | Dokumente | `src/components/documents/DocumentActionBar.tsx` | `DocumentActionBar` | Aktion-Buttons: Bearbeiten, PDF öffnen, Archivieren (Platzhalter, deaktiviert) | vorbereitet |
+| Versionshistorie | Dokumente | `src/components/documents/DocumentHistory.tsx` | `DocumentHistory` | Einfache Timeline der Versionshistorie (Platzhalter) | vorbereitet |
 | Button „Dokument archivieren“ | Dokumente / Archiv | `src/` | noch offen | Verschiebt Dokument ins Archiv | geplant |
 | Mitarbeiterliste | Mitarbeiter | `src/` | noch offen | Zeigt Mitarbeitende der Praxis | geplant |
 | Button „Mitarbeiter hinzufügen“ | Mitarbeiter | `src/` | noch offen | Öffnet Formular für neuen Mitarbeiter | geplant |
@@ -116,6 +121,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Prompt 003 – Dashboard | Dashboard | `src/pages/Startseite.tsx`, `src/pages/Startseite.css`, `src/components/dashboard/DashboardGrid.tsx`, `src/components/dashboard/DashboardGrid.css`, `src/components/dashboard/DashboardCard.tsx`, `src/components/dashboard/DashboardCard.css` | aktiv |
 | Prompt 004 – Dokumentenübersicht | Dokumente | `src/pages/Dokumente.tsx`, `src/pages/Dokumente.css`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css`, `src/components/documents/DocumentFilters.tsx`, `src/components/documents/DocumentFilters.css`, `src/components/documents/DocumentList.tsx`, `src/components/documents/DocumentList.css`, `src/components/documents/DocumentRow.tsx`, `src/components/documents/StatusBadge.tsx`, `src/components/documents/StatusBadge.css`, `src/components/documents/EmptyState.tsx`, `src/components/documents/EmptyState.css` | vorbereitet |
 | Prompt 005 – Archivgrundlage | Archiv | noch offen | geplant |
+| Prompt 005 – Dokumentdetailseite | Dokumente | `src/pages/DokumentDetail.tsx`, `src/pages/DokumentDetail.css`, `src/components/documents/DocumentMetadata.tsx`, `src/components/documents/DocumentMetadata.css`, `src/components/documents/TagList.tsx`, `src/components/documents/TagList.css`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/components/documents/DocumentHistory.tsx`, `src/components/documents/DocumentHistory.css`, `src/App.tsx` | vorbereitet |
 
 ---
 
@@ -130,6 +136,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-06 | Code Map für Dashboard-Visual-Improvement (klickbare Karten, Navigationspfeil, Hover-Animation, kompakteres Layout) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 004 (Dokumentenübersicht UI: DocumentToolbar, DocumentFilters, DocumentList, DocumentRow, StatusBadge, EmptyState) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 004A (Dokumentenübersicht UX-Verfeinerung: einklappbare Filter, sticky Tabellenkopf, Spaltengewichtung, Zeilen-Hover/Focus, Dokumentenzähler) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 005 (Dokumentdetailseite: DokumentDetail, DocumentMetadata, TagList, DocumentActionBar, DocumentHistory, Route `/dokumente/:id`) aktualisiert | Saskia / Bolt |
 
 ---
 

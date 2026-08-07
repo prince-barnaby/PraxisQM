@@ -3,6 +3,7 @@ import AppShell from "./components/AppShell";
 import Startseite from "./pages/Startseite";
 import Dokumente from "./pages/Dokumente";
 import Archiv from "./pages/Archiv";
+import DokumentDetail from "./pages/DokumentDetail";
 import Mitarbeiter from "./pages/Mitarbeiter";
 import Einstellungen from "./pages/Einstellungen";
 
@@ -12,6 +13,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Startseite />} />
         <Route path="/dokumente" element={<Dokumente />} />
+        <Route path="/dokumente/:id" element={<DokumentDetail />} />
         <Route path="/archiv" element={<Archiv />} />
         <Route path="/mitarbeiter" element={<Mitarbeiter />} />
         <Route path="/einstellungen" element={<Einstellungen />} />

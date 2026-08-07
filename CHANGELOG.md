@@ -2,6 +2,32 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.6] - 07.08.2026
+
+### Hinzugefügt
+
+- Statische Dokumentdetailseite unter der Route `/dokumente/:id`
+- Seitentitel mit Dokumenttitel, Dokumentennummer und Status-Badge
+- Metadatenbereich mit zweispaltigem Layout für alle dokumentierten Felder: Dokumentnummer, Titel, Kategorie, Unterkategorie, Version, Status, Verantwortliche Person, Gültig bis, Letzte Änderung
+- Beschreibungskarte mit Platzhaltertext
+- Angehängte-Dokument-Karte mit PDF-Dateiname (Platzhalter), Dateityp-Icon und deaktiviertem „PDF öffnen"-Button
+- Schlagwortliste mit Platzhalter-Tags
+- Aktionsleiste mit deaktivierten Buttons: Bearbeiten, PDF öffnen, Archivieren
+- Versionshistorie als einfache Timeline mit Platzhalter-Einträgen (Version 1.0 erstellt, 1.1 geändert, 1.2 freigegeben)
+- Zurück-Link zur Dokumentenübersicht
+- Wiederverwendbare Komponenten: `DocumentMetadata`, `TagList`, `DocumentActionBar`, `DocumentHistory`
+- Bestehende `StatusBadge`-Komponente wiederverwendet
+- Accessibility-Eigenschaften (role, aria-label) für alle relevanten Elemente
+- Code Map und Changelog aktualisiert
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine echten Dokumentdaten
+- Keine funktionierenden Aktionen (Bearbeiten, PDF öffnen, Archivieren)
+- Keine echte Navigation aus der Dokumentenliste (Link ist statisch)
+- Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Dokumentenübersicht, Routing bestehender Seiten
+- Keine Änderungen an bestehenden Status- oder Gültigkeitsfarben
+
 ## [0.9.5] - 07.08.2026
 
 ### Geändert
