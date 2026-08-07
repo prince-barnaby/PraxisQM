@@ -175,6 +175,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 012C (Mitarbeiter-Verantwortungspositionen und QM-Bereiche normalisiert: DB-015 Verantwortungspositionen und DB-016 QMBereiche als kanonische Masterdaten-Tabellen; DB-013/DB-014 Join-Tabellen referenzieren UUIDs statt Strings) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 013 (Initiale SQLite-Foundation: rusqlite + uuid Dependencies, database.rs mit kanonischem Class-A Schema, idempotente Initialisierung, Schema-Versionierung, Foreign-Key-Enforcement, Tauri setup-Hook, .gitignore aktualisiert) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 013 Korrektur (tauri-build Dependency von ^1.6 auf ^1.5 korrigiert — tauri-build hatte keine 1.6.x Veröffentlichung; tempfile dev-dependency für Tests hinzugefügt) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 013B (tauri.conf.json von Tauri-v2-Schema auf Tauri-v1-Schema korrigiert — `app`/`bundle`/`identifier` Top-Level-Felder durch v1-kompatible `tauri.windows`/`tauri.security`/`tauri.bundle`-Struktur ersetzt; `build.devPath`/`build.distDir` statt `frontendDist`/`devUrl`; `package.productName`/`package.version` statt Top-Level) aktualisiert | Saskia / Bolt |
 
 ---
 

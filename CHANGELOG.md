@@ -2,6 +2,41 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.19] - 07.08.2026
+
+### tauri.conf.json auf Tauri v1-Schema korrigiert (Prompt 013B)
+
+Die `tauri.conf.json` verwendete das Tauri v2-Konfigurationsschema
+(Top-Level-Felder `app`, `bundle`, `identifier`, `frontendDist`, `devUrl`),
+während alle Rust-Crates und das npm-CLI-Paket auf Tauri v1 ausgelegt sind.
+Der Tauri v1 Build-Parser lehnt das `app`-Feld ab:
+`unknown field 'app', expected one of '$schema', 'package', 'tauri', 'build', 'plugins'`.
+
+#### Ursache
+
+Die `tauri.conf.json` war im Tauri v2-Format geschrieben worden, obwohl
+die gesamte übrige Projektkonfiguration (Cargo.toml, package.json, build.rs,
+main.rs, database.rs) konsistent auf Tauri v1 ausgerichtet ist. Dies war ein
+Konfigurationsfehler, keine absichtliche v2-Migration.
+
+#### Korrektur
+
+- `tauri.conf.json` auf Tauri v1-Schema umgestellt:
+  - `build.frontendDist` → `build.distDir` (v1-Feldname)
+  - `build.devUrl` → `build.devPath` (v1-Feldname)
+  - Top-Level `app` entfernt; `windows` und `security` unter `tauri` verschoben
+  - Top-Level `bundle` entfernt; `bundle` unter `tauri` verschoben
+  - Top-Level `identifier` entfernt; `identifier` unter `tauri.bundle` verschoben
+  - Top-Level `productName`/`version` unter `package` verschoben
+- Keine Dependency-Änderungen
+- Keine Änderungen an main.rs, build.rs, database.rs oder dem Frontend
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Rust-Compilation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `cargo test` und `cargo build` verifiziert werden
+
 ## [0.9.18] - 07.08.2026
 
 ### tauri-build Dependency korrigiert (Prompt 013 Korrektur)
