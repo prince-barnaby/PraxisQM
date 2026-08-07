@@ -2,6 +2,41 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.10] - 07.08.2026
+
+### Hinzugefügt
+
+- Statische Archivübersicht auf der Seite „Archiv" unter der Route `/archiv`
+- Werkzeugleiste mit Seitentitel „Archiv", Kurzbeschreibung und Archivzähler („3 archivierte Dokumente")
+- Einklappbarer Filterbereich (Standard: eingeklappt) mit fünf dokumentierten Archiv-Filterkriterien: Kategorie, Unterkategorie, Verantwortliche Person, Archivierungszeitraum, Status (alle Platzhalter, nicht funktional)
+- Tabellarische Desktop-Darstellung archivierter Dokumente mit dokumentierten Feldern: Dokumentennummer, Titel, Kategorie, Unterkategorie, Verantwortliche Person, Version, Archivierungsdatum, Status
+- Drei klar gekennzeichnete Mock-Platzhalter-Einträge zur Veranschaulichung von Layout und Komponenten
+- Wiederverwendbare Komponenten: `ArchiveToolbar`, `ArchiveFilters`, `ArchiveList`, `ArchiveRow`
+- Bestehende `StatusBadge`-Komponente wiederverwendet (Variante `neutral` für „archiviert")
+- Bestehende `EmptyState`-Komponente wiederverwendet („Noch keine archivierten Dokumente vorhanden")
+- Archivzeilen mit Hover-State, Keyboard-Focus und `role="link"` für spätere Archivdetailansicht
+- Accessibility: `aria-expanded` für einklappbare Filter, `aria-label`, `scope`, Tabellen-Semantik
+
+### Dokumentation
+
+- Feld `Archivierungsdatum` (Typ DateTime) in Data Dictionary und Felddefinitionen (PQM-SDD-004B) dokumentiert: automatisch beim Archivieren gesetzt, leer für aktive Dokumente, verwendet für Archiv-Sortierung und Archiv-Filterung
+- UI Style Guide (005C) um Abschnitt „Archivübersicht / Archiv-Tabellenstandard" ergänzt mit verbindlichen Regeln:
+  - „Das Archiv verwendet dieselbe klassische tabellarische Desktop-Darstellung wie die Dokumentenübersicht."
+  - „Archivierte Dokumente werden nicht gelöscht und Dokumentnummern werden niemals erneut vergeben."
+  - „Das Archiv ist kein Papierkorb."
+  - Bestehende Tabellen-, Badge- und EmptyState-Komponenten werden wiederverwendet, wo immer möglich
+- Component Library (005D) um Archiv-Komponenten ergänzt
+- Code Map aktualisiert
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine echten Archivdaten
+- Keine funktionierende Filterlogik oder Suche
+- Keine Archivdetail-Navigation (keine dokumentierte Route vorhanden)
+- Keine Wiederherstellungsfunktionalität – Wiederherstellung ist dokumentiert, aber nicht implementiert
+- Kein Lösch-Button, keine permanente Löschaktion, kein Papierkorb-Icon
+- Keine Änderungen an Sidebar, Header, AppShell, Dashboard, Dokumentenübersicht, Detailseite, Formularen oder Routing bestehender Seiten
+
 ## [0.9.9] - 07.08.2026
 
 ### Hinzugefügt

@@ -1,0 +1,28 @@
+.pqm-archive-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--pqm-space-2);
+}
+
+.pqm-archive-toolbar__heading {
+  flex: 1 1 100%;
+}
+
+.pqm-archive-toolbar__title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-archive-toolbar__subtitle {
+  font-size: 0.9rem;
+  color: var(--pqm-color-neutral);
+  margin-top: 2px;
+}
+
+.pqm-archive-toolbar__count {
+  flex: 1 1 100%;
+  font-size: 0.8rem;
+  color: var(--pqm-color-neutral);
+}

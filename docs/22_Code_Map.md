@@ -32,7 +32,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dashboard | Startseite mit Übersicht, Statuskarten und Schnellzugriffen | `src/pages/`, `src/components/dashboard/` | aktiv |
 | Navigation | Sidebar, Header, Seitenwechsel | `src/components/` | aktiv |
 | Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `src/pages/`, `src/components/documents/` | vorbereitet |
-| Archiv | Archivierte Dokumente und Wiederherstellung | `src/` | geplant |
+| Archiv | Archivierte Dokumente und Wiederherstellung | `src/pages/`, `src/components/archive/` | vorbereitet |
 | Mitarbeiter | Mitarbeiterverwaltung, Rollen, Schulungen | `src/` | geplant |
 | Einstellungen | Praxisdaten, Systemoptionen, Backup-Einstellungen | `src/` | geplant |
 | Datenhaltung | lokale Speicherung und Datenmodell | `database/` / `src/` | geplant |
@@ -83,6 +83,11 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Neue-Dokument-Seite | Dokumente | `src/pages/DokumentNeu.tsx` | `DokumentNeu` | Statische Seite zum Anlegen eines neuen Dokuments; verwendet `DocumentForm` im Modus `create` | vorbereitet |
 | Bearbeiten-Seite | Dokumente | `src/pages/DokumentBearbeiten.tsx` | `DokumentBearbeiten` | Statische Seite zum Bearbeiten eines bestehenden Dokuments; verwendet `DocumentForm` im Modus `edit` | vorbereitet |
 | Button „Dokument archivieren“ | Dokumente / Archiv | `src/` | noch offen | Verschiebt Dokument ins Archiv | geplant |
+| Archiv-Seite | Archiv | `src/pages/Archiv.tsx` | `Archiv` | Statische Archivübersicht mit Werkzeugleiste, einklappbarem Filterbereich und Tabelle archivierter Dokumente | vorbereitet |
+| Archiv-Werkzeugleiste | Archiv | `src/components/archive/ArchiveToolbar.tsx` | `ArchiveToolbar` | Werkzeugleiste mit Seitentitel, Kurzbeschreibung und Archivzähler | vorbereitet |
+| Archiv-Filter | Archiv | `src/components/archive/ArchiveFilters.tsx` | `ArchiveFilters` | Einklappbarer Filterbereich mit dokumentierten Archiv-Filtern: Kategorie, Unterkategorie, Verantwortliche Person, Archivierungszeitraum, Status | vorbereitet |
+| Archiv-Liste | Archiv | `src/components/archive/ArchiveList.tsx` | `ArchiveList` | Tabellarische Übersicht archivierter Dokumente; zeigt `EmptyState` bei leerem Eingabearray | vorbereitet |
+| Archiv-Zeile | Archiv | `src/components/archive/ArchiveRow.tsx` | `ArchiveRow` | Tabellenzeile mit archivspezifischen Feldern; Hover-State, Keyboard-Focus, visuelle Anzeige einer künftigen Archivdetailansicht | vorbereitet |
 | Mitarbeiterliste | Mitarbeiter | `src/` | noch offen | Zeigt Mitarbeitende der Praxis | geplant |
 | Button „Mitarbeiter hinzufügen“ | Mitarbeiter | `src/` | noch offen | Öffnet Formular für neuen Mitarbeiter | geplant |
 | Einstellungen-Seite | Einstellungen | `src/` | noch offen | System- und Praxiseinstellungen | geplant |
@@ -126,6 +131,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Prompt 003 – Dashboard | Dashboard | `src/pages/Startseite.tsx`, `src/pages/Startseite.css`, `src/components/dashboard/DashboardGrid.tsx`, `src/components/dashboard/DashboardGrid.css`, `src/components/dashboard/DashboardCard.tsx`, `src/components/dashboard/DashboardCard.css` | aktiv |
 | Prompt 004 – Dokumentenübersicht | Dokumente | `src/pages/Dokumente.tsx`, `src/pages/Dokumente.css`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css`, `src/components/documents/DocumentFilters.tsx`, `src/components/documents/DocumentFilters.css`, `src/components/documents/DocumentList.tsx`, `src/components/documents/DocumentList.css`, `src/components/documents/DocumentRow.tsx`, `src/components/documents/StatusBadge.tsx`, `src/components/documents/StatusBadge.css`, `src/components/documents/EmptyState.tsx`, `src/components/documents/EmptyState.css` | vorbereitet |
 | Prompt 005 – Archivgrundlage | Archiv | noch offen | geplant |
+| Prompt 009 – Archivübersicht UI | Archiv | `src/pages/Archiv.tsx`, `src/pages/Archiv.css`, `src/components/archive/ArchiveToolbar.tsx`, `src/components/archive/ArchiveToolbar.css`, `src/components/archive/ArchiveFilters.tsx`, `src/components/archive/ArchiveFilters.css`, `src/components/archive/ArchiveList.tsx`, `src/components/archive/ArchiveList.css`, `src/components/archive/ArchiveRow.tsx` | vorbereitet |
 | Prompt 005 – Dokumentdetailseite | Dokumente | `src/pages/DokumentDetail.tsx`, `src/pages/DokumentDetail.css`, `src/components/documents/DocumentMetadata.tsx`, `src/components/documents/DocumentMetadata.css`, `src/components/documents/TagList.tsx`, `src/components/documents/TagList.css`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/components/documents/DocumentHistory.tsx`, `src/components/documents/DocumentHistory.css`, `src/App.tsx` | vorbereitet |
 | Prompt 007 – Neue-Dokument-Formular | Dokumente | `src/pages/DokumentNeu.tsx`, `src/pages/DokumentNeu.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentForm.css`, `src/components/documents/DocumentFormSection.tsx`, `src/components/documents/DocumentFormSection.css`, `src/components/documents/FormField.tsx`, `src/components/documents/FormField.css`, `src/App.tsx`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css` | vorbereitet |
 | Prompt 008 – Dokument-Bearbeitungsformular | Dokumente | `src/pages/DokumentBearbeiten.tsx`, `src/pages/DokumentBearbeiten.css`, `src/components/documents/DocumentForm.tsx`, `src/components/documents/DocumentActionBar.tsx`, `src/components/documents/DocumentActionBar.css`, `src/pages/DokumentDetail.tsx`, `src/App.tsx` | vorbereitet |
@@ -147,6 +153,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-07 | Code Map für Prompt 006 (Navigation Dokumentenliste → Detailansicht: DocumentRow onClick/Enter, useParams in DokumentDetail, Zurück-Link) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 007 (Neue-Dokument-Formular: DokumentNeu, DocumentForm, DocumentFormSection, FormField, Route `/dokumente/neu`, Button „Neues Dokument" aktiviert) aktualisiert | Saskia / Bolt |
 | 2026-08-07 | Code Map für Prompt 008 (Dokument-Bearbeitungsformular: DokumentBearbeiten, DocumentForm edit-Modus, DocumentActionBar onEdit, Route `/dokumente/:id/bearbeiten`) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 009 (Archivübersicht UI: Archiv, ArchiveToolbar, ArchiveFilters, ArchiveList, ArchiveRow; Feld Archivierungsdatum dokumentiert) aktualisiert | Saskia / Bolt |
 
 ---
 

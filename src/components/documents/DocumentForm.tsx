@@ -237,5 +237,3 @@ export default function DocumentForm({
     </form>
   );
 }
-
-export default DocumentForm

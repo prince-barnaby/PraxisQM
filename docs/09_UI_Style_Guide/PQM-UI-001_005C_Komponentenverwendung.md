@@ -107,3 +107,62 @@ Die folgenden Regeln sind verbindlich für das Erstellen und Bearbeiten von Doku
 - „Abbrechen" navigiert zur Dokumentenübersicht.
 - „Dokument anlegen" ist deaktiviert und als Platzhalter markiert.
 - Es wird kein erfolgreiches Speichern simuliert.
+
+## Archivübersicht / Archiv-Tabellenstandard
+
+Die folgenden Entscheidungen sind verbindlich für die Archivübersicht und gelten als UI-Standard für die Archivansicht in PraxisQM.
+
+### Darstellung
+
+- Das Archiv verwendet dieselbe **klassische tabellarische Desktop-Darstellung** wie die Dokumentenübersicht.
+- Die Archivtabelle darf **nicht** durch Karten, Kacheln, Listen-Cards, Accordion-Elemente oder andere alternative Darstellungsformen ersetzt werden.
+- Das visuelle Erscheinungsbild entspricht der Dokumentenübersicht: gleiche Spaltenstruktur-Prinzipien, dezente Farbgebung auf Basis der Design Tokens.
+
+### Archiv-Prinzipien
+
+- Archivierte Dokumente werden nicht gelöscht und Dokumentnummern werden niemals erneut vergeben.
+- Das Archiv ist kein Papierkorb.
+- Es gibt keinen Lösch-Button, keine permanente Löschaktion und kein Papierkorb-Icon.
+- Wiederherstellung bleibt möglich und darf als deaktivierter Platzhalter-Button dargestellt werden.
+
+### Tabellenkopf
+
+- Der Tabellenkopf ist **sticky**, wie in der Dokumentenübersicht.
+
+### Spalten
+
+- Die Archivtabelle zeigt ausschließlich dokumentierte Felder: Dokumentennummer, Titel, Kategorie, Unterkategorie, Verantwortliche Person, Version, Archivierungsdatum, Status.
+- Das Feld Archivierungsdatum ist vom Typ DateTime, wird automatisch beim Archivieren gesetzt und ist leer für aktive Dokumente.
+- Keine undocumented Felder hinzufügen.
+
+### Filterbereich
+
+- Der Filterbereich ist **standardmäßig eingeklappt**.
+- Im ausgeklappten Zustand werden die dokumentierten Archiv-Filter angezeigt: Kategorie, Unterkategorie, Verantwortliche Person, Archivierungszeitraum, Status.
+- Die Filter bleiben nicht funktional, bis die Datenbankanbindung implementiert wird.
+
+### Statusanzeige
+
+- Der Archivstatus wird über die vorhandene `StatusBadge`-Komponente dargestellt (Variante `neutral` für archiviert).
+- Es wird kein zweites archivspezifisches Badge-System eingeführt.
+
+### Archivzähler
+
+- Oberhalb der Tabelle wird ein Archivzähler angezeigt (z. B. „3 archivierte Dokumente").
+- Der Zähler ist so implementiert, dass er später einen dynamischen Datenbankwert darstellen kann.
+
+### Leerer Zustand
+
+- Bei leerem Archiv wird die vorhandene `EmptyState`-Komponente angezeigt.
+- Text: „Noch keine archivierten Dokumente vorhanden."
+
+### Zeilen
+
+- Archivzeilen haben einen **dezenten Hover-State** und **sichtbaren Keyboard-Focus**.
+- Zeilen haben eine visuelle Anzeige, dass sie später eine Archivdetailansicht öffnen können.
+- Es wird keine Archivdetail-Navigation implementiert, es sei denn, eine bestehende dokumentierte Route erfordert dies.
+
+### Komponenten-Wiederverwendung
+
+- Bestehende Tabellen-, Badge- und EmptyState-Komponenten werden wiederverwendet, wo immer möglich.
+- Es werden keine redundanten Komponenten erstellt.
