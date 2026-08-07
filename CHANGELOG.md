@@ -2,6 +2,42 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.22] - 07.08.2026
+
+### rusqlite::Error::InvalidQuery Unit-Variant-Fehler behoben (Prompt 013E)
+
+`cargo test` schlug mit `error[E0618]: expected function, found rusqlite::Error`
+fehl, weil `Error::InvalidQuery` in rusqlite 0.31 ein **Unit-Variant** (ohne
+Datenfelder) ist und nicht mit einem String-Argument aufgerufen werden kann.
+
+#### Ursache
+
+In Prompt 013D wurde `Error::InvalidParameter(String)` durch
+`Error::InvalidQuery(String)` ersetzt. `InvalidQuery` ist in rusqlite 0.31
+aber ein Unit-Variant (`InvalidQuery,` — keine Klammern, keine Daten).
+Der Aufruf `Error::InvalidQuery("...")` versucht, eine Funktion aufzurufen,
+die keine ist — daher E0618.
+
+#### Korrektur
+
+Ersetzt durch `Error::SqliteFailure(ffi::Error::new(ffi::SQLITE_CONSTRAINT), Some(msg))`.
+`SqliteFailure` ist die Standard-Variante für SQLite-Fehler und akzeptiert
+ein `ffi::Error` (mit Fehlercode) und ein optionales `String`-Detail.
+`SQLITE_CONSTRAINT` (Code 19) ist der passende SQLite-Fehlercode für eine
+verletzte Integritätsbedingung — in diesem Fall: Foreign-Key-Enforcement
+konnte nicht aktiviert/verifiziert werden.
+
+#### Geänderte Dateien
+
+- `src-tauri/src/database.rs`: Zeile 233 — `Error::InvalidQuery(String)`
+  → `Error::SqliteFailure(ffi::Error::new(ffi::SQLITE_CONSTRAINT), Some(String))`
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Rust-Compilation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `cargo test` und `cargo build` verifiziert werden
+
 ## [0.9.21] - 07.08.2026
 
 ### Rust-Compiler-Fehler in SQLite-Foundation behoben (Prompt 013D)

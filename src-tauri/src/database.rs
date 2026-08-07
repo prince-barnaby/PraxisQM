@@ -230,8 +230,9 @@ pub fn init_database(db_path: &Path) -> SqliteResult<()> {
     let fk_enabled: i64 =
         conn.query_row("PRAGMA foreign_keys;", [], |row| row.get(0))?;
     if fk_enabled != 1 {
-        return Err(rusqlite::Error::InvalidQuery(
-            "Foreign-Key-Enforcement konnte nicht aktiviert werden".to_string(),
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some("Foreign-Key-Enforcement konnte nicht aktiviert werden".to_string()),
         ));
     }
 
