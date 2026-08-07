@@ -2,6 +2,81 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.15] - 07.08.2026
+
+### Datenbankspezifikation abgeschlossen (Prompt 012B)
+
+Auflösung aller blockierenden Spezifikationslücken aus Prompt 012.
+Dokumentation und Datenmodell-Spezifikation nur — keine Code-Änderungen.
+
+#### Architekturentscheidungen dokumentiert
+
+- **Primärschlüssel:** UUID für alle Haupttabellen; Composite Key für Join-Tabellen. Dokumentennummer ist Unique-Feld, nicht Primärschlüssel.
+- **Join-Tabellen genehmigt:** DB-013 EmployeeResponsibilities (Mitarbeiter ↔ Verantwortungsposition, n:m), DB-014 EmployeeQMAreas (Mitarbeiter ↔ QM-Bereich, n:m). Verantwortungsposition und QM-Bereich als String-Werte in Join-Tabellen (keine separaten Lookup-Tabellen, da keine Metadaten dokumentiert).
+- **User ↔ Employee:** Optionale 1:1-Beziehung (FK in DB-004 → DB-003). Employee ohne User möglich. Kein automatisches Erstellen. ADR-004 gewahrt.
+- **Benutzerrollen:** Gast, Editor, Admin als dokumentierte Enum-Werte für DB-004.
+- **Zeitstempel:** `created_at` / `updated_at` auf allen Haupttabellen. Nicht auf reinen Join-Tabellen. Domänenspezifische Daten bleiben separat.
+- **DB-011 Settings:** Reserviert / noch nicht implementiert. Kein Key/Value-Schema. Keine erfundenen Einstellungen.
+- **Backup-Status:** Deferred — keine erfundenen Enum-Werte. DB-010 und DB-012 als Klasse B klassifiziert.
+
+#### Vollständige Felddefinitionen
+
+- DB-001 Documents: 13 Felder (inkl. UUID PK, archived_at, created_at, updated_at)
+- DB-002 DocumentVersions: 12 Felder (inkl. file_name, file_path, uploaded_by, uploaded_at)
+- DB-003 Employees: 9 Felder (inkl. UUID PK, is_active, hire_date, departure_date)
+- DB-004 Users: 7 Felder (inkl. username, role, employee_id, is_active)
+- DB-005 Categories: 4 Felder
+- DB-006 Subcategories: 5 Felder
+- DB-007 KeywordDictionary: 4 Felder
+- DB-008 DocumentTags: 2 Felder (Composite PK)
+- DB-009 AuditLog: 6 Felder (inkl. user_id, document_id, timestamp)
+- DB-010 Backups: 8 Felder (Klasse B)
+- DB-011 Settings: reserviert (Klasse C)
+- DB-012 BackupReminders: 6 Felder (Klasse B)
+- DB-013 EmployeeResponsibilities: 2 Felder (Composite PK)
+- DB-014 EmployeeQMAreas: 2 Felder (Composite PK)
+
+#### Implementierungs-Readiness
+
+- **A (erforderlich):** DB-001, DB-002, DB-003, DB-004, DB-005, DB-006, DB-007, DB-008, DB-009, DB-013, DB-014
+- **B (verschoben):** DB-010, DB-012
+- **C (reserviert):** DB-011
+
+#### Konsistenz-Audit bestanden
+
+- UUID-Strategie konsistent
+- Dokumentennummern unabhängig von Datenbank-IDs
+- Employee-Multi-Value normalisiert (DB-013, DB-014)
+- User und Employee getrennt (ADR-004)
+- Gast/Editor/Admin nur Software-Rollen
+- Archivierungsdatum dokumentiert
+- Keine komma-separierten Werte
+- DB-011 ohne erfundene Einstellungen
+- Keine erfundenen Backup-Statuswerte
+- Keine Cloud-Abhängigkeit
+- Vollständig offline-fähig
+
+### Dokumentation
+
+- PQM-SDD-004B (Felddefinitionen) vollständig neu geschrieben mit allen Entscheidungen
+- PQM-DD-001 (Data Dictionary) vollständig neu geschrieben
+- PQM-SDD-004A (Tabellenübersicht) um Join-Tabellen und Readiness-Klassifizierung ergänzt
+- Code Map aktualisiert
+
+### Ergebnis
+
+**Initial SQLite foundation may proceed.** Alle blockierenden Lücken für die
+initiale SQLite-Foundation sind aufgelöst. Deferred Felder (Backup-Status,
+AuditLog-Aktionen, Authentifizierungsdaten) blockieren die initiale Foundation nicht.
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine Migrationen, keine SQLite-Dateien
+- Keine Code-Änderungen, keine Frontend-Änderungen
+- Keine Implementierung von UUID-Generierung oder Zeitstempel-Logik
+- Keine Authentifizierungslogik
+- Keine Backup-Implementierung
+
 ## [0.9.14] - 07.08.2026
 
 ### Datenmodell-Audit (Prompt 012)

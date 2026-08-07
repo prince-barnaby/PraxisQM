@@ -1,148 +1,241 @@
 # Data Dictionary
 
-> **Status nach Audit (Prompt 012):** Die Felddefinitionen für DB-001 und DB-003
-> sind dokumentiert. Alle anderen Tabellen (DB-002, DB-004–DB-012) haben
-> **blockierende Spezifikationslücken**. Siehe PQM-SDD-004B für den vollständigen
-> Audit-Bericht.
+> **Status nach Prompt 012B:** Alle blockierenden Spezifikationslücken
+> aufgelöst. Die Datenbankspezifikation ist vollständig und konsistent.
+> Siehe PQM-SDD-004B für die vollständigen Felddefinitionen,
+> Beziehungsspezifikation, Enum-Audit und Implementierungs-Readiness.
+
+## Architekturentscheidungen
+
+- **Primärschlüssel:** UUID für alle Haupttabellen; Composite Key für Join-Tabellen.
+- **Dokumentennummer:** Unique-Feld, nicht Primärschlüssel. Unveränderlich (ADR-001).
+- **Zeitstempel:** `created_at` / `updated_at` auf allen Haupttabellen. Nicht auf reinen Join-Tabellen.
+- **Benutzerrollen:** Gast, Editor, Admin (Software-Autorisierungsrollen).
+- **DB-011 Settings:** Reserviert / noch nicht implementiert.
 
 ## DB-001 Documents
 
 Stammdaten eines QM-Dokuments.
 
-| Feld | Typ | Beschreibung |
-|---|---|---|
-| Dokumentennummer | String | Automatisch vergeben, eindeutig, unveränderlich, wird niemals wiederverwendet (ADR-001) |
-| Titel | String | Bezeichnung des Dokuments |
-| Kategorie | String | Hauptkategorie |
-| Unterkategorie | String | Unterkategorie |
-| Verantwortliche Person | String | Zuständige Mitarbeitenden |
-| Version | String | Versionsnummer des Dokuments |
-| Status | String | Bearbeitungsstatus (Entwurf, aktiv, archiviert) |
-| Gültigkeit | String | Gültigkeitsstatus (gültig, läuft bald ab, abgelaufen) |
-| Gültig bis | Date | Ablaufdatum der Gültigkeit |
-| Beschreibung | Text | Beschreibender Text |
-| Tags | Liste<String> | Schlagwörter |
-| Archivierungsdatum | DateTime | Automatisch gesetzt, wenn ein Dokument archiviert wird. Leer für aktive Dokumente. Wird für Archiv-Sortierung und Archiv-Filterung verwendet. |
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Dokumentennummer | document_number | String | Ja | Nein | — | Ja | Menschenlesbare, unveränderliche Kennung (ADR-001) |
+| Titel | title | String | Ja | — | — | — | Bezeichnung |
+| Kategorie | category_id | UUID | Nein | — | DB-005 | — | Hauptkategorie |
+| Unterkategorie | subcategory_id | UUID | Nein | — | DB-006 | — | Unterkategorie |
+| Verantwortliche Person | responsible_person_id | UUID | Nein | — | DB-003 | — | Zuständige Mitarbeitenden |
+| Version | version | String | Ja | — | — | — | Aktuelle Versionsnummer |
+| Status | status | String (Enum) | Ja | — | — | — | Entwurf, aktiv, archiviert |
+| Gültigkeit | validity | String (Enum) | Ja | — | — | — | gültig, läuft bald ab, abgelaufen |
+| Gültig bis | valid_until | Date | Nein | — | — | — | Ablaufdatum |
+| Beschreibung | description | Text | Nein | — | — | — | Beschreibender Text |
+| Archivierungsdatum | archived_at | DateTime | Nein | — | — | — | Automatisch bei Archivierung. Leer für aktive. |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
+
+Tags werden über DB-008 (n:m) verwaltet.
 
 ## DB-002 DocumentVersions
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B für ableitbare Felder und ungelöste Fragen.
+Alle Versionen eines Dokuments.
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Dokument | document_id | UUID | Ja | — | DB-001 | — | Übergeordnetes Dokument |
+| Versionsnummer | version_number | String | Ja | — | — | — | Versionsnummer |
+| Dateiname | file_name | String | Ja | — | — | — | Name der hochgeladenen Datei |
+| Dateipfad | file_path | String | Ja | — | — | — | Pfad im Dokumentenspeicher |
+| Status | status | String (Enum) | Ja | — | — | — | Entwurf, aktiv, archiviert |
+| Gültigkeit | validity | String (Enum) | Ja | — | — | — | gültig, läuft bald ab, abgelaufen |
+| Gültig bis | valid_until | Date | Nein | — | — | — | Ablaufdatum dieser Version |
+| Hochgeladen von | uploaded_by | UUID | Nein | — | DB-004 | — | Hochladender Benutzer |
+| Upload-Zeitpunkt | uploaded_at | DateTime | Ja | — | — | — | Zeitpunkt des Uploads |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
 
 ## DB-003 Employees
 
-Mitarbeiterregister der Praxis – alle Mitarbeitenden, die als verantwortliche Personen eintragbar sind. Getrennt von der Benutzerverwaltung (ADR-004).
+Mitarbeiterregister der Praxis. Getrennt von Benutzerverwaltung (ADR-004).
 
-| Feld | Typ | Beschreibung |
-|---|---|---|
-| Name | String | Nachname der Mitarbeitenden |
-| Vorname | String | Vorname der Mitarbeitenden |
-| Position | String | Position / Rolle in der Praxis (z. B. Zahnärztin, ZFA, Praxismanagerin) |
-| Verantwortungsposition | Liste<String> | Multi-Value-Feld. Null, eine oder mehrere Verantwortungspositionen (z. B. QM-Beauftragte, Datenschutzbeauftragte, Hygienebeauftragte). Many-to-many-Beziehung: employee ↔ Verantwortungsposition. |
-| Zugeordneter QM-Bereich | Liste<String> | Multi-Value-Feld. Null, ein oder mehrere zugeordnete QM-Bereiche (z. B. Datenschutz, Patientendokumentation, Röntgeneinweisung). Many-to-many-Beziehung: employee ↔ QM-Bereich. |
-| Aktivstatus | Boolean | Aktiv / inaktiv. Wird über StatusBadge dargestellt (success = aktiv, neutral = inaktiv). |
-| Eintrittsdatum | Date | Eintrittsdatum in die Praxis |
-| Austrittsdatum | Date | Austrittsdatum aus der Praxis (leer / „—" bei aktiven Mitarbeitenden) |
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Name | last_name | String | Ja | — | — | — | Nachname |
+| Vorname | first_name | String | Ja | — | — | — | Vorname |
+| Position | position | String | Nein | — | — | — | Position in der Praxis |
+| Aktivstatus | is_active | Boolean | Ja | — | — | — | Aktiv / inaktiv |
+| Eintrittsdatum | hire_date | Date | Nein | — | — | — | Eintrittsdatum |
+| Austrittsdatum | departure_date | Date | Nein | — | — | — | Austrittsdatum (leer bei aktiven) |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
+
+Verantwortungsposition und QM-Bereich werden über DB-013 und DB-014 verwaltet (n:m).
 
 ### Entfernte Felder
 
-- ~~Funktion~~ → umbenannt zu **Position**
+- ~~Funktion~~ → **Position**
 - ~~Bereich~~ → entfernt
 - ~~E-Mail~~ → entfernt
 - ~~Telefonnummer~~ → entfernt
-
-### Multi-Value-Felder – Datenmodellregel
-
-Die Felder **Verantwortungsposition** und **Zugeordneter QM-Bereich** sind Multi-Value-Felder.
-
-- Ein Mitarbeiter kann **null, eine oder mehrere** Verantwortungspositionen haben.
-- Ein Mitarbeiter kann **null, einem oder mehreren** QM-Bereichen zugeordnet sein.
-- Beide Felder dürfen **nicht** als einzelner String oder als Single-Select-Wert modelliert werden.
-- Das zukünftige DB-003 Employees-Datenmodell muss **Many-to-Many-Zuweisungen** unterstützen für:
-  - employee ↔ Verantwortungsposition
-  - employee ↔ QM-Bereich
-- Datenbank-Verknüpfungstabellen (Join-Tables) werden noch nicht implementiert.
-- In der aktuellen UI-Only-Implementierung werden mehrere Werte als klar getrennte Badges/Chips dargestellt.
-- Die Platzhalterwerte sind Beispiele und keine festen Geschäftsregeln.
-
-### Strukturelle Lücke – Many-to-Many (BLOCKIEREND)
-
-Für eine korrekte SQLite-Implementierung werden zwei zusätzliche
-Verknüpfungstabellen benötigt:
-
-1. **DB-003a EmployeeResponsibilities** — employee ↔ Verantwortungsposition (n:m)
-2. **DB-003b EmployeeQMAreas** — employee ↔ QM-Bereich (n:m)
-
-Diese Tabellen sind **vorgeschlagen** und müssen vor der SQLite-Implementierung
-freigegeben werden. Siehe PQM-SDD-004B für Details.
-
-### Trennung von Mitarbeiterregister und Benutzerverwaltung (ADR-004)
-
-- DB-003 Employees und DB-004 Users sind **getrennte Tabellen**.
-- Das Mitarbeiterregister enthält **keine** Authentifizierungsdaten.
-- Benutzerrollen und Berechtigungen sind **keine** Mitarbeiter-Verantwortungspositionen.
-- Eine eventuelle Referenz zwischen User und Employee ist **optional** und
-  **nicht dokumentiert** — muss vor SQLite-Implementierung geklärt werden.
 
 ### Begriffliche Trennung
 
 | Begriff | Bedeutung | Tabelle |
 |---|---|---|
-| Position | Berufliche Rolle in der Praxis (z. B. Zahnärztin, ZFA) | DB-003 |
-| Verantwortungsposition | QM-Verantwortung (z. B. QM-Beauftragte, Datenschutzbeauftragte) | DB-003 (Multi-Value) |
-| QM-Bereich | Zugeordneter Qualitätsmanagementbereich (z. B. Datenschutz, Hygiene) | DB-003 (Multi-Value) |
-| Benutzerrolle | Software-Rolle für Zugriffskontrolle (z. B. Admin, Gast) | DB-004 |
-| Benutzerberechtigung | Einzelfehmigung innerhalb einer Rolle | DB-004 |
+| Position | Berufliche Rolle in der Praxis | DB-003 |
+| Verantwortungsposition | QM-Verantwortung | DB-013 (Multi-Value) |
+| QM-Bereich | Qualitätsmanagementbereich | DB-014 (Multi-Value) |
+| Benutzerrolle | Software-Rolle (Gast, Editor, Admin) | DB-004 |
+| Benutzerberechtigung | Einzelberechtigung | DB-004 |
+| Dokumentkategorie | Dokument-Klassifizierung | DB-005 |
 
 Eine Verantwortungsposition ist **keine** Software-Rolle.
-Ein QM-Bereich ist **keine** Berechtigung.
+Ein QM-Bereich ist **keine** Berechtigung und **keine** Dokumentkategorie.
 
 ## DB-004 Users
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B für ableitbare Felder und ungelöste Fragen.
+Benutzerkonten mit Login und Software-Rollen. Getrennt vom Mitarbeiterregister (ADR-004).
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Benutzername | username | String | Ja | — | — | Ja | Login-Name |
+| Rolle | role | String (Enum) | Ja | — | — | — | Gast, Editor, Admin |
+| Mitarbeiter | employee_id | UUID | Nein | — | DB-003 | — | Optionale Referenz zu Mitarbeiter |
+| Aktivstatus | is_active | Boolean | Ja | — | — | — | Konto aktiv / inaktiv |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
+
+### User ↔ Employee (ADR-004)
+
+- Ein User kann optional genau einen Employee referenzieren.
+- Ein Employee kann ohne User existieren.
+- Employee enthält keine Authentifizierungsdaten.
+- Die Beziehung ist optional.
+- Kein automatisches Erstellen von User/Employee.
+
+### Authentifizierung
+
+Authentifizierungsdaten sind nicht spezifiziert. Die Methode wird zukünftig geklärt.
 
 ## DB-005 Categories
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B.
+Hauptkategorien für Dokumente.
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Name | name | String | Ja | — | — | Ja | Kategoriename |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
 
 ## DB-006 Subcategories
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B.
+Unterkategorien, jeweils einer Hauptkategorie zugeordnet.
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Name | name | String | Ja | — | — | — | Unterkategoriename |
+| Kategorie | category_id | UUID | Ja | — | DB-005 | — | Übergeordnete Kategorie |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
 
 ## DB-007 KeywordDictionary
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B.
+Zulässige Schlagwörter.
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Schlagwort | keyword | String | Ja | — | — | Ja | Zulässiges Schlagwort |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
 
 ## DB-008 DocumentTags
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B.
+Join-Tabelle: Dokument ↔ Schlagwort (n:m).
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| Dokument | document_id | UUID | Ja | Composite | DB-001 | — | Dokument |
+| Schlagwort | keyword_id | UUID | Ja | Composite | DB-007 | — | Schlagwort |
+
+Composite PK: (`document_id`, `keyword_id`). Keine Zeitstempel (reine Join-Tabelle).
 
 ## DB-009 AuditLog
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B.
+Protokoll wichtiger Aktionen.
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Aktion | action | String | Ja | — | — | — | Art der Aktion (Werte deferred) |
+| Benutzer | user_id | UUID | Nein | — | DB-004 | — | Ausführender Benutzer |
+| Dokument | document_id | UUID | Nein | — | DB-001 | — | Betroffenes Dokument |
+| Details | details | Text | Nein | — | — | — | Zusätzliche Beschreibung |
+| Zeitstempel | timestamp | DateTime | Ja | — | — | — | Zeitpunkt der Aktion |
+
+Kein `updated_at` (Einträge unveränderlich). `timestamp` ist domänenspezifisch.
 
 ## DB-010 Backups
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B.
+Informationen über Sicherungen. **Klasse B — Implementierung verschoben.**
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Backup-Name | backup_name | String | Ja | — | — | — | Bezeichnung der Sicherung |
+| Dateipfad | file_path | String | Ja | — | — | — | Pfad zur Backup-Datei |
+| Zeitstempel | backup_timestamp | DateTime | Ja | — | — | — | Zeitpunkt der Sicherung |
+| Ausführender Benutzer | performed_by | UUID | Nein | — | DB-004 | — | Ausführender Benutzer |
+| Status | status | String | Nein | — | — | — | Backup-Status (deferred) |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
 
 ## DB-011 Settings
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> DB-011 ist **unresolved**. Es ist nicht ausreichend dokumentiert, welche Werte
-> tatsächlich in DB-011 gespeichert werden sollen. DB-011 darf nicht mit
-> erfundenen Key/Value-Paaren aufgefüllt werden. Siehe PQM-SDD-004B.
+**RESERVIERT / NOCH NICHT IMPLEMENTIERT.** Klasse C.
+
+Keine persistierten Einstellungen dokumentiert. Kein Key/Value-Schema.
+SQLite-Implementierung darf nicht von DB-011 abhängen.
 
 ## DB-012 BackupReminders
 
-> **Spezifikationslücke (BLOCKIEREND):** Keine Felddefinitionen dokumentiert.
-> Siehe PQM-SDD-004B.
+Verwaltung der Backup-Erinnerungen. **Klasse B — Implementierung verschoben.**
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| ID | id | UUID | Ja | Ja | — | Ja | Interner Primärschlüssel |
+| Backup | backup_id | UUID | Nein | — | DB-010 | — | Referenz zur Sicherung |
+| Erinnerungsdatum | reminder_date | DateTime | Ja | — | — | — | Datum der Erinnerung |
+| Status | status | String | Nein | — | — | — | Erinnerungsstatus (deferred) |
+| Erstellt am | created_at | DateTime | Ja | — | — | — | Technisch |
+| Geändert am | updated_at | DateTime | Ja | — | — | — | Technisch |
+
+## DB-013 EmployeeResponsibilities
+
+Join-Tabelle: Employee ↔ Verantwortungsposition (n:m).
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| Mitarbeiter | employee_id | UUID | Ja | Composite | DB-003 | — | Mitarbeiter |
+| Verantwortungsposition | responsibility | String | Ja | Composite | — | — | QM-Verantwortung |
+
+Composite PK: (`employee_id`, `responsibility`). Keine Zeitstempel.
+
+## DB-014 EmployeeQMAreas
+
+Join-Tabelle: Employee ↔ QM-Bereich (n:m).
+
+| Feld | Technischer Name | Typ | Required | PK | FK | Unique | Bedeutung |
+|---|---|---|---|---|---|---|---|
+| Mitarbeiter | employee_id | UUID | Ja | Composite | DB-003 | — | Mitarbeiter |
+| QM-Bereich | qm_area | String | Ja | Composite | — | — | QM-Bereich |
+
+Composite PK: (`employee_id`, `qm_area`). Keine Zeitstempel.
 
 ## Beziehungsspezifikation
 
@@ -152,6 +245,6 @@ Siehe PQM-SDD-004B für die vollständige Beziehungsspezifikation.
 
 Siehe PQM-SDD-004B für den vollständigen Enum-Audit.
 
-## Identifikatoren und Zeitstempel
+## Implementierungs-Readiness
 
-Siehe PQM-SDD-004B für den vollständigen Identifikatoren-Audit.
+Siehe PQM-SDD-004B für die Klassifizierung (A / B / C).
