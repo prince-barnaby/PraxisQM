@@ -1,0 +1,36 @@
+.pqm-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.pqm-status-badge__icon {
+  display: flex;
+  align-items: center;
+}
+
+.pqm-status-badge--success {
+  background-color: color-mix(in srgb, var(--pqm-color-success) 15%, transparent);
+  color: var(--pqm-color-success);
+}
+
+.pqm-status-badge--warning {
+  background-color: color-mix(in srgb, var(--pqm-color-warning) 15%, transparent);
+  color: var(--pqm-color-warning);
+}
+
+.pqm-status-badge--error {
+  background-color: color-mix(in srgb, var(--pqm-color-error) 15%, transparent);
+  color: var(--pqm-color-error);
+}
+
+.pqm-status-badge--neutral {
+  background-color: color-mix(in srgb, var(--pqm-color-neutral) 15%, transparent);
+  color: var(--pqm-color-neutral);
+}

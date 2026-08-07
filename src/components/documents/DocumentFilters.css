@@ -1,0 +1,51 @@
+.pqm-document-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-1);
+  padding: var(--pqm-space-2);
+  background-color: var(--pqm-color-surface);
+  border-radius: var(--pqm-radius);
+}
+
+.pqm-document-filters__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--pqm-color-primary);
+}
+
+.pqm-document-filters__selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pqm-space-2);
+}
+
+.pqm-document-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+.pqm-document-filters__field-label {
+  font-size: 0.75rem;
+  color: var(--pqm-color-neutral);
+}
+
+.pqm-document-filters__field select {
+  padding: 6px 8px;
+  border: 1px solid var(--pqm-color-neutral);
+  border-radius: var(--pqm-radius);
+  font-size: 0.85rem;
+  font-family: var(--pqm-font-family);
+  color: var(--pqm-color-neutral);
+  background-color: var(--pqm-color-background);
+  cursor: not-allowed;
+}
+
+.pqm-document-filters__field select:disabled {
+  opacity: 0.6;
+}

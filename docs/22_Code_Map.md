@@ -31,7 +31,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Grundstruktur | App-Shell, Eintrittspunkt, Build-Konfiguration | `src/` | aktiv |
 | Dashboard | Startseite mit Übersicht, Statuskarten und Schnellzugriffen | `src/pages/`, `src/components/dashboard/` | aktiv |
 | Navigation | Sidebar, Header, Seitenwechsel | `src/components/` | aktiv |
-| Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `src/` | geplant |
+| Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `src/pages/`, `src/components/documents/` | vorbereitet |
 | Archiv | Archivierte Dokumente und Wiederherstellung | `src/` | geplant |
 | Mitarbeiter | Mitarbeiterverwaltung, Rollen, Schulungen | `src/` | geplant |
 | Einstellungen | Praxisdaten, Systemoptionen, Backup-Einstellungen | `src/` | geplant |
@@ -64,9 +64,15 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dashboard-Karte „Mitarbeiter“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Schnellübersicht Mitarbeiter (Platzhalter-Wert) | vorbereitet |
 | Dashboard-Karte „Archiv“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Schnellzugriff Archiv (Platzhalter-Wert) | vorbereitet |
 | Dashboard-Karte „Systemstatus“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Anzeige lokaler Systeminformationen (Platzhalter-Wert) | vorbereitet |
-| Button „Neues Dokument“ | Dokumente | `src/` | noch offen | Startet später den Dokumenten-Upload | geplant |
+| Button „Neues Dokument“ | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Startet später den Dokumenten-Upload (Platzhalter, deaktiviert) | vorbereitet |
+| Suchfeld Dokumente | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Filtert Dokumentenliste (Platzhalter, deaktiviert) | vorbereitet |
+| Filterbereich Dokumente | Dokumente | `src/components/documents/DocumentFilters.tsx` | `DocumentFilters` | Statische Filter: Kategorie, Unterkategorie, Status, Verantwortliche Person, Gültigkeit (Platzhalter) | vorbereitet |
+| Dokumentenliste | Dokumente | `src/components/documents/DocumentList.tsx` | `DocumentList` | Tabellarische Übersicht mit Mock-Platzhalter-Einträgen | vorbereitet |
+| Dokumentenzeile | Dokumente | `src/components/documents/DocumentRow.tsx` | `DocumentRow` | Eine Tabellenzeile mit allen dokumentierten Dokumentfeldern | vorbereitet |
+| Status-Badge | Dokumente | `src/components/documents/StatusBadge.tsx` | `StatusBadge` | Wiederverwendbare Badge für Status und Gültigkeit | aktiv |
+| Empty State | Dokumente | `src/components/documents/EmptyState.tsx` | `EmptyState` | Platzhalter für leeren Zustand der Dokumentenliste | aktiv |
+| Dokumente-Seite | Dokumente | `src/pages/Dokumente.tsx` | `Dokumente` | Statische Dokumentenübersicht mit Toolbar, Filtern und Liste | vorbereitet |
 | Button „Dokument archivieren“ | Dokumente / Archiv | `src/` | noch offen | Verschiebt Dokument ins Archiv | geplant |
-| Suchfeld Dokumente | Dokumente | `src/` | noch offen | Filtert Dokumentenliste | geplant |
 | Mitarbeiterliste | Mitarbeiter | `src/` | noch offen | Zeigt Mitarbeitende der Praxis | geplant |
 | Button „Mitarbeiter hinzufügen“ | Mitarbeiter | `src/` | noch offen | Öffnet Formular für neuen Mitarbeiter | geplant |
 | Einstellungen-Seite | Einstellungen | `src/` | noch offen | System- und Praxiseinstellungen | geplant |
@@ -108,7 +114,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Prompt 001 – Projektgrundgerüst | Grundstruktur | `package.json`, `vite.config.ts`, `tsconfig.json`, `index.html`, `src/main.tsx`, `src/App.tsx`, `src/components/AppShell.tsx`, `src/components/Sidebar.tsx`, `src/components/Header.tsx`, `src/pages/Startseite.tsx`, `src/styles/tokens.css`, `src/styles/global.css`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/src/main.rs`, `src-tauri/build.rs` | aktiv |
 | Prompt 002 – Navigation | Navigation | `src/main.tsx`, `src/App.tsx`, `src/components/Sidebar.tsx`, `src/components/Sidebar.css`, `src/components/PlaceholderPage.tsx`, `src/components/PlaceholderPage.css`, `src/pages/Startseite.tsx`, `src/pages/Dokumente.tsx`, `src/pages/Archiv.tsx`, `src/pages/Mitarbeiter.tsx`, `src/pages/Einstellungen.tsx` | aktiv |
 | Prompt 003 – Dashboard | Dashboard | `src/pages/Startseite.tsx`, `src/pages/Startseite.css`, `src/components/dashboard/DashboardGrid.tsx`, `src/components/dashboard/DashboardGrid.css`, `src/components/dashboard/DashboardCard.tsx`, `src/components/dashboard/DashboardCard.css` | aktiv |
-| Prompt 004 – Dokumentenübersicht | Dokumente | noch offen | geplant |
+| Prompt 004 – Dokumentenübersicht | Dokumente | `src/pages/Dokumente.tsx`, `src/pages/Dokumente.css`, `src/components/documents/DocumentToolbar.tsx`, `src/components/documents/DocumentToolbar.css`, `src/components/documents/DocumentFilters.tsx`, `src/components/documents/DocumentFilters.css`, `src/components/documents/DocumentList.tsx`, `src/components/documents/DocumentList.css`, `src/components/documents/DocumentRow.tsx`, `src/components/documents/StatusBadge.tsx`, `src/components/documents/StatusBadge.css`, `src/components/documents/EmptyState.tsx`, `src/components/documents/EmptyState.css` | vorbereitet |
 | Prompt 005 – Archivgrundlage | Archiv | noch offen | geplant |
 
 ---
@@ -122,6 +128,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-06 | Code Map für Prompt 002 (Navigation: React Router, NavLink, Platzhalter-Seiten) aktualisiert | Saskia / Bolt |
 | 2026-08-06 | Code Map für Prompt 003 (Dashboard-Grundlayout, DashboardGrid, DashboardCard) aktualisiert | Saskia / Bolt |
 | 2026-08-06 | Code Map für Dashboard-Visual-Improvement (klickbare Karten, Navigationspfeil, Hover-Animation, kompakteres Layout) aktualisiert | Saskia / Bolt |
+| 2026-08-07 | Code Map für Prompt 004 (Dokumentenübersicht UI: DocumentToolbar, DocumentFilters, DocumentList, DocumentRow, StatusBadge, EmptyState) aktualisiert | Saskia / Bolt |
 
 ---
 

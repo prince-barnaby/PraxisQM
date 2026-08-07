@@ -2,6 +2,34 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.4] - 07.08.2026
+
+### Hinzugefügt
+
+- Statische Dokumentenübersicht auf der Seite „Dokumente“
+- Werkzeugleiste mit Seitentitel, Beschreibung, deaktiviertem Suchfeld (Platzhalter) und Button „Neues Dokument“ (Platzhalter)
+- Filterbereich mit fünf dokumentierten Kriterien: Kategorie, Unterkategorie, Status, Verantwortliche Person, Gültigkeit (alle als Platzhalter, nicht funktional)
+- Dokumentenliste als Tabelle mit allen dokumentierten Feldern: Dokumentennummer, Titel, Kategorie, Unterkategorie, Status, Verantwortliche Person, Gültigkeit, Version
+- Drei klar gekennzeichnete Mock-Platzhalter-Einträge zur Veranschaulichung von Layout und Komponenten
+- Wiederverwendbare `StatusBadge`-Komponente für Status- und Gültigkeitsanzeige (success, warning, error, neutral)
+- Wiederverwendbare `EmptyState`-Komponente für leere Listen
+- Accessibility-Eigenschaften (role, aria-label, scope) für alle relevanten Elemente
+- Code Map und Changelog aktualisiert
+
+### Geändert
+
+- Seite „Dokumente“ von Platzhalter auf statische Dokumentenübersicht umgestellt
+
+### Nicht enthalten (bewusst)
+
+- Keine Datenbankanbindung, keine echten Dokumentdaten
+- Keine funktionierende Suche, keine funktionierenden Filter
+- Kein Upload, keine Dokumenterstellung oder -bearbeitung
+- Keine Archivierungs- oder Löschaktion
+- Keine Rollen- oder Berechtigungslogik
+- Keine Navigation aus einer Dokumentenzeile
+- Keine Änderungen an Routing, Navigation, Header, Sidebar oder Dashboard
+
 ## [0.9.3] - 06.08.2026
 
 ### Geändert
