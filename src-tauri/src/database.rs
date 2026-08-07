@@ -10,7 +10,7 @@
 use rusqlite::{Connection, Result as SqliteResult};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// Aktuelle Schema-Version.
 /// Muss erhöht werden, wenn das Schema geändert wird.
@@ -197,7 +197,7 @@ fn set_schema_version(conn: &Connection, version: i64) -> SqliteResult<()> {
 /// Liefert den Pfad zur SQLite-Datenbank im App-Data-Verzeichnis.
 pub fn database_path(app: &AppHandle) -> PathBuf {
     let dir = app
-        .path()
+        .path_resolver()
         .app_data_dir()
         .expect("App-Data-Verzeichnis nicht verfügbar");
     fs::create_dir_all(&dir).expect("App-Data-Verzeichnis konnte nicht erstellt werden");
@@ -230,7 +230,7 @@ pub fn init_database(db_path: &Path) -> SqliteResult<()> {
     let fk_enabled: i64 =
         conn.query_row("PRAGMA foreign_keys;", [], |row| row.get(0))?;
     if fk_enabled != 1 {
-        return Err(rusqlite::Error::InvalidParameter(
+        return Err(rusqlite::Error::InvalidQuery(
             "Foreign-Key-Enforcement konnte nicht aktiviert werden".to_string(),
         ));
     }

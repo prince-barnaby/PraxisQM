@@ -13,7 +13,7 @@ mod database;
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            let db_path = database::database_path(app.handle());
+            let db_path = database::database_path(&app.handle());
             match database::init_database(&db_path) {
                 Ok(()) => {
                     println!("PraxisQM: SQLite-Datenbank initialisiert: {}", db_path.display());

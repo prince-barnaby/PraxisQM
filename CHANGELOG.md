@@ -2,6 +2,47 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.21] - 07.08.2026
+
+### Rust-Compiler-Fehler in SQLite-Foundation behoben (Prompt 013D)
+
+Die lokale Rust-Kompilierung schlug mit drei Fehlern und einer Warnung fehl,
+alle in Prompt 013 eingeführtem Code.
+
+#### Fehler und Ursachen
+
+1. **`rusqlite::Error::InvalidParameter` (database.rs:233)** — Die Variante
+   `InvalidParameter` existiert nicht in rusqlite 0.31. Die verfügbaren
+   Invalid-Varianten sind `InvalidParameterName(String)`, `InvalidQuery(String)`,
+   `InvalidPath(PathBuf)`, etc. Die Semantik des Aufrufs war ein allgemeiner
+   Datenbankfehler (Foreign-Key-Enforcement fehlgeschlagen), kein Parametername-
+   Fehler. Daher wurde `InvalidQuery(String)` gewählt — es ist die allgemeinste
+   Invalid-Variante für einen SQL-bezogenen Fehler mit String-Beschreibung.
+
+2. **`app.path().app_data_dir()` (database.rs:199-200)** — `path()` ist eine
+   Tauri v2 API. In Tauri v1 heißt die Methode `path_resolver()` und ist eine
+   inhärente Methode (über das `shared_app_impl!`-Makro), kein Trait-Method.
+
+3. **`database_path(app.handle())` (main.rs:16)** — `app.handle()` gibt
+   `AppHandle` (owned) zurück, aber `database_path` erwartet `&AppHandle`
+   (Referenz). Fix: `&app.handle()`.
+
+4. **Warnung: unused import `Manager`** — `Manager` wurde importiert für
+   `path()`, aber in Tauri v1 ist `path_resolver()` eine inhärente Methode
+   und benötigt den Trait nicht. Import entfernt.
+
+#### Geänderte Dateien
+
+- `src-tauri/src/database.rs`: `Manager`-Import entfernt, `path()` →
+  `path_resolver()`, `InvalidParameter` → `InvalidQuery`
+- `src-tauri/src/main.rs`: `app.handle()` → `&app.handle()`
+
+#### Verifikation
+
+- Frontend-Build: bestanden
+- Rust-Compilation: nicht in dieser Umgebung verfügbar — muss lokal mit
+  `cargo test` und `cargo build` verifiziert werden
+
 ## [0.9.20] - 07.08.2026
 
 ### Tauri v1 Icon-Set erstellt (Prompt 013C)
