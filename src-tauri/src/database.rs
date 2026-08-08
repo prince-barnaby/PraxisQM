@@ -1267,12 +1267,12 @@ mod tests {
     #[test]
     fn test_add_responsibility_assignment() {
         let (conn, _tmp) = init_test_db();
-        let resp = create_responsibility(&conn, "Hygienebeauftragte").unwrap();
+        let resp = create_responsibility(&conn, "Notfallbeauftragte").unwrap();
         let emp = make_test_employee(&conn, &[], &[]);
         let input = make_update_input("Test", "Mitarbeiter", Some("ZFA"), true, Some("2020-01-01"), None, vec![resp.id.clone()], vec![]);
         let updated = update_employee(&conn, &emp.id, &input).unwrap();
         assert_eq!(updated.responsibilities.len(), 1);
-        assert_eq!(updated.responsibilities[0], "Hygienebeauftragte");
+        assert_eq!(updated.responsibilities[0], "Notfallbeauftragte");
         assert_eq!(updated.responsibility_ids.len(), 1);
         assert_eq!(updated.responsibility_ids[0], resp.id);
     }
@@ -1280,7 +1280,7 @@ mod tests {
     #[test]
     fn test_remove_responsibility_assignment() {
         let (conn, _tmp) = init_test_db();
-        let resp = create_responsibility(&conn, "Hygienebeauftragte").unwrap();
+        let resp = create_responsibility(&conn, "Notfallbeauftragte").unwrap();
         let emp = make_test_employee(&conn, &[resp.id], &[]);
         let input = make_update_input("Test", "Mitarbeiter", Some("ZFA"), true, Some("2020-01-01"), None, vec![], vec![]);
         let updated = update_employee(&conn, &emp.id, &input).unwrap();
