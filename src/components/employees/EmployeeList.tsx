@@ -52,6 +52,7 @@ export default function EmployeeList({ employees, loading, error }: EmployeeList
             <th scope="col">Status</th>
             <th scope="col">Eintritt</th>
             <th scope="col">Austritt</th>
+            <th scope="col" aria-label="Aktionen"></th>
           </tr>
         </thead>
         <tbody>

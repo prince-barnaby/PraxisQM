@@ -2,6 +2,84 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.27] - 08.08.2026
+
+### Mitarbeiterbearbeitung und transaktionale Zuordnungsaktualisierung (Prompt 016)
+
+Implementierung der Bearbeitungsfunktion für bestehende Mitarbeiter,
+einschließlich sicherer Aktualisierung der Many-to-Many-Zuordnungen
+zu Verantwortungspositionen (DB-013) und QM-Bereichen (DB-014).
+
+#### Backend (Rust / Tauri)
+
+- **Neue Tauri Commands:**
+  - `cmd_get_employee` — lädt einen einzelnen Mitarbeiter anhand UUID
+    mit allen zugeordneten Verantwortungspositionen und QM-Bereichen
+  - `cmd_update_employee` — aktualisiert einen Mitarbeiter transaktional
+    (DB-003 Felder + DB-013/DB-014 Zuordnungen in einer Transaktion)
+- **Neue Datenbankfunktionen:** `get_employee`, `update_employee`,
+  `load_responsibility_ids`, `load_qm_area_ids`
+- **Employee-Struct erweitert:** `responsibility_ids` und `qm_area_ids`
+  als kanonische UUID-Arrays für Edit-Modus-Pre-Population
+- **Transaktionssicherheit:** `update_employee` wird innerhalb einer
+  SQLite-Transaktion ausgeführt — bei Fehler wird alles zurückgerollt
+- **Validierung:** Eingabe-Validierung (Name, Vorname, Position,
+  Eintrittsdatum erforderlich); ungültige Zuordnungs-IDs verursachen
+  Transaktions-Rollback
+- **Tests:** 17 neue Rust-Tests (update basic fields, UUID unchanged,
+  updated_at changes, add/remove/replace/clear responsibilities,
+  add/remove/replace/clear QM areas, simultaneous update, invalid ID
+  rollback, failed update preserves fields, get_employee complete
+  relationships, nonexistent employee error, update nonexistent error)
+
+#### Frontend (React)
+
+- **Neue Komponenten:**
+  - `MitarbeiterBearbeiten` — Edit-Seite mit Pre-Population und Save/Cancel
+  - `MitarbeiterBearbeiten.css` — Styling passend zu MitarbeiterNeu
+- **Aktualisierte Komponenten:**
+  - `EmployeeForm` — neuer optionale `initialValues`-Prop für Edit-Modus,
+    neuer `submitLabel`-Prop, `useEffect` für Pre-Population
+  - `EmployeeRow` — neuer Edit-Button (Bleistift-Icon) pro Zeile
+  - `EmployeeList` — neue Aktionen-Spalte in Tabellenkopf
+  - `employeeApi.ts` — `fetchEmployee` und `updateEmployee` hinzugefügt,
+  `UpdateEmployeeInput`-Interface, `responsibility_ids`/`qm_area_ids`
+  in `Employee`-Interface
+  - `App.tsx` — Route `/mitarbeiter/:id/bearbeiten` hinzugefügt
+
+#### Wiederverwendung
+
+- `EmployeeForm` wird sowohl für Erstellen als auch Bearbeiten verwendet
+  (keine Duplikation der Formularfelder)
+- `MitarbeiterBearbeiten` folgt dem gleichen Layout wie `MitarbeiterNeu`
+- Edit-Button verwendet lucide-react `Pencil`-Icon (bestehende
+  Icon-Bibliothek)
+
+#### Transaktionsstrategie
+
+`cmd_update_employee` öffnet eine SQLite-Transaktion, führt alle
+Updates aus (DB-003 Felder, DB-013 Zuordnungen, DB-014 Zuordnungen,
+updated_at) und committet nur bei vollem Erfolg. Bei Fehler wird
+die Transaktion zurückgerollt — keine teilweise aktualisierten
+Mitarbeiterdatensätze.
+
+#### Validierung
+
+- Backend: trimmt Eingaben, leere Pflichtfelder abgelehnt,
+  UNIQUE-Constraint-Fehler weitergegeben
+- Frontend: gleiche Validierung wie Erstellen (Name, Vorname, Position,
+  Eintrittsdatum erforderlich)
+- Ungültige Zuordnungs-IDs: gesamte Transaktion schlägt fehl,
+  Grunddaten bleiben unverändert
+
+#### Nicht implementiert (bewusst)
+
+- Mitarbeiterlöschung (nicht angefordert)
+- Archivierung (nicht angefordert)
+- Authentifizierung/Benutzerkonten (nicht angefordert)
+- Aktivstatus/Austrittsdatum-Verknüpfung (keine kanonische Regel)
+- Mitarbeiter-History/Versionierung (nicht angefordert)
+
 ## [0.9.26] - 07.08.2026
 
 ### Stammdatenverwaltung für Verantwortungspositionen und QM-Bereiche (Prompt 015)

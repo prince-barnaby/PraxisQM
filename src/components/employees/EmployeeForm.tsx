@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, X } from "lucide-react";
 import type { MasterDataItem } from "../../lib/employeeApi";
 import DocumentFormSection from "../documents/DocumentFormSection";
@@ -12,6 +12,9 @@ interface EmployeeFormProps {
   onCancel: () => void;
   submitting?: boolean;
   error?: string | null;
+  initialValues?: EmployeeFormData;
+  submitLabel?: string;
+  ariaLabel?: string;
 }
 
 export interface EmployeeFormData {
@@ -32,16 +35,32 @@ export default function EmployeeForm({
   onCancel,
   submitting = false,
   error = null,
+  initialValues,
+  submitLabel = "Mitarbeiter anlegen",
+  ariaLabel = "Neuen Mitarbeiter anlegen",
 }: EmployeeFormProps) {
-  const [lastName, setLastName] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [position, setPosition] = useState("");
-  const [isActive, setIsActive] = useState(true);
-  const [hireDate, setHireDate] = useState("");
-  const [departureDate, setDepartureDate] = useState("");
-  const [selectedRespIds, setSelectedRespIds] = useState<string[]>([]);
-  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
+  const [lastName, setLastName] = useState(initialValues?.last_name ?? "");
+  const [firstName, setFirstName] = useState(initialValues?.first_name ?? "");
+  const [position, setPosition] = useState(initialValues?.position ?? "");
+  const [isActive, setIsActive] = useState(initialValues?.is_active ?? true);
+  const [hireDate, setHireDate] = useState(initialValues?.hire_date ?? "");
+  const [departureDate, setDepartureDate] = useState(initialValues?.departure_date ?? "");
+  const [selectedRespIds, setSelectedRespIds] = useState<string[]>(initialValues?.responsibility_ids ?? []);
+  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(initialValues?.qm_area_ids ?? []);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (initialValues) {
+      setLastName(initialValues.last_name);
+      setFirstName(initialValues.first_name);
+      setPosition(initialValues.position);
+      setIsActive(initialValues.is_active);
+      setHireDate(initialValues.hire_date ?? "");
+      setDepartureDate(initialValues.departure_date ?? "");
+      setSelectedRespIds(initialValues.responsibility_ids);
+      setSelectedAreaIds(initialValues.qm_area_ids);
+    }
+  }, [initialValues]);
 
   const toggleResp = (id: string) => {
     setSelectedRespIds((prev) =>
@@ -83,7 +102,7 @@ export default function EmployeeForm({
   return (
     <form
       className="pqm-employee-form"
-      aria-label="Neuen Mitarbeiter anlegen"
+      aria-label={ariaLabel}
       onSubmit={handleSubmit}
     >
       <DocumentFormSection title="Allgemeine Daten">
@@ -271,9 +290,9 @@ export default function EmployeeForm({
           type="submit"
           className="pqm-employee-form__submit"
           disabled={submitting}
-          aria-label="Mitarbeiter anlegen"
+          aria-label={submitLabel}
         >
-          {submitting ? "Wird gespeichert …" : "Mitarbeiter anlegen"}
+          {submitting ? "Wird gespeichert …" : submitLabel}
         </button>
       </div>
     </form>

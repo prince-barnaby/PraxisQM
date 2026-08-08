@@ -165,3 +165,32 @@
   color: var(--pqm-color-neutral);
   font-size: 0.85rem;
 }
+
+.pqm-employee-row__actions {
+  width: 48px;
+  text-align: center;
+}
+
+.pqm-employee-row__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--pqm-color-neutral);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pqm-employee-row__edit-btn:hover {
+  background-color: var(--pqm-color-background);
+  color: var(--pqm-color-primary);
+}
+
+.pqm-employee-row__edit-btn:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: 2px;
+}

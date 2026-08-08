@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+import { Pencil } from "lucide-react";
 import type { BadgeVariant } from "../documents/StatusBadge";
 import StatusBadge from "../documents/StatusBadge";
 
@@ -20,6 +22,12 @@ interface EmployeeRowProps {
 }
 
 export default function EmployeeRow({ employee: emp }: EmployeeRowProps) {
+  const navigate = useNavigate();
+
+  const handleEdit = () => {
+    navigate(`/mitarbeiter/${emp.id}/bearbeiten`);
+  };
+
   return (
     <tr
       className="pqm-employee-row"
@@ -60,6 +68,17 @@ export default function EmployeeRow({ employee: emp }: EmployeeRowProps) {
       </td>
       <td className="pqm-employee-row__entry-date">{emp.entryDate}</td>
       <td className="pqm-employee-row__exit-date">{emp.exitDate}</td>
+      <td className="pqm-employee-row__actions">
+        <button
+          type="button"
+          className="pqm-employee-row__edit-btn"
+          onClick={handleEdit}
+          aria-label={`${emp.lastName}, ${emp.firstName} bearbeiten`}
+          title="Mitarbeiter bearbeiten"
+        >
+          <Pencil size={14} aria-hidden="true" />
+        </button>
+      </td>
     </tr>
   );
 }

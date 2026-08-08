@@ -10,7 +10,7 @@
 
 mod database;
 
-use database::{CreateEmployeeInput, Employee, MasterDataItem};
+use database::{CreateEmployeeInput, Employee, MasterDataItem, UpdateEmployeeInput};
 use rusqlite::Connection;
 use std::sync::Mutex;
 use tauri::{Manager, State};
@@ -45,6 +45,8 @@ fn main() {
             cmd_rename_responsibility,
             cmd_create_qm_area,
             cmd_rename_qm_area,
+            cmd_get_employee,
+            cmd_update_employee,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten von PraxisQM");
@@ -67,6 +69,45 @@ fn cmd_create_employee(
         Ok(emp) => {
             tx.commit().map_err(|e| e.to_string())?;
             Ok(emp)
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+fn cmd_get_employee(
+    state: State<DbState>,
+    id: String,
+) -> Result<Employee, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::get_employee(&conn, &id) {
+        Ok(emp) => Ok(emp),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            Err("Mitarbeiter nicht gefunden.".to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+fn cmd_update_employee(
+    state: State<DbState>,
+    id: String,
+    input: UpdateEmployeeInput,
+) -> Result<Employee, String> {
+    let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    match database::update_employee(&tx, &id, &input) {
+        Ok(emp) => {
+            tx.commit().map_err(|e| e.to_string())?;
+            Ok(emp)
+        }
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            let _ = tx.rollback();
+            Err("Mitarbeiter nicht gefunden.".to_string())
         }
         Err(e) => {
             let _ = tx.rollback();
