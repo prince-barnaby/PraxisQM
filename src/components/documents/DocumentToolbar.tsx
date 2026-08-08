@@ -20,14 +20,14 @@ export default function DocumentToolbar({ resultCount }: DocumentToolbarProps) {
       <div className="pqm-document-toolbar__actions">
         <div
           className="pqm-document-toolbar__search"
-          aria-label="Suchfeld – Platzhalter, keine aktive Suche"
+          aria-label="Suchfeld – Platzhalter"
         >
           <Search size={16} aria-hidden="true" />
           <input
             type="text"
             placeholder="Suche – Platzhalter"
             disabled
-            aria-label="Dokumentsuche (Platzhalter, nicht funktional)"
+            aria-label="Dokumentsuche (Platzhalter)"
           />
         </div>
         <button

@@ -23,7 +23,7 @@ export default function DokumentBearbeiten() {
       <header className="pqm-dokument-bearbeiten__header">
         <h2 className="pqm-dokument-bearbeiten__title">Dokument bearbeiten</h2>
         <p className="pqm-dokument-bearbeiten__subtitle">
-          Bearbeiten von „{documentNumber}" – Platzhalter, ohne Speicherung
+          Bearbeiten von „{documentNumber}" – ohne Speicherung (Funktion folgt)
         </p>
       </header>
 

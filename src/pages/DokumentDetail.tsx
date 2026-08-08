@@ -1,51 +1,83 @@
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FileText, ChevronLeft } from "lucide-react";
 import StatusBadge from "../components/documents/StatusBadge";
 import DocumentMetadata from "../components/documents/DocumentMetadata";
 import type { MetadataEntry } from "../components/documents/DocumentMetadata";
-import TagList from "../components/documents/TagList";
 import DocumentActionBar from "../components/documents/DocumentActionBar";
-import DocumentHistory from "../components/documents/DocumentHistory";
-import type { HistoryEntry } from "../components/documents/DocumentHistory";
 import "./DokumentDetail.css";
+import { fetchDocumentByNumber, openPdf, type Document } from "../lib/documentApi";
 
-const PLACEHOLDER_TITLE = "Platzhalter-Dokument 1";
-const PLACEHOLDER_PDF = "platzhalter-dokument-1.pdf";
-
-const METADATA_ENTRIES: MetadataEntry[] = [
-  { label: "Dokumentnummer", value: "", mono: true },
-  { label: "Titel", value: PLACEHOLDER_TITLE },
-  { label: "Kategorie", value: "Platzhalter" },
-  { label: "Unterkategorie", value: "Platzhalter" },
-  { label: "Version", value: "1.0", mono: true },
-  { label: "Status", value: "aktiv" },
-  { label: "Verantwortliche Person", value: "Platzhalter" },
-  { label: "Gültig bis", value: "Platzhalter" },
-  { label: "Letzte Änderung", value: "Platzhalter" },
-];
-
-const PLACEHOLDER_TAGS = [
-  "Platzhalter-Tag 1",
-  "Platzhalter-Tag 2",
-  "Platzhalter-Tag 3",
-];
-
-const HISTORY_ENTRIES: HistoryEntry[] = [
-  { id: "h1", label: "Version 1.0 erstellt" },
-  { id: "h2", label: "Version 1.1 geändert" },
-  { id: "h3", label: "Version 1.2 freigegeben" },
-];
+function statusToVariant(status: string): "success" | "neutral" {
+  return status === "aktiv" ? "success" : "neutral";
+}
 
 export default function DokumentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const documentNumber = id ?? "Unbekannt";
 
-  const metadata = METADATA_ENTRIES.map((entry) =>
-    entry.label === "Dokumentnummer"
-      ? { ...entry, value: documentNumber }
-      : entry
-  );
+  const [doc, setDoc] = useState<Document | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchDocumentByNumber(documentNumber)
+      .then((d) => setDoc(d))
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => setLoading(false));
+  }, [documentNumber]);
+
+  const handleOpenPdf = async () => {
+    if (!doc) return;
+    try {
+      await openPdf(doc.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="pqm-dokument-detail">
+        <p>Dokument wird geladen …</p>
+      </div>
+    );
+  }
+
+  if (error || !doc) {
+    return (
+      <div className="pqm-dokument-detail">
+        <a
+          href="/dokumente"
+          className="pqm-dokument-detail__back"
+          aria-label="Zurück zu Dokumenten"
+        >
+          <ChevronLeft size={16} aria-hidden="true" />
+          Zurück zu Dokumenten
+        </a>
+        <p className="pqm-dokument-detail__error" role="alert">
+          {error ?? "Dokument konnte nicht geladen werden."}
+        </p>
+      </div>
+    );
+  }
+
+  const metadata: MetadataEntry[] = [
+    { label: "Dokumentnummer", value: doc.document_number, mono: true },
+    { label: "Titel", value: doc.title },
+    { label: "Kategorie", value: doc.category_name ?? "—" },
+    { label: "Unterkategorie", value: doc.subcategory_name ?? "—" },
+    { label: "Version", value: doc.version, mono: true },
+    { label: "Status", value: doc.status },
+    { label: "Verantwortliche Person", value: doc.responsible_person_name ?? "—" },
+    { label: "Gültig bis", value: doc.valid_until ?? "—" },
+    { label: "Letzte Änderung", value: doc.updated_at },
+  ];
 
   return (
     <div className="pqm-dokument-detail">
@@ -60,10 +92,10 @@ export default function DokumentDetail() {
 
       <header className="pqm-dokument-detail__header">
         <div className="pqm-dokument-detail__header-main">
-          <h2 className="pqm-dokument-detail__title">{PLACEHOLDER_TITLE}</h2>
-          <span className="pqm-dokument-detail__number">{documentNumber}</span>
+          <h2 className="pqm-dokument-detail__title">{doc.title}</h2>
+          <span className="pqm-dokument-detail__number">{doc.document_number}</span>
         </div>
-        <StatusBadge label="aktiv" variant="success" />
+        <StatusBadge label={doc.status} variant={statusToVariant(doc.status)} />
       </header>
 
       <DocumentMetadata entries={metadata} />
@@ -74,10 +106,7 @@ export default function DokumentDetail() {
       >
         <h3 className="pqm-dokument-detail__card-heading">Beschreibung</h3>
         <p className="pqm-dokument-detail__description">
-          Dies ist ein Platzhalter-Text für die Dokumentbeschreibung. Die
-          eigentliche Beschreibung wird später aus den Dokumentmetadaten
-          geladen. Dieser Text dient ausschließlich der Darstellung des
-          Layouts und der Komponenten.
+          {doc.description ?? "Keine Beschreibung hinterlegt."}
         </p>
       </section>
 
@@ -88,30 +117,23 @@ export default function DokumentDetail() {
         <h3 className="pqm-dokument-detail__card-heading">Dokumentdatei</h3>
         <div className="pqm-dokument-detail__attachment">
           <FileText size={28} aria-hidden="true" />
-          <span className="pqm-dokument-detail__filename">{PLACEHOLDER_PDF}</span>
+          <span className="pqm-dokument-detail__filename">{doc.file_name ?? "Keine Datei"}</span>
           <button
             type="button"
             className="pqm-dokument-detail__pdf-button"
-            disabled
-            aria-label="PDF öffnen – Platzhalter, nicht funktional"
+            onClick={handleOpenPdf}
+            disabled={!doc.file_path}
+            aria-label="PDF öffnen"
           >
             PDF öffnen
           </button>
         </div>
       </section>
 
-      <TagList tags={PLACEHOLDER_TAGS} />
-
       <DocumentActionBar
-        pdfFileName={PLACEHOLDER_PDF}
-        onEdit={() => navigate(`/dokumente/${documentNumber}/bearbeiten`)}
+        pdfFileName={doc.file_name ?? "—"}
+        onEdit={() => navigate(`/dokumente/${doc.document_number}/bearbeiten`)}
       />
-
-      <DocumentHistory entries={HISTORY_ENTRIES} />
-
-      <p className="pqm-dokument-detail__hint">
-        Hinweis: Alle Inhalte sind Platzhalter. Aktionen sind nicht funktional.
-      </p>
     </div>
   );
 }

@@ -4,9 +4,10 @@ import "./DocumentActionBar.css";
 interface DocumentActionBarProps {
   pdfFileName: string;
   onEdit?: () => void;
+  onOpenPdf?: () => void;
 }
 
-export default function DocumentActionBar({ pdfFileName, onEdit }: DocumentActionBarProps) {
+export default function DocumentActionBar({ pdfFileName, onEdit, onOpenPdf }: DocumentActionBarProps) {
   return (
     <div
       className="pqm-action-bar"
@@ -26,8 +27,9 @@ export default function DocumentActionBar({ pdfFileName, onEdit }: DocumentActio
       <button
         type="button"
         className="pqm-action-bar__button"
-        disabled
-        aria-label={`PDF öffnen – ${pdfFileName} – Platzhalter, nicht funktional`}
+        onClick={onOpenPdf}
+        disabled={!onOpenPdf}
+        aria-label={`PDF öffnen – ${pdfFileName}`}
       >
         <FileText size={16} aria-hidden="true" />
         PDF öffnen
@@ -36,7 +38,7 @@ export default function DocumentActionBar({ pdfFileName, onEdit }: DocumentActio
         type="button"
         className="pqm-action-bar__button pqm-action-bar__button--danger"
         disabled
-        aria-label="Archivieren – Platzhalter, nicht funktional"
+        aria-label="Archivieren – noch nicht implementiert"
       >
         <Archive size={16} aria-hidden="true" />
         Archivieren

@@ -5,8 +5,11 @@
   max-width: 1200px;
 }
 
-.pqm-dokumente__hint {
-  font-size: 0.78rem;
-  color: var(--pqm-color-neutral);
-  font-style: italic;
+.pqm-dokumente__error {
+  color: var(--pqm-color-error);
+  font-size: 0.85rem;
+  padding: var(--pqm-space-1) var(--pqm-space-2);
+  background-color: rgba(220, 38, 38, 0.08);
+  border-radius: var(--pqm-radius);
+  margin: 0;
 }

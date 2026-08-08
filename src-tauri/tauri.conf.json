@@ -24,6 +24,15 @@
     "security": {
       "csp": null
     },
+    "allowlist": {
+      "all": false,
+      "dialog": {
+        "open": true
+      },
+      "shell": {
+        "open": true
+      }
+    },
     "bundle": {
       "active": true,
       "targets": "all",

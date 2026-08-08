@@ -1,3 +1,4 @@
+import { useState, useEffect, type FormEvent } from "react";
 import { FileText, X } from "lucide-react";
 import DocumentFormSection from "./DocumentFormSection";
 import FormField from "./FormField";
@@ -5,19 +6,58 @@ import "./DocumentForm.css";
 
 export type DocumentFormMode = "create" | "edit";
 
+export interface CategoryOption {
+  id: string;
+  name: string;
+}
+
+export interface SubcategoryOption {
+  id: string;
+  name: string;
+  category_id: string;
+}
+
+export interface EmployeeOption {
+  id: string;
+  name: string;
+}
+
 interface DocumentFormProps {
   mode: DocumentFormMode;
   documentNumber?: string;
   pdfFileName?: string;
-  onSubmit?: () => void;
+  categories?: CategoryOption[];
+  subcategories?: SubcategoryOption[];
+  employees?: EmployeeOption[];
+  onSubmit?: (data: DocumentFormData) => Promise<void>;
   onCancel?: () => void;
+  onSelectPdf?: () => Promise<string | null>;
+}
+
+export interface DocumentFormData {
+  title: string;
+  category_id: string | null;
+  subcategory_id: string | null;
+  responsible_person_id: string | null;
+  version: string;
+  status: string;
+  validity: string;
+  valid_until: string | null;
+  description: string | null;
+  source_file_path: string;
+  original_file_name: string;
 }
 
 export default function DocumentForm({
   mode,
   documentNumber,
   pdfFileName,
+  categories = [],
+  subcategories = [],
+  employees = [],
+  onSubmit,
   onCancel,
+  onSelectPdf,
 }: DocumentFormProps) {
   const isCreate = mode === "create";
   const submitLabel = isCreate ? "Dokument anlegen" : "Änderungen speichern";
@@ -30,22 +70,99 @@ export default function DocumentForm({
     ? "wird automatisch vergeben"
     : "Dokumentnummer ist unveränderlich";
 
-  const fileText = isCreate
-    ? "Noch keine Datei ausgewählt"
-    : pdfFileName ?? "platzhalter-dokument.pdf";
+  const [title, setTitle] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
+  const [responsiblePersonId, setResponsiblePersonId] = useState("");
+  const [version, setVersion] = useState("1.0");
+  const [status, setStatus] = useState("Entwurf");
+  const [validity, setValidity] = useState("gültig");
+  const [validUntil, setValidUntil] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(null);
+  const [selectedPdfName, setSelectedPdfName] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fileHint = isCreate
-    ? "Platzhalter – Datei-Upload folgt später"
-    : "Platzhalter – Datei kann später ersetzt werden";
+  const fileText = selectedPdfName ?? (isCreate ? "Noch keine Datei ausgewählt" : pdfFileName ?? "—");
+  const fileHint = selectedPdfPath
+    ? "PDF ausgewählt – wird beim Speichern in den Dokumentenspeicher kopiert"
+    : isCreate
+      ? "Wählen Sie eine PDF-Datei aus"
+      : "Datei kann später ersetzt werden";
 
-  const fileButtonLabel = isCreate ? "PDF auswählen" : "PDF ersetzen";
+  const filteredSubcategories = categoryId
+    ? subcategories.filter((s) => s.category_id === categoryId)
+    : subcategories;
+
+  const handleSelectPdf = async () => {
+    if (!onSelectPdf) return;
+    try {
+      const path = await onSelectPdf();
+      if (path) {
+        setSelectedPdfPath(path);
+        const name = path.split(/[/\\]/).pop() ?? "Unbenannt.pdf";
+        setSelectedPdfName(name);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!onSubmit) return;
+
+    if (!title.trim()) {
+      setError("Bitte geben Sie einen Titel ein.");
+      return;
+    }
+    if (isCreate && !selectedPdfPath) {
+      setError("Bitte wählen Sie eine PDF-Datei aus.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({
+        title: title.trim(),
+        category_id: categoryId || null,
+        subcategory_id: subcategoryId || null,
+        responsible_person_id: responsiblePersonId || null,
+        version: version.trim() || "1.0",
+        status,
+        validity,
+        valid_until: validUntil || null,
+        description: description.trim() || null,
+        source_file_path: selectedPdfPath ?? "",
+        original_file_name: selectedPdfName ?? "",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   return (
     <form
       className="pqm-document-form"
       aria-label={isCreate ? "Neues Dokument anlegen" : "Dokument bearbeiten"}
-      onSubmit={(e) => e.preventDefault()}
+      onSubmit={handleSubmit}
     >
+      {error && (
+        <p className="pqm-document-form__error" role="alert">
+          {error}
+        </p>
+      )}
       <DocumentFormSection title="Allgemeine Daten">
         <FormField
           label="Dokumentnummer"
@@ -72,8 +189,10 @@ export default function DocumentForm({
             id="doc-title"
             type="text"
             placeholder="Dokumenttitel"
-            defaultValue={isCreate ? undefined : "Platzhalter-Dokument"}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             aria-label="Dokumenttitel"
+            required
           />
         </FormField>
 
@@ -82,9 +201,19 @@ export default function DocumentForm({
           htmlFor="doc-category"
           className="pqm-form-field--half"
         >
-          <select id="doc-category" disabled aria-label="Kategorie – Platzhalter">
+          <select
+            id="doc-category"
+            value={categoryId}
+            onChange={(e) => {
+              setCategoryId(e.target.value);
+              setSubcategoryId("");
+            }}
+            aria-label="Kategorie"
+          >
             <option value="">Bitte wählen …</option>
-            <option selected={!isCreate}>Platzhalter</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
           </select>
         </FormField>
 
@@ -95,11 +224,15 @@ export default function DocumentForm({
         >
           <select
             id="doc-subcategory"
-            disabled
-            aria-label="Unterkategorie – Platzhalter"
+            value={subcategoryId}
+            onChange={(e) => setSubcategoryId(e.target.value)}
+            aria-label="Unterkategorie"
+            disabled={!categoryId}
           >
             <option value="">Bitte wählen …</option>
-            <option selected={!isCreate}>Platzhalter</option>
+            {filteredSubcategories.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
           </select>
         </FormField>
 
@@ -112,8 +245,10 @@ export default function DocumentForm({
             id="doc-version"
             type="text"
             placeholder="1.0"
-            defaultValue={isCreate ? undefined : "1.0"}
+            value={version}
+            onChange={(e) => setVersion(e.target.value)}
             aria-label="Version"
+            required
           />
         </FormField>
 
@@ -122,9 +257,15 @@ export default function DocumentForm({
           htmlFor="doc-status"
           className="pqm-form-field--compact"
         >
-          <select id="doc-status" disabled aria-label="Status – Platzhalter">
-            <option value="">Bitte wählen …</option>
-            <option selected={!isCreate}>aktiv</option>
+          <select
+            id="doc-status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            aria-label="Status"
+          >
+            <option value="Entwurf">Entwurf</option>
+            <option value="aktiv">aktiv</option>
+            <option value="archiviert">archiviert</option>
           </select>
         </FormField>
 
@@ -135,11 +276,14 @@ export default function DocumentForm({
         >
           <select
             id="doc-responsible"
-            disabled
-            aria-label="Verantwortliche Person – Platzhalter"
+            value={responsiblePersonId}
+            onChange={(e) => setResponsiblePersonId(e.target.value)}
+            aria-label="Verantwortliche Person"
           >
             <option value="">Bitte wählen …</option>
-            <option selected={!isCreate}>Platzhalter</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>{emp.name}</option>
+            ))}
           </select>
         </FormField>
 
@@ -151,8 +295,27 @@ export default function DocumentForm({
           <input
             id="doc-validity"
             type="date"
+            value={validUntil}
+            onChange={(e) => setValidUntil(e.target.value)}
             aria-label="Gültig bis"
           />
+        </FormField>
+
+        <FormField
+          label="Gültigkeit"
+          htmlFor="doc-validity-status"
+          className="pqm-form-field--compact"
+        >
+          <select
+            id="doc-validity-status"
+            value={validity}
+            onChange={(e) => setValidity(e.target.value)}
+            aria-label="Gültigkeitsstatus"
+          >
+            <option value="gültig">gültig</option>
+            <option value="läuft bald ab">läuft bald ab</option>
+            <option value="abgelaufen">abgelaufen</option>
+          </select>
         </FormField>
       </DocumentFormSection>
 
@@ -166,29 +329,9 @@ export default function DocumentForm({
             id="doc-description"
             rows={5}
             placeholder="Beschreibung des Dokuments …"
-            defaultValue={
-              isCreate
-                ? undefined
-                : "Platzhalter-Beschreibung für ein bestehendes Dokument."
-            }
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             aria-label="Dokumentbeschreibung"
-          />
-        </FormField>
-      </DocumentFormSection>
-
-      <DocumentFormSection title="Schlagwörter">
-        <FormField
-          label="Tags"
-          htmlFor="doc-tags"
-          hint="Platzhalter – Tag-Verwaltung folgt später"
-          className="pqm-form-field--full"
-        >
-          <input
-            id="doc-tags"
-            type="text"
-            placeholder="Platzhalter-Tag, Platzhalter-Tag 2 …"
-            defaultValue={isCreate ? undefined : "Platzhalter-Tag 1, Platzhalter-Tag 2"}
-            aria-label="Schlagwörter – Platzhalter"
           />
         </FormField>
       </DocumentFormSection>
@@ -207,10 +350,11 @@ export default function DocumentForm({
           <button
             type="button"
             className="pqm-document-form__file-button"
-            disabled
-            aria-label={`${fileButtonLabel} – Platzhalter, nicht funktional`}
+            onClick={handleSelectPdf}
+            disabled={!onSelectPdf}
+            aria-label={isCreate ? "PDF auswählen" : "PDF ersetzen"}
           >
-            {fileButtonLabel}
+            {isCreate ? "PDF auswählen" : "PDF ersetzen"}
           </button>
         </div>
       </DocumentFormSection>
@@ -228,10 +372,10 @@ export default function DocumentForm({
         <button
           type="submit"
           className="pqm-document-form__submit"
-          disabled
-          aria-label={`${submitLabel} – Platzhalter, nicht funktional`}
+          disabled={submitting || !onSubmit}
+          aria-label={submitLabel}
         >
-          {submitLabel}
+          {submitting ? "Wird gespeichert …" : submitLabel}
         </button>
       </div>
     </form>

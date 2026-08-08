@@ -10,7 +10,10 @@
 
 mod database;
 
-use database::{CreateEmployeeInput, Employee, MasterDataItem, UpdateEmployeeInput};
+use database::{
+    CategoryItem, CreateDocumentInput, CreateEmployeeInput, Document, Employee,
+    MasterDataItem, SubcategoryItem, UpdateEmployeeInput,
+};
 use rusqlite::Connection;
 use std::sync::Mutex;
 use tauri::{Manager, State};
@@ -47,6 +50,14 @@ fn main() {
             cmd_rename_qm_area,
             cmd_get_employee,
             cmd_update_employee,
+            cmd_list_documents,
+            cmd_get_document,
+            cmd_get_document_by_number,
+            cmd_create_document,
+            cmd_list_categories,
+            cmd_list_subcategories,
+            cmd_select_pdf,
+            cmd_open_pdf,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten von PraxisQM");
@@ -180,4 +191,115 @@ fn cmd_rename_qm_area(
     }
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     database::rename_qm_area(&conn, &id, &trimmed).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cmd_list_documents(state: State<DbState>) -> Result<Vec<Document>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::list_documents(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cmd_get_document(state: State<DbState>, id: String) -> Result<Document, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::load_document(&conn, &id).map_err(|e| {
+        if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
+            "Dokument nicht gefunden.".to_string()
+        } else {
+            e.to_string()
+        }
+    })
+}
+
+#[tauri::command]
+fn cmd_get_document_by_number(state: State<DbState>, number: String) -> Result<Document, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::get_document_by_number(&conn, &number).map_err(|e| {
+        if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
+            "Dokument nicht gefunden.".to_string()
+        } else {
+            e.to_string()
+        }
+    })
+}
+
+#[tauri::command]
+fn cmd_create_document(
+    state: State<DbState>,
+    app: tauri::AppHandle,
+    input: CreateDocumentInput,
+) -> Result<Document, String> {
+    let source = std::path::Path::new(&input.source_file_path);
+    database::validate_pdf(source)?;
+
+    let storage_dir = database::document_storage_path(&app);
+    let doc_id = uuid::Uuid::new_v4().to_string();
+
+    let managed_file = database::copy_to_managed_storage(source, &storage_dir, &doc_id)?;
+
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::create_document(&conn, &input, &managed_file) {
+        Ok(doc) => Ok(doc),
+        Err(e) => {
+            database::remove_managed_file(&storage_dir, &managed_file);
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+fn cmd_list_categories(state: State<DbState>) -> Result<Vec<CategoryItem>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::list_categories(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cmd_list_subcategories(state: State<DbState>) -> Result<Vec<SubcategoryItem>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::list_subcategories(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn cmd_select_pdf(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri::api::dialog::FileDialogBuilder;
+
+    let (tx, rx) = std::sync::mpsc::channel::<Option<std::path::PathBuf>>();
+    FileDialogBuilder::new(&app)
+        .add_filter("PDF-Dateien", &["pdf"])
+        .pick_file(move |path| {
+            let _ = tx.send(path);
+        });
+
+    match rx.recv() {
+        Ok(Some(path)) => Ok(Some(path.to_string_lossy().to_string())),
+        Ok(None) => Ok(None),
+        Err(_) => Err("Dateiauswahl fehlgeschlagen.".to_string()),
+    }
+}
+
+#[tauri::command]
+fn cmd_open_pdf(
+    state: State<DbState>,
+    app: tauri::AppHandle,
+    document_id: String,
+) -> Result<(), String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    let doc = database::load_document(&conn, &document_id).map_err(|e| {
+        if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
+            "Dokument nicht gefunden.".to_string()
+        } else {
+            e.to_string()
+        }
+    })?;
+
+    let file_path = doc.file_path.ok_or_else(|| "Keine Datei hinterlegt.".to_string())?;
+    let storage_dir = database::document_storage_path(&app);
+    let full_path = storage_dir.join(&file_path);
+
+    if !full_path.exists() {
+        return Err("Die Datei wurde nicht im Dokumentenspeicher gefunden.".to_string());
+    }
+
+    tauri::api::shell::open(&app, full_path.to_string_lossy().to_string(), None)
+        .map_err(|_| "PDF konnte nicht geöffnet werden.".to_string())
 }

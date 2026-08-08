@@ -205,6 +205,17 @@ pub fn database_path(app: &AppHandle) -> PathBuf {
     dir.join(DB_FILENAME)
 }
 
+/// Liefert den Pfad zum verwalteten Dokumentenspeicher im App-Data-Verzeichnis.
+pub fn document_storage_path(app: &AppHandle) -> PathBuf {
+    let dir = app
+        .path_resolver()
+        .app_data_dir()
+        .expect("App-Data-Verzeichnis nicht verfügbar");
+    let storage = dir.join("documents");
+    fs::create_dir_all(&storage).expect("Dokumentenspeicher konnte nicht erstellt werden");
+    storage
+}
+
 /// Initialisiert die Datenbank: öffnet/erstellt die Datei, aktiviert
 /// Foreign-Key-Enforcement, stellt das Schema bereit und trägt die
 /// Schema-Version ein. Idempotent — sicher bei wiederholtem Aufruf.
@@ -672,6 +683,413 @@ pub fn rename_qm_area(conn: &Connection, id: &str, new_name: &str) -> SqliteResu
         rusqlite::params![new_name, now, id],
     )?;
     Ok(MasterDataItem { id: id.to_string(), name: new_name.to_string() })
+}
+
+/// --- Dokument-Modelle ---------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Document {
+    pub id: String,
+    pub document_number: String,
+    pub title: String,
+    pub category_id: Option<String>,
+    pub category_name: Option<String>,
+    pub subcategory_id: Option<String>,
+    pub subcategory_name: Option<String>,
+    pub responsible_person_id: Option<String>,
+    pub responsible_person_name: Option<String>,
+    pub version: String,
+    pub status: String,
+    pub validity: String,
+    pub valid_until: Option<String>,
+    pub description: Option<String>,
+    pub archived_at: Option<String>,
+    pub file_name: Option<String>,
+    pub file_path: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateDocumentInput {
+    pub title: String,
+    pub category_id: Option<String>,
+    pub subcategory_id: Option<String>,
+    pub responsible_person_id: Option<String>,
+    pub version: String,
+    pub status: String,
+    pub validity: String,
+    pub valid_until: Option<String>,
+    pub description: Option<String>,
+    pub source_file_path: String,
+    pub original_file_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryItem {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubcategoryItem {
+    pub id: String,
+    pub name: String,
+    pub category_id: String,
+}
+
+/// --- Dokument-Operationen ------------------------------------------------
+
+/// Generiert die nächste Dokumentennummer im Format PQM-NNNN.
+/// Nummern sind sequenziell, eindeutig und werden nie wiederverwendet (ADR-001).
+fn generate_document_number(conn: &Connection) -> SqliteResult<String> {
+    let max: Option<String> = conn
+        .query_row(
+            "SELECT MAX(document_number) FROM documents;",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let next_num = match max {
+        Some(num) => {
+            let n: u32 = num
+                .strip_prefix("PQM-")
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(0);
+            n + 1
+        }
+        None => 1,
+    };
+
+    Ok(format!("PQM-{:04}", next_num))
+}
+
+/// Validiert, ob eine Datei ein gültiges PDF ist.
+/// Prüft: Datei existiert, ist lesbar, nicht leer, hat PDF-Magic-Bytes.
+pub fn validate_pdf(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Err("Die ausgewählte Datei wurde nicht gefunden.".to_string());
+    }
+
+    let metadata = fs::metadata(path).map_err(|_| "Datei konnte nicht gelesen werden.".to_string())?;
+
+    if metadata.len() == 0 {
+        return Err("Die Datei ist leer.".to_string());
+    }
+
+    let mut file = fs::File::open(path).map_err(|_| "Datei konnte nicht gelesen werden.".to_string())?;
+    let mut header = [0u8; 5];
+    use std::io::Read;
+    file.read_exact(&mut header)
+        .map_err(|_| "Datei-Header konnte nicht gelesen werden.".to_string())?;
+
+    if &header != b"%PDF-" {
+        return Err("Die Datei ist kein gültiges PDF.".to_string());
+    }
+
+    Ok(())
+}
+
+/// Kopiert eine Quelldatei in das verwaltete Speicherverzeichnis.
+/// Verwendet die Dokument-UUID als Dateinamen (mit .pdf-Erweiterung).
+/// Gibt den relativen Dateipfad innerhalb des Speicherverzeichnisses zurück.
+pub fn copy_to_managed_storage(
+    source: &Path,
+    storage_dir: &Path,
+    document_id: &str,
+) -> Result<String, String> {
+    validate_pdf(source)?;
+
+    fs::create_dir_all(storage_dir).map_err(|_| "Speicherverzeichnis konnte nicht erstellt werden.".to_string())?;
+
+    let managed_name = format!("{}.pdf", document_id);
+    let dest = storage_dir.join(&managed_name);
+
+    fs::copy(source, &dest).map_err(|_| "Datei konnte nicht in den Dokumentenspeicher kopiert werden.".to_string())?;
+
+    Ok(managed_name)
+}
+
+/// Löscht eine verwaltete Datei (für Compensation bei DB-Fehlern).
+pub fn remove_managed_file(storage_dir: &Path, relative_path: &str) {
+    let full = storage_dir.join(relative_path);
+    let _ = fs::remove_file(&full);
+}
+
+/// Erstellt ein Dokument mit Metadaten und Datei-Referenz in einer Transaktion.
+/// Die Dokumentennummer wird automatisch generiert (ADR-001).
+/// Die Datei muss bereits in den verwalteten Speicher kopiert worden sein.
+pub fn create_document(
+    conn: &Connection,
+    input: &CreateDocumentInput,
+    managed_file_path: &str,
+) -> SqliteResult<Document> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = now_iso();
+    let doc_number = generate_document_number(conn)?;
+
+    // Validiere responsible_person_id falls angegeben
+    if let Some(ref person_id) = input.responsible_person_id {
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM employees WHERE id = ?1;",
+            rusqlite::params![person_id],
+            |row| row.get(0),
+        )?;
+        if count == 0 {
+            return Err(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+                Some("Verantwortliche Person nicht gefunden.".to_string()),
+            ));
+        }
+    }
+
+    // Validiere category_id falls angegeben
+    if let Some(ref cat_id) = input.category_id {
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM categories WHERE id = ?1;",
+            rusqlite::params![cat_id],
+            |row| row.get(0),
+        )?;
+        if count == 0 {
+            return Err(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+                Some("Kategorie nicht gefunden.".to_string()),
+            ));
+        }
+    }
+
+    // Validiere subcategory_id falls angegeben
+    if let Some(ref sub_id) = input.subcategory_id {
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM subcategories WHERE id = ?1;",
+            rusqlite::params![sub_id],
+            |row| row.get(0),
+        )?;
+        if count == 0 {
+            return Err(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+                Some("Unterkategorie nicht gefunden.".to_string()),
+            ));
+        }
+    }
+
+    conn.execute(
+        "INSERT INTO documents (id, document_number, title, category_id, subcategory_id,
+         responsible_person_id, version, status, validity, valid_until, description,
+         archived_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, NULL, ?12, ?13);",
+        rusqlite::params![
+            id,
+            doc_number,
+            input.title,
+            input.category_id,
+            input.subcategory_id,
+            input.responsible_person_id,
+            input.version,
+            input.status,
+            input.validity,
+            input.valid_until,
+            input.description,
+            now,
+            now,
+        ],
+    )?;
+
+    // Erstelle DB-002 DocumentVersions-Eintrag für die erste Version
+    let version_id = uuid::Uuid::new_v4().to_string();
+    conn.execute(
+        "INSERT INTO document_versions (id, document_id, version_number, file_name, file_path,
+         status, validity, valid_until, uploaded_by, uploaded_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, ?9, ?10, ?11);",
+        rusqlite::params![
+            version_id,
+            id,
+            input.version,
+            input.original_file_name,
+            managed_file_path,
+            input.status,
+            input.validity,
+            input.valid_until,
+            now,
+            now,
+            now,
+        ],
+    )?;
+
+    load_document(conn, &id)
+}
+
+/// Lädt ein einzelnes Dokument anhand seiner UUID mit aufgelösten Namen.
+pub fn load_document(conn: &Connection, id: &str) -> SqliteResult<Document> {
+    let exists: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM documents WHERE id = ?1;",
+        rusqlite::params![id],
+        |row| row.get(0),
+    )?;
+    if exists == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+
+    let doc = query_document_row(conn, "WHERE d.id = ?1", rusqlite::params![id])?;
+    Ok(doc)
+}
+
+/// Lädt alle Dokumente, sortiert nach Dokumentennummer.
+pub fn list_documents(conn: &Connection) -> SqliteResult<Vec<Document>> {
+    let mut stmt = conn.prepare(
+        "SELECT d.id, d.document_number, d.title,
+                d.category_id, c.name,
+                d.subcategory_id, s.name,
+                d.responsible_person_id,
+                e.last_name || ' ' || e.first_name,
+                d.version, d.status, d.validity, d.valid_until,
+                d.description, d.archived_at,
+                dv.file_name, dv.file_path,
+                d.created_at, d.updated_at
+         FROM documents d
+         LEFT JOIN categories c ON c.id = d.category_id
+         LEFT JOIN subcategories s ON s.id = d.subcategory_id
+         LEFT JOIN employees e ON e.id = d.responsible_person_id
+         LEFT JOIN (
+             SELECT document_id, file_name, file_path
+             FROM document_versions
+             WHERE id IN (SELECT MIN(id) FROM document_versions GROUP BY document_id)
+         ) dv ON dv.document_id = d.id
+         ORDER BY d.document_number;",
+    )?;
+
+    let docs = stmt
+        .query_map([], |row| {
+            Ok(Document {
+                id: row.get(0)?,
+                document_number: row.get(1)?,
+                title: row.get(2)?,
+                category_id: row.get(3)?,
+                category_name: row.get(4)?,
+                subcategory_id: row.get(5)?,
+                subcategory_name: row.get(6)?,
+                responsible_person_id: row.get(7)?,
+                responsible_person_name: row.get(8)?,
+                version: row.get(9)?,
+                status: row.get(10)?,
+                validity: row.get(11)?,
+                valid_until: row.get(12)?,
+                description: row.get(13)?,
+                archived_at: row.get(14)?,
+                file_name: row.get(15)?,
+                file_path: row.get(16)?,
+                created_at: row.get(17)?,
+                updated_at: row.get(18)?,
+            })
+        })?
+        .collect::<SqliteResult<Vec<_>>>()?;
+
+    Ok(docs)
+}
+
+/// Hilfsfunktion: Lädt ein einzelnes Dokument mit Namen-Auflösung.
+fn query_document_row(
+    conn: &Connection,
+    where_clause: &str,
+    params: impl rusqlite::Params,
+) -> SqliteResult<Document> {
+    let sql = format!(
+        "SELECT d.id, d.document_number, d.title,
+                d.category_id, c.name,
+                d.subcategory_id, s.name,
+                d.responsible_person_id,
+                e.last_name || ' ' || e.first_name,
+                d.version, d.status, d.validity, d.valid_until,
+                d.description, d.archived_at,
+                dv.file_name, dv.file_path,
+                d.created_at, d.updated_at
+         FROM documents d
+         LEFT JOIN categories c ON c.id = d.category_id
+         LEFT JOIN subcategories s ON s.id = d.subcategory_id
+         LEFT JOIN employees e ON e.id = d.responsible_person_id
+         LEFT JOIN (
+             SELECT document_id, file_name, file_path
+             FROM document_versions
+             WHERE id IN (SELECT MIN(id) FROM document_versions GROUP BY document_id)
+         ) dv ON dv.document_id = d.id
+         {}",
+        where_clause
+    );
+
+    conn.query_row(&sql, params, |row| {
+        Ok(Document {
+            id: row.get(0)?,
+            document_number: row.get(1)?,
+            title: row.get(2)?,
+            category_id: row.get(3)?,
+            category_name: row.get(4)?,
+            subcategory_id: row.get(5)?,
+            subcategory_name: row.get(6)?,
+            responsible_person_id: row.get(7)?,
+            responsible_person_name: row.get(8)?,
+            version: row.get(9)?,
+            status: row.get(10)?,
+            validity: row.get(11)?,
+            valid_until: row.get(12)?,
+            description: row.get(13)?,
+            archived_at: row.get(14)?,
+            file_name: row.get(15)?,
+            file_path: row.get(16)?,
+            created_at: row.get(17)?,
+            updated_at: row.get(18)?,
+        })
+    })
+}
+
+/// Lädt ein Dokument anhand der Dokumentennummer (z.B. PQM-0001).
+pub fn get_document_by_number(conn: &Connection, doc_number: &str) -> SqliteResult<Document> {
+    let exists: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM documents WHERE document_number = ?1;",
+        rusqlite::params![doc_number],
+        |row| row.get(0),
+    )?;
+    if exists == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+
+    query_document_row(
+        conn,
+        "WHERE d.document_number = ?1",
+        rusqlite::params![doc_number],
+    )
+}
+
+/// Lädt alle Kategorien (DB-005).
+pub fn list_categories(conn: &Connection) -> SqliteResult<Vec<CategoryItem>> {
+    let mut stmt =
+        conn.prepare("SELECT id, name FROM categories ORDER BY name;")?;
+    let items = stmt
+        .query_map([], |row| {
+            Ok(CategoryItem {
+                id: row.get(0)?,
+                name: row.get(1)?,
+            })
+        })?
+        .collect::<SqliteResult<Vec<_>>>()?;
+    Ok(items)
+}
+
+/// Lädt alle Unterkategorien (DB-006).
+pub fn list_subcategories(conn: &Connection) -> SqliteResult<Vec<SubcategoryItem>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, category_id FROM subcategories ORDER BY name;",
+    )?;
+    let items = stmt
+        .query_map([], |row| {
+            Ok(SubcategoryItem {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                category_id: row.get(2)?,
+            })
+        })?
+        .collect::<SqliteResult<Vec<_>>>()?;
+    Ok(items)
 }
 
 /// --- Tests ---------------------------------------------------------------
@@ -1452,6 +1870,276 @@ mod tests {
         let input = make_update_input("Test", "Mitarbeiter", Some("ZFA"), true, Some("2020-01-01"), None, vec![], vec![]);
         let result = update_employee(&conn, "nicht-vorhanden", &input);
         assert!(result.is_err());
+    }
+
+    // --- Dokument-Tests ---
+
+    use std::io::Write;
+
+    fn make_test_pdf(dir: &tempfile::TempDir, name: &str, content: &[u8]) -> std::path::PathBuf {
+        let path = dir.path().join(name);
+        let mut file = std::fs::File::create(&path).unwrap();
+        file.write_all(content).unwrap();
+        path
+    }
+
+    fn make_valid_pdf(dir: &tempfile::TempDir, name: &str) -> std::path::PathBuf {
+        let content = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF";
+        make_test_pdf(dir, name, content)
+    }
+
+    fn init_test_storage() -> tempfile::TempDir {
+        tempfile::TempDir::new().unwrap()
+    }
+
+    fn make_document_input(source_path: &str, file_name: &str) -> CreateDocumentInput {
+        CreateDocumentInput {
+            title: "Testdokument".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "Entwurf".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            description: None,
+            source_file_path: source_path.to_string(),
+            original_file_name: file_name.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_create_document_metadata() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "test-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+        assert_eq!(doc.title, "Testdokument");
+        assert_eq!(doc.version, "1.0");
+        assert_eq!(doc.status, "Entwurf");
+        assert_eq!(doc.validity, "gültig");
+    }
+
+    #[test]
+    fn test_list_documents() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "a.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "a.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "uuid-a").unwrap();
+        create_document(&conn, &input, &managed).unwrap();
+
+        let pdf2 = make_valid_pdf(&storage, "b.pdf");
+        let input2 = make_document_input(pdf2.to_str().unwrap(), "b.pdf");
+        let managed2 = copy_to_managed_storage(&pdf2, storage.path(), "uuid-b").unwrap();
+        create_document(&conn, &input2, &managed2).unwrap();
+
+        let docs = list_documents(&conn).unwrap();
+        assert_eq!(docs.len(), 2);
+    }
+
+    #[test]
+    fn test_document_uuid_generated_and_stable() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "test-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+        assert!(!doc.id.is_empty());
+        let loaded = load_document(&conn, &doc.id).unwrap();
+        assert_eq!(loaded.id, doc.id);
+    }
+
+    #[test]
+    fn test_document_number_generated_sequential() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "a.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "a.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "uuid-a").unwrap();
+        let doc1 = create_document(&conn, &input, &managed).unwrap();
+        assert_eq!(doc1.document_number, "PQM-0001");
+
+        let pdf2 = make_valid_pdf(&storage, "b.pdf");
+        let input2 = make_document_input(pdf2.to_str().unwrap(), "b.pdf");
+        let managed2 = copy_to_managed_storage(&pdf2, storage.path(), "uuid-b").unwrap();
+        let doc2 = create_document(&conn, &input2, &managed2).unwrap();
+        assert_eq!(doc2.document_number, "PQM-0002");
+    }
+
+    #[test]
+    fn test_document_number_unique() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "a.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "a.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "uuid-a").unwrap();
+        let doc1 = create_document(&conn, &input, &managed).unwrap();
+        let doc2_input = make_document_input(pdf.to_str().unwrap(), "a.pdf");
+        let managed2 = copy_to_managed_storage(&pdf, storage.path(), "uuid-b").unwrap();
+        let doc2 = create_document(&conn, &doc2_input, &managed2).unwrap();
+        assert_ne!(doc1.document_number, doc2.document_number);
+    }
+
+    #[test]
+    fn test_pdf_copied_into_managed_storage() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "original.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "original.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        create_document(&conn, &input, &managed).unwrap();
+        let managed_file = storage.path().join(&managed);
+        assert!(managed_file.exists(), "Managed PDF should exist");
+        assert!(managed_file.file_name().unwrap().to_str().unwrap().starts_with("doc-uuid"));
+    }
+
+    #[test]
+    fn test_source_pdf_removable_after_import() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let source_dir = tempfile::TempDir::new().unwrap();
+        let pdf = make_valid_pdf(&source_dir, "source.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "source.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        create_document(&conn, &input, &managed).unwrap();
+        drop(source_dir);
+        assert!(!pdf.exists(), "Source should be gone");
+        let managed_file = storage.path().join(&managed);
+        assert!(managed_file.exists(), "Managed PDF should still exist");
+    }
+
+    #[test]
+    fn test_missing_source_pdf_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let fake_path = storage.path().join("nonexistent.pdf");
+        let result = validate_pdf(&fake_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_empty_pdf_rejected() {
+        let storage = init_test_storage();
+        let empty_pdf = make_test_pdf(&storage, "empty.pdf", b"");
+        let result = validate_pdf(&empty_pdf);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_non_pdf_rejected() {
+        let storage = init_test_storage();
+        let not_pdf = make_test_pdf(&storage, "notpdf.pdf", b"Not a PDF file content");
+        let result = validate_pdf(&not_pdf);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_db_failure_removes_orphan_pdf() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "orphan-uuid").unwrap();
+        let managed_file = storage.path().join(&managed);
+        assert!(managed_file.exists());
+
+        let bad_input = CreateDocumentInput {
+            title: String::new(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: Some("nonexistent-employee-id".to_string()),
+            version: "1.0".to_string(),
+            status: "Entwurf".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+
+        let result = create_document(&conn, &bad_input, &managed);
+        assert!(result.is_err());
+        if result.is_err() {
+            remove_managed_file(storage.path(), &managed);
+        }
+        assert!(!managed_file.exists(), "Orphan PDF should be removed after DB failure");
+    }
+
+    #[test]
+    fn test_invalid_responsible_person_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "uuid-test").unwrap();
+        let input = CreateDocumentInput {
+            title: "Test".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: Some("nonexistent-id".to_string()),
+            version: "1.0".to_string(),
+            status: "Entwurf".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let result = create_document(&conn, &input, &managed);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_zero_documents_returns_empty() {
+        let (conn, _tmp) = init_test_db();
+        let docs = list_documents(&conn).unwrap();
+        assert!(docs.is_empty());
+    }
+
+    #[test]
+    fn test_persisted_document_loads_with_metadata() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Hygieneplan".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "2.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2026-12-31".to_string()),
+            description: Some("Beschreibung".to_string()),
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "hygieneplan.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let created = create_document(&conn, &input, &managed).unwrap();
+        let loaded = load_document(&conn, &created.id).unwrap();
+        assert_eq!(loaded.title, "Hygieneplan");
+        assert_eq!(loaded.version, "2.0");
+        assert_eq!(loaded.status, "aktiv");
+        assert_eq!(loaded.validity, "gültig");
+        assert_eq!(loaded.valid_until, Some("2026-12-31".to_string()));
+        assert_eq!(loaded.description, Some("Beschreibung".to_string()));
+        assert_eq!(loaded.file_name, Some("hygieneplan.pdf".to_string()));
+        assert!(loaded.file_path.is_some());
+    }
+
+    #[test]
+    fn test_get_document_by_number() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let created = create_document(&conn, &input, &managed).unwrap();
+        let loaded = get_document_by_number(&conn, &created.document_number).unwrap();
+        assert_eq!(loaded.id, created.id);
+        assert_eq!(loaded.document_number, created.document_number);
     }
 
 }

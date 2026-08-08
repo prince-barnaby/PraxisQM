@@ -1,60 +1,86 @@
+import { useCallback, useEffect, useState } from "react";
 import DocumentToolbar from "../components/documents/DocumentToolbar";
 import DocumentFilters from "../components/documents/DocumentFilters";
 import DocumentList from "../components/documents/DocumentList";
 import type { DocumentRowData } from "../components/documents/DocumentRow";
+import type { BadgeVariant } from "../components/documents/StatusBadge";
+import { fetchDocuments, type Document } from "../lib/documentApi";
 import "./Dokumente.css";
 
-const PLACEHOLDER_DOCUMENTS: DocumentRowData[] = [
-  {
-    id: "mock-1",
-    documentNumber: "PQM-0001",
-    title: "Platzhalter-Dokument 1",
-    category: "Platzhalter",
-    subcategory: "Platzhalter",
-    status: "aktiv",
-    statusVariant: "success",
-    responsible: "Platzhalter",
-    validity: "gültig",
-    validityVariant: "success",
-    version: "1.0",
-  },
-  {
-    id: "mock-2",
-    documentNumber: "PQM-0002",
-    title: "Platzhalter-Dokument 2",
-    category: "Platzhalter",
-    subcategory: "Platzhalter",
-    status: "Entwurf",
-    statusVariant: "neutral",
-    responsible: "Platzhalter",
-    validity: "läuft bald ab",
-    validityVariant: "warning",
-    version: "0.9",
-  },
-  {
-    id: "mock-3",
-    documentNumber: "PQM-0003",
-    title: "Platzhalter-Dokument 3",
-    category: "Platzhalter",
-    subcategory: "Platzhalter",
-    status: "archiviert",
-    statusVariant: "neutral",
-    responsible: "Platzhalter",
-    validity: "abgelaufen",
-    validityVariant: "error",
-    version: "2.1",
-  },
-];
+function validityToVariant(validity: string): BadgeVariant {
+  switch (validity) {
+    case "gültig":
+      return "success";
+    case "läuft bald ab":
+      return "warning";
+    case "abgelaufen":
+      return "error";
+    default:
+      return "neutral";
+  }
+}
+
+function statusToVariant(status: string): BadgeVariant {
+  switch (status) {
+    case "aktiv":
+      return "success";
+    case "Entwurf":
+      return "neutral";
+    case "archiviert":
+      return "neutral";
+    default:
+      return "neutral";
+  }
+}
+
+function toRowData(doc: Document): DocumentRowData {
+  return {
+    id: doc.id,
+    documentNumber: doc.document_number,
+    title: doc.title,
+    category: doc.category_name ?? "—",
+    subcategory: doc.subcategory_name ?? "—",
+    status: doc.status,
+    statusVariant: statusToVariant(doc.status),
+    responsible: doc.responsible_person_name ?? "—",
+    validity: doc.validity,
+    validityVariant: validityToVariant(doc.validity),
+    version: doc.version,
+  };
+}
 
 export default function Dokumente() {
+  const [documents, setDocuments] = useState<DocumentRowData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const docs = await fetchDocuments();
+      setDocuments(docs.map(toRowData));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
+
   return (
     <div className="pqm-dokumente">
-      <DocumentToolbar resultCount={PLACEHOLDER_DOCUMENTS.length} />
+      <DocumentToolbar resultCount={documents.length} />
       <DocumentFilters />
-      <DocumentList documents={PLACEHOLDER_DOCUMENTS} />
-      <p className="pqm-dokumente__hint">
-        Hinweis: Alle Einträge sind Platzhalter. Suche, Filter und Aktionen sind nicht funktional.
-      </p>
+      {error && (
+        <p className="pqm-dokumente__error" role="alert">
+          Fehler beim Laden der Dokumente: {error}
+        </p>
+      )}
+      <DocumentList documents={documents} loading={loading} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { FileText } from "lucide-react";
 import "./DocumentList.css";
 import type { DocumentRowData } from "./DocumentRow";
 import DocumentRow from "./DocumentRow";
@@ -5,14 +6,24 @@ import EmptyState from "./EmptyState";
 
 interface DocumentListProps {
   documents: DocumentRowData[];
+  loading?: boolean;
 }
 
-export default function DocumentList({ documents }: DocumentListProps) {
+export default function DocumentList({ documents, loading = false }: DocumentListProps) {
+  if (loading) {
+    return (
+      <div className="pqm-document-list" role="region" aria-label="Dokumentenliste wird geladen">
+        <p className="pqm-document-list__loading">Dokumente werden geladen …</p>
+      </div>
+    );
+  }
+
   if (documents.length === 0) {
     return (
       <EmptyState
-        title="Keine Dokumente vorhanden"
-        message="Es wurden noch keine Dokumente angelegt. Diese Ansicht ist ein Platzhalter."
+        icon={FileText}
+        title="Noch keine Dokumente erfasst"
+        message="Es wurden noch keine Dokumente angelegt. Klicken Sie auf „Neues Dokument“, um ein QM-Dokument zu erstellen."
       />
     );
   }

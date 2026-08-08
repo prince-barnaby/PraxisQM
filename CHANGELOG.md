@@ -2,6 +2,94 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.29] - 08.08.2026
+
+### Dokumenten-Persistenz-Foundation und PDF-Speicherung (Prompt 018)
+
+Erste vollständige vertikale Persistenz-Slice für QM-Dokumente.
+Dokumente können erstellt, mit PDF importiert, in SQLite gespeichert
+und in der Dokumentenübersicht angezeigt werden. Die PDF wird in
+anwendungsverwalteten lokalen Speicher kopiert — die Originaldatei
+wird danach nicht mehr benötigt.
+
+#### Backend (Rust / Tauri)
+
+- **Neue Tauri Commands:**
+  - `cmd_list_documents` — lädt alle Dokumente mit aufgelösten Namen
+    (Kategorie, Unterkategorie, verantwortliche Person, Dateiname)
+  - `cmd_get_document` — lädt ein Dokument anhand UUID
+  - `cmd_get_document_by_number` — lädt ein Dokument anhand Dokumentennummer
+  - `cmd_create_document` — erstellt Dokument + DocumentVersion in einer
+    SQLite-Transaktion, mit Compensation bei Fehlern
+  - `cmd_list_categories` — lädt alle Kategorien (DB-005)
+  - `cmd_list_subcategories` — lädt alle Unterkategorien (DB-006)
+  - `cmd_select_pdf` — nativer Dateiauswahl-Dialog (Tauri v1 dialog)
+  - `cmd_open_pdf` — öffnet verwaltete PDF im Standard-PDF-Viewer
+- **Neue Datenbankfunktionen:** `create_document`, `load_document`,
+  `list_documents`, `get_document_by_number`, `generate_document_number`,
+  `validate_pdf`, `copy_to_managed_storage`, `remove_managed_file`,
+  `list_categories`, `list_subcategories`, `document_storage_path`
+- **Dokumentennummer:** Automatisch generiert im Format PQM-NNNN,
+  sequenziell, eindeutig, unveränderlich (ADR-001)
+- **PDF-Validierung:** Prüft Datei existiert, nicht leer, hat PDF-Magic-Bytes
+  (%PDF-)
+- **Verwalteter Speicher:** PDFs werden in AppData/documents/ gespeichert,
+  Dateiname = Dokument-UUID + .pdf. Originaldatei wird nicht benötigt.
+- **Compensation-Strategie:** PDF wird vor DB-Transaktion kopiert.
+  Bei DB-Fehler wird das kopierte PDF entfernt (kein Orphan).
+  Bei PDF-Kopier-Fehler wird kein DB-Eintrag erstellt.
+- **Tauri-Konfiguration:** dialog + shell Features in Cargo.toml und
+  tauri.conf.json allowlist aktiviert
+
+#### Frontend (React)
+
+- **Neue Datei:** `src/lib/documentApi.ts` — TypeScript API für alle
+  Dokument-Commands
+- **Dokumente.tsx:** Lädt echte Dokumente aus SQLite, zeigt echten Zähler,
+  Loading-State und Fehleranzeige
+- **DocumentForm.tsx:** Komplett neu implementiert mit funktionsfähigen
+  Feldern (Titel, Kategorie, Unterkategorie, Version, Status, Gültigkeit,
+  Gültig bis, Verantwortliche Person, Beschreibung, PDF-Auswahl).
+  Dokumentennummer ist read-only (wird automatisch vergeben).
+- **DocumentList.tsx:** Echte Daten statt Platzhalter, Loading-State,
+  Empty-State "Noch keine Dokumente erfasst"
+- **DokumentNeu.tsx:** Lädt Kategorien, Unterkategorien und Mitarbeitende
+  parallel, ruft createDocument auf, navigiert zurück bei Erfolg
+- **DokumentDetail.tsx:** Lädt echtes Dokument anhand Dokumentennummer,
+  zeigt Metadaten, Beschreibung, Datei-Info und PDF-Öffnen-Button
+- **DocumentActionBar.tsx:** Bearbeiten-Button aktiviert, PDF-Öffnen-Button
+  aktiviert, Archivieren deaktiviert (out of scope)
+
+#### Tags
+
+Tags (DB-007/DB-008) sind kanonisch dokumentiert, aber es existiert keine
+Stammdatenverwaltung für Schlagwörter. Tags werden für diesen Slice
+zurückgestellt und nicht implementiert.
+
+#### Kategorien
+
+Kategorien (DB-005) und Unterkategorien (DB-006) werden aus der Datenbank
+geladen. Keine Seed-Daten. Leere Auswahllisten sind akzeptabel.
+
+#### Tests
+
+17 neue Rust-Tests: create metadata, list, UUID stable, sequential number,
+unique number, PDF copied, source removable, missing PDF rejected,
+empty PDF rejected, non-PDF rejected, DB failure removes orphan,
+invalid employee rejected, zero documents empty, persisted loads with
+metadata, get by number, document number format.
+
+#### Nicht implementiert (bewusst)
+
+- Dokumentenbearbeitung (out of scope)
+- PDF-Ersetzung (out of scope)
+- Archivierung/Restore (out of scope)
+- Permanente Löschung (out of scope)
+- Version-History (out of scope)
+- Tags (zurückgestellt — keine Stammdatenverwaltung)
+- Ablauf-Automatisierung (out of scope)
+- Authentifizierung (out of scope)
+
 ## [0.9.28] - 08.08.2026
 
 ### Mitarbeiter-Lifecycle, inaktive Mitarbeitende und echte Filter (Prompt 017)
