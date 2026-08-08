@@ -10,6 +10,8 @@ export interface EmployeeRowData {
   position: string;
   responsibilityRoles: string[];
   qmAreas: string[];
+  responsibilityIds: string[];
+  qmAreaIds: string[];
   active: boolean;
   activeLabel: string;
   activeVariant: BadgeVariant;

@@ -8,9 +8,10 @@ interface EmployeeListProps {
   employees: EmployeeRowData[];
   loading?: boolean;
   error?: string | null;
+  filteredEmpty?: boolean;
 }
 
-export default function EmployeeList({ employees, loading, error }: EmployeeListProps) {
+export default function EmployeeList({ employees, loading, error, filteredEmpty = false }: EmployeeListProps) {
   if (loading) {
     return (
       <div className="pqm-employee-list pqm-employee-list--state">
@@ -33,8 +34,8 @@ export default function EmployeeList({ employees, loading, error }: EmployeeList
     return (
       <EmptyState
         icon={Users}
-        title="Noch keine Mitarbeitenden erfasst"
-        message="Es wurden noch keine Mitarbeitenden angelegt. Klicken Sie auf \u201eNeuer Mitarbeiter\u201c, um einen Eintrag zu erstellen."
+        title={filteredEmpty ? "Keine Mitarbeitenden entsprechen den ausgewählten Filtern" : "Noch keine Mitarbeitenden erfasst"}
+        message={filteredEmpty ? "Aktuell gibt es keine Treffer für die gewählten Filterkriterien. Setzen Sie die Filter zurück, um alle Mitarbeitenden zu sehen." : "Es wurden noch keine Mitarbeitenden angelegt. Klicken Sie auf „Neuer Mitarbeiter\u201c, um einen Eintrag zu erstellen."}
       />
     );
   }

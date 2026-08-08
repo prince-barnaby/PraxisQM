@@ -2,6 +2,90 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.28] - 08.08.2026
+
+### Mitarbeiter-Lifecycle, inaktive Mitarbeitende und echte Filter (Prompt 017)
+
+Vervollständigung des Mitarbeiterregisters mit echten Filtern,
+klar aktiver/inaktiver Anzeige und Sicherstellung der QM-Historienrückverfolgbarkeit.
+
+#### Lifecycle-Verhalten
+
+- **Kein permanenter Löschzugriff:** Ehemalige Mitarbeitende bleiben dauerhaft
+  im Mitarbeiterregister (DB-003). Keine cascade-Löschung, kein Entfernen
+  historischer Mitarbeiterdatensätze.
+- **Unabhängige Felder:** Aktivstatus (`is_active`) und Austrittsdatum
+  (`departure_date`) bleiben unabhängig voneinander bearbeitbar. Keine
+  automatische Verknüpfung zwischen den Feldern, da kanonisch nicht
+  dokumentiert.
+- **Statusanzeige:** Aktive Mitarbeitende zeigen "aktiv" (Success-Badge),
+  inaktive zeigen "inaktiv" (Neutral-Badge). Inaktive bleiben sichtbar
+  und werden nicht ins Archiv verschoben.
+- **Austrittsdatum:** Leeres Austrittsdatum zeigt weiterhin "—" als neutrale
+  Leeranzeige. Keine Platzhalterdaten.
+
+#### Filter
+
+- **Echte Filter statt Platzhalter:** EmployeeFilters von deaktivierten
+  Platzhalter-Selects zu funktionsfähigen Filtern umgebaut.
+- **Vier Filterkriterien:** Aktivstatus (aktiv/inaktiv/alle), Position
+  (aus vorhandenen Mitarbeiterdaten abgeleitet), Verantwortungsposition
+  (aus DB-015 geladen), QM-Bereich (aus DB-016 geladen).
+- **AND-Semantik:** Mehrere aktive Filter kombinieren sich mit UND — nur
+  Mitarbeitende, die allen Kriterien entsprechen, werden angezeigt.
+- **UUID-basiert:** Verantwortungsposition/QM-Bereich-Filter matchen über
+  kanonische UUIDs, nicht über Anzeigenamen. Renaming in Einstellungen
+  ändert Filternamen sofort, ohne Beziehungen zu verlieren.
+- **Zurücksetzen:** Reset-Button erscheint nur bei aktiven Filtern.
+  Setzt alle Filter zurück und zeigt alle Mitarbeitenden wieder.
+- **Zugänglichkeit:** Collapsible Filter-Sektion mit aria-expanded,
+  nativen Select-Semantics, Labels für alle Felder.
+
+#### Zähler
+
+- **Mitarbeiter-Zähler zeigt gefilterte Trefferzahl** statt Datenbank-Gesamtzahl.
+  Bei 10 Mitarbeitenden und 3 Treffern zeigt der Zähler "3 Mitarbeiter".
+
+#### Leeranzeige
+
+- **Filter ohne Treffer:** "Keine Mitarbeitenden entsprechen den ausgewählten
+  Filtern" — neutral, mit Hinweis zum Zurücksetzen.
+- **Leere Datenbank:** "Noch keine Mitarbeitenden erfasst" — bleibt
+  unverändert für den Fall, dass noch keine Mitarbeitenden angelegt wurden.
+
+#### Filter-Strategie
+
+- **Frontend-Filterung** gewählt: Alle Mitarbeitenden werden bereits geladen,
+  das Dataset ist klein, Beziehungen (responsibility_ids, qm_area_ids)
+  sind im Employee-Modell vorhanden. Keine architektonische Regel erfordert
+  Backend-Filterung. Keine unnötige Datenbankabfragekomplexität.
+
+#### Frontend
+
+- **EmployeeFilters.tsx:** Komplett neu implementiert mit useState für
+  Collapsible, vier Select-Feldern, Reset-Button, NO_FILTERS-Konstante,
+  EmployeeFilterValues-Typ, ActiveStatusFilter-Typ.
+- **EmployeeFilters.css:** Neues Styling für aktive Selects, Reset-Button,
+  collapsible Panel.
+- **Mitarbeiter.tsx:** Lädt Mitarbeitende + Stammdaten parallel, leitet
+  Positionsoptionen aus Mitarbeiterdaten ab, filtert mit useMemo, übergibt
+  filteredEmpty an EmployeeList.
+- **EmployeeList.tsx:** Neuer filteredEmpty-Prop für unterschiedliche
+  Leeranzeige bei Filter ohne Treffer vs. leerer Datenbank.
+- **EmployeeRow.tsx:** EmployeeRowData um responsibilityIds und qmAreaIds
+  erweitert für UUID-basierte Filterung.
+- **Mitarbeiter.css:** Veraltete .pqm-mitarbeiter__hint-Klasse entfernt.
+
+#### Nicht implementiert (bewusst)
+
+- Permanente Mitarbeiterlöschung (nicht angefordert, widerspricht
+  QM-Historienrückverfolgbarkeit)
+- Mitarbeiterspezifische Archivtabelle (nicht kanonisch dokumentiert)
+- Datum-Filter für Eintritt/Austritt (nicht kanonisch dokumentiert, nicht
+  in EmployeeFilters vorhanden)
+- Authentifizierung/Benutzerkonten (nicht angefordert)
+- Backend-Filterung (nicht erforderlich bei kleinem Dataset)
+
 ## [0.9.27] - 08.08.2026
 
 ### Mitarbeiterbearbeitung und transaktionale Zuordnungsaktualisierung (Prompt 016)
