@@ -2,6 +2,40 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.31] - 11.08.2026
+
+### Korrektur: Tauri v1 Allowlist/Cargo-Feature-Mismatch für Dialog (Prompt 018B)
+
+Nach der Korrektur des `shell`-Features (Prompt 018A) schlug der
+Tauri-Build-Script mit folgendem Fehler fehl:
+"The `tauri` dependency features on the `Cargo.toml` file does not match
+the allowlist defined under `tauri.conf.json`. Please run `tauri dev` or
+`tauri build` or add the `dialog-open` feature."
+
+#### Ursache
+
+`tauri.conf.json` deklariert `dialog.open: true` in der Allowlist.
+In Tauri v1 erfordert diese Allowlist-Einstellung das Cargo-Feature
+`dialog-open` — nicht nur `dialog`. Das Feature `dialog` aktiviert
+das Dialog-Modul, aber `dialog-open` aktiviert spezifisch die
+Datei-Öffnen-Funktion, die `cmd_select_pdf` verwendet.
+
+#### Korrektur
+
+- **Cargo.toml:** Feature `dialog-open` hinzugefügt
+  (neu: `["dialog", "dialog-open", "shell-open"]`)
+- **tauri.conf.json:** Keine Änderung — `dialog.open: true` ist korrekt
+- **main.rs:** Keine Änderung — `tauri::api::dialog::FileDialogBuilder`
+  ist eine gültige Tauri-v1-API
+- **Tests:** Keine Änderung — keine Tests hängen vom Dialog-Feature ab
+- **Cargo.lock:** Wird bei nächstem `cargo build` automatisch aktualisiert
+
+#### Keine weiteren Feature-Mismatches
+
+Alle Allowlist-Einträge wurden geprüft:
+- `dialog.open: true` → erfordert `dialog-open` (jetzt korrigiert)
+- `shell.open: true` → erfordert `shell-open` (bereits korrekt seit 018A)
+
 ## [0.9.30] - 11.08.2026
 
 ### Korrektur: Ungültiges Tauri v1 `shell`-Feature entfernt (Prompt 018A)
