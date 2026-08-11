@@ -1669,7 +1669,7 @@ pub fn review_list(conn: &Connection) -> SqliteResult<Vec<ReviewEntry>> {
                 if a_expired {
                     a_date.cmp(b_date)
                 } else {
-                    b_date.cmp(a_date)
+                    a_date.cmp(b_date)
                 }
                 .then_with(|| a.document_number.cmp(&b.document_number))
             }
