@@ -21,3 +21,56 @@
   font-size: 0.9rem;
   color: var(--pqm-color-neutral);
 }
+
+.pqm-startseite__error {
+  color: var(--pqm-color-error);
+  font-size: 0.9rem;
+  padding: var(--pqm-space-1) var(--pqm-space-2);
+  background-color: color-mix(in srgb, var(--pqm-color-error) 8%, transparent);
+  border-radius: var(--pqm-radius);
+}
+
+.pqm-startseite__validity-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--pqm-space-2);
+}
+
+@media (max-width: 768px) {
+  .pqm-startseite__validity-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pqm-startseite__review-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-1);
+}
+
+.pqm-startseite__review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pqm-space-1);
+  flex-wrap: wrap;
+}
+
+.pqm-startseite__review-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--pqm-color-primary);
+  margin: 0;
+}
+
+.pqm-startseite__valid-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--pqm-color-success);
+}

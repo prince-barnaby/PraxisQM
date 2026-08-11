@@ -11,9 +11,9 @@
 mod database;
 
 use database::{
-    CategoryItem, CreateDocumentInput, CreateEmployeeInput, CreateVersionInput, Document,
-    DocumentVersion, Employee, MasterDataItem, SubcategoryItem, UpdateDocumentInput,
-    UpdateEmployeeInput,
+    CategoryItem, CreateDocumentInput, CreateEmployeeInput, CreateVersionInput, DashboardSummary,
+    Document, DocumentVersion, Employee, MasterDataItem, ReviewEntry, SubcategoryItem,
+    UpdateDocumentInput, UpdateEmployeeInput,
 };
 use rusqlite::Connection;
 use std::sync::Mutex;
@@ -64,6 +64,8 @@ fn main() {
             cmd_list_categories,
             cmd_list_subcategories,
             cmd_select_pdf,
+            cmd_dashboard_summary,
+            cmd_review_list,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten von PraxisQM");
@@ -342,6 +344,20 @@ fn cmd_list_categories(state: State<DbState>) -> Result<Vec<CategoryItem>, Strin
 fn cmd_list_subcategories(state: State<DbState>) -> Result<Vec<SubcategoryItem>, String> {
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     database::list_subcategories(&conn).map_err(|e| e.to_string())
+}
+
+/// Lädt die Dashboard-Zusammenfassung (Zähler für aktive/archivierte Dokumente, Mitarbeiter).
+#[tauri::command]
+fn cmd_dashboard_summary(state: State<DbState>) -> Result<DashboardSummary, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::dashboard_summary(&conn).map_err(|e| e.to_string())
+}
+
+/// Lädt die Review-Liste (aktive Dokumente, die Aufmerksamkeit erfordern).
+#[tauri::command]
+fn cmd_review_list(state: State<DbState>) -> Result<Vec<ReviewEntry>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::review_list(&conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

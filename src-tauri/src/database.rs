@@ -1527,6 +1527,158 @@ pub fn list_archived_documents(conn: &Connection) -> SqliteResult<Vec<Document>>
     Ok(docs)
 }
 
+/// --- Dashboard-Summary & Review-Liste (Prompt 023) -----------------------
+
+/// Dashboard-Zusammenfassung für aktive Dokumente.
+/// Alle Zähler beziehen sich auf nicht-archivierte Dokumente (archived_at IS NULL).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardSummary {
+    pub total_active: i64,
+    pub valid: i64,
+    pub warning: i64,
+    pub expired: i64,
+    pub no_validity: i64,
+    pub archived: i64,
+    pub employees: i64,
+}
+
+/// Ein Eintrag in der Review-Liste — ein aktives Dokument, das Aufmerksamkeit erfordert.
+/// Enthält nur die für die Dashboard-Anzeige notwendigen Felder.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReviewEntry {
+    pub id: String,
+    pub document_number: String,
+    pub title: String,
+    pub valid_until: Option<String>,
+    pub computed_validity: String,
+    pub responsible_person_name: Option<String>,
+    pub category_name: Option<String>,
+}
+
+/// Berechnet die Dashboard-Zusammenfassung aus der aktuellen Datenbank.
+/// Verwendet calculate_validity_status für konsistente Gültigkeitsableitung.
+pub fn dashboard_summary(conn: &Connection) -> SqliteResult<DashboardSummary> {
+    let today = today_local_date();
+
+    let total_active: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM documents WHERE archived_at IS NULL;",
+        [],
+        |row| row.get(0),
+    )?;
+
+    let archived: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM documents WHERE archived_at IS NOT NULL;",
+        [],
+        |row| row.get(0),
+    )?;
+
+    let employees: i64 =
+        conn.query_row("SELECT COUNT(*) FROM employees;", [], |row| row.get(0))?;
+
+    let mut stmt = conn.prepare(
+        "SELECT valid_until FROM documents WHERE archived_at IS NULL;",
+    )?;
+
+    let mut valid = 0i64;
+    let mut warning = 0i64;
+    let mut expired = 0i64;
+    let mut no_validity = 0i64;
+
+    let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
+    for vu_opt in rows {
+        let vu = vu_opt?;
+        match calculate_validity_status(vu.as_deref(), &today) {
+            Some(VALIDITY_GUELTIG) => valid += 1,
+            Some(VALIDITY_BALD_AB) => warning += 1,
+            Some(VALIDITY_ABGELAUFEN) => expired += 1,
+            None => no_validity += 1,
+            _ => {}
+        }
+    }
+
+    Ok(DashboardSummary {
+        total_active,
+        valid,
+        warning,
+        expired,
+        no_validity,
+        archived,
+        employees,
+    })
+}
+
+/// Lädt die Review-Liste: aktive Dokumente mit computed_validity "läuft bald ab" oder "abgelaufen".
+/// Sortierung:
+///   1. abgelaufen vor läuft bald ab
+///   2. abgelaufen: ältestes valid_until zuerst
+///   3. läuft bald ab: nächstes valid_until zuerst
+///   4. bei gleichem Datum: nach Dokumentennummer
+pub fn review_list(conn: &Connection) -> SqliteResult<Vec<ReviewEntry>> {
+    let today = today_local_date();
+
+    let mut stmt = conn.prepare(
+        "SELECT d.id, d.document_number, d.title, d.valid_until,
+                e.last_name || ' ' || e.first_name,
+                c.name
+         FROM documents d
+         LEFT JOIN employees e ON e.id = d.responsible_person_id
+         LEFT JOIN categories c ON c.id = d.category_id
+         WHERE d.archived_at IS NULL
+         ORDER BY d.document_number;",
+    )?;
+
+    let mut entries: Vec<ReviewEntry> = Vec::new();
+
+    let rows = stmt.query_map([], |row| {
+        let valid_until: Option<String> = row.get(3)?;
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            valid_until,
+            row.get::<_, Option<String>>(4)?,
+            row.get::<_, Option<String>>(5)?,
+        ))
+    })?;
+
+    for row in rows {
+        let (id, document_number, title, valid_until, responsible, category) = row?;
+        let cv = calculate_validity_status(valid_until.as_deref(), &today);
+        if cv == Some(VALIDITY_BALD_AB) || cv == Some(VALIDITY_ABGELAUFEN) {
+            entries.push(ReviewEntry {
+                id,
+                document_number,
+                title,
+                valid_until,
+                computed_validity: cv.unwrap().to_string(),
+                responsible_person_name: responsible,
+                category_name: category,
+            });
+        }
+    }
+
+    entries.sort_by(|a, b| {
+        let a_expired = a.computed_validity == VALIDITY_ABGELAUFEN;
+        let b_expired = b.computed_validity == VALIDITY_ABGELAUFEN;
+        match (a_expired, b_expired) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => {
+                let a_date = a.valid_until.as_deref().unwrap_or("");
+                let b_date = b.valid_until.as_deref().unwrap_or("");
+                if a_expired {
+                    a_date.cmp(b_date)
+                } else {
+                    b_date.cmp(a_date)
+                }
+                .then_with(|| a.document_number.cmp(&b.document_number))
+            }
+        }
+    });
+
+    Ok(entries)
+}
+
 /// Lädt alle Versionen eines Dokuments, neueste zuerst.
 /// is_current wird durch Abgleich mit DB-001 version-Spalte bestimmt.
 pub fn list_versions(conn: &Connection, document_id: &str) -> SqliteResult<Vec<DocumentVersion>> {
@@ -4210,6 +4362,379 @@ mod tests {
             parse_date(&today).is_some(),
             "today_local_date must return a valid YYYY-MM-DD date, got: {today}"
         );
+    }
+
+    // === Prompt 023: Dashboard Summary & Review List Tests ===
+
+    /// Hilfsfunktion: Erstellt ein Dokument mit gegebenem valid_until im Test-DB.
+    fn make_doc_with_validity(
+        conn: &Connection,
+        storage: &tempfile::TempDir,
+        title: &str,
+        valid_until: Option<&str>,
+    ) -> Document {
+        let pdf = make_valid_pdf(storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: title.to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: valid_until.map(|s| s.to_string()),
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        create_document(conn, &input, &managed).unwrap()
+    }
+
+    #[test]
+    fn test_review_active_valid_not_in_list() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        make_doc_with_validity(&conn, &storage, "Gültig", Some("2099-12-31"));
+        let reviews = review_list(&conn).unwrap();
+        assert!(reviews.is_empty(), "Valid document must not appear in review list");
+    }
+
+    #[test]
+    fn test_review_active_warning_appears() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        // valid_until = today + 10 days → within 30-day threshold → "läuft bald ab"
+        let today = today_local_date();
+        let vu = add_days(&today, 10);
+        make_doc_with_validity(&conn, &storage, "Bald ab", Some(&vu));
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 1);
+        assert_eq!(reviews[0].computed_validity, "läuft bald ab");
+    }
+
+    #[test]
+    fn test_review_active_expired_appears() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 1);
+        assert_eq!(reviews[0].computed_validity, "abgelaufen");
+    }
+
+    #[test]
+    fn test_review_null_valid_until_not_in_list() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        make_doc_with_validity(&conn, &storage, "Ohne Datum", None);
+        let reviews = review_list(&conn).unwrap();
+        assert!(reviews.is_empty(), "NULL valid_until must not appear in review list");
+    }
+
+    #[test]
+    fn test_review_archived_warning_excluded() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let today = today_local_date();
+        let vu = add_days(&today, 10);
+        let doc = make_doc_with_validity(&conn, &storage, "Bald ab", Some(&vu));
+        archive_document(&mut conn, &doc.id).unwrap();
+        let reviews = review_list(&conn).unwrap();
+        assert!(reviews.is_empty(), "Archived warning document must not appear in review list");
+    }
+
+    #[test]
+    fn test_review_archived_expired_excluded() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        archive_document(&mut conn, &doc.id).unwrap();
+        let reviews = review_list(&conn).unwrap();
+        assert!(reviews.is_empty(), "Archived expired document must not appear in review list");
+    }
+
+    #[test]
+    fn test_review_restored_warning_becomes_eligible() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let today = today_local_date();
+        let vu = add_days(&today, 10);
+        let doc = make_doc_with_validity(&conn, &storage, "Bald ab", Some(&vu));
+        archive_document(&mut conn, &doc.id).unwrap();
+        assert!(review_list(&conn).unwrap().is_empty());
+        restore_document(&mut conn, &doc.id).unwrap();
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 1, "Restored warning document must reappear in review list");
+        assert_eq!(reviews[0].computed_validity, "läuft bald ab");
+    }
+
+    #[test]
+    fn test_review_restored_expired_becomes_eligible() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        archive_document(&mut conn, &doc.id).unwrap();
+        assert!(review_list(&conn).unwrap().is_empty());
+        restore_document(&mut conn, &doc.id).unwrap();
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 1, "Restored expired document must reappear in review list");
+        assert_eq!(reviews[0].computed_validity, "abgelaufen");
+    }
+
+    #[test]
+    fn test_summary_counts_valid() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        make_doc_with_validity(&conn, &storage, "Gültig", Some("2099-12-31"));
+        let s = dashboard_summary(&conn).unwrap();
+        assert_eq!(s.valid, 1);
+        assert_eq!(s.warning, 0);
+        assert_eq!(s.expired, 0);
+        assert_eq!(s.no_validity, 0);
+        assert_eq!(s.total_active, 1);
+    }
+
+    #[test]
+    fn test_summary_counts_warning() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let today = today_local_date();
+        make_doc_with_validity(&conn, &storage, "Bald ab", Some(&add_days(&today, 15)));
+        let s = dashboard_summary(&conn).unwrap();
+        assert_eq!(s.warning, 1);
+        assert_eq!(s.valid, 0);
+        assert_eq!(s.expired, 0);
+    }
+
+    #[test]
+    fn test_summary_counts_expired() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        let s = dashboard_summary(&conn).unwrap();
+        assert_eq!(s.expired, 1);
+        assert_eq!(s.valid, 0);
+        assert_eq!(s.warning, 0);
+    }
+
+    #[test]
+    fn test_summary_excludes_archived() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        archive_document(&mut conn, &doc.id).unwrap();
+        let s = dashboard_summary(&conn).unwrap();
+        assert_eq!(s.total_active, 0);
+        assert_eq!(s.expired, 0, "Archived expired must not count in active summary");
+        assert_eq!(s.archived, 1);
+    }
+
+    #[test]
+    fn test_review_ordering_expired_before_warning() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let today = today_local_date();
+        // Warning doc
+        make_doc_with_validity(&conn, &storage, "Warnung", Some(&add_days(&today, 15)));
+        // Expired doc
+        make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 2);
+        assert_eq!(reviews[0].computed_validity, "abgelaufen", "Expired must come first");
+        assert_eq!(reviews[1].computed_validity, "läuft bald ab", "Warning must come second");
+    }
+
+    #[test]
+    fn test_review_ordering_expired_oldest_first() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        // Two expired: 2000-01-01 (older) and 2010-06-15 (newer)
+        make_doc_with_validity(&conn, &storage, "Neuer abgelaufen", Some("2010-06-15"));
+        make_doc_with_validity(&conn, &storage, "Älter abgelaufen", Some("2000-01-01"));
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 2);
+        assert_eq!(reviews[0].valid_until, Some("2000-01-01".to_string()), "Oldest expired first");
+        assert_eq!(reviews[1].valid_until, Some("2010-06-15".to_string()), "Newer expired second");
+    }
+
+    #[test]
+    fn test_review_ordering_warning_nearest_first() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let today = today_local_date();
+        // Two warnings: +25 days (farther) and +10 days (nearer)
+        make_doc_with_validity(&conn, &storage, "Weiter weg", Some(&add_days(&today, 25)));
+        make_doc_with_validity(&conn, &storage, "Näher dran", Some(&add_days(&today, 10)));
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 2);
+        assert_eq!(reviews[0].title, "Näher dran", "Nearest expiry first in warning");
+        assert_eq!(reviews[1].title, "Weiter weg", "Farther expiry second in warning");
+    }
+
+    #[test]
+    fn test_review_ordering_equal_dates_deterministic() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let today = today_local_date();
+        let vu = add_days(&today, 15);
+        // Two warnings with same valid_until — secondary sort by document_number
+        make_doc_with_validity(&conn, &storage, "B", Some(&vu));
+        make_doc_with_validity(&conn, &storage, "A", Some(&vu));
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 2);
+        // Document numbers are auto-generated sequentially, so first created = lower number
+        assert_ne!(reviews[0].document_number, reviews[1].document_number, "Document numbers must differ");
+        assert!(
+            reviews[0].document_number < reviews[1].document_number,
+            "Equal dates: lower document number first"
+        );
+    }
+
+    #[test]
+    fn test_review_editing_valid_until_changes_eligibility() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        // Create with far-future date → gültig, not in review list
+        let doc = make_doc_with_validity(&conn, &storage, "Edit Test", Some("2099-12-31"));
+        assert!(review_list(&conn).unwrap().is_empty());
+        // Edit to past date → abgelaufen, appears in review list
+        let update = make_update_document_input(
+            "Edit Test", None, None, None, "1.0", "aktiv", "gültig", Some("2000-01-01"), None,
+        );
+        update_document(&conn, &doc.id, &update).unwrap();
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 1);
+        assert_eq!(reviews[0].computed_validity, "abgelaufen");
+    }
+
+    #[test]
+    fn test_review_archive_removes_eligibility() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        assert_eq!(review_list(&conn).unwrap().len(), 1);
+        archive_document(&mut conn, &doc.id).unwrap();
+        assert!(review_list(&conn).unwrap().is_empty(), "Archive must remove from review list");
+    }
+
+    #[test]
+    fn test_review_restore_recalculates_from_unchanged_valid_until() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let today = today_local_date();
+        let vu = add_days(&today, 10);
+        let doc = make_doc_with_validity(&conn, &storage, "Bald ab", Some(&vu));
+        archive_document(&mut conn, &doc.id).unwrap();
+        assert!(review_list(&conn).unwrap().is_empty());
+        restore_document(&mut conn, &doc.id).unwrap();
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 1);
+        assert_eq!(reviews[0].valid_until, Some(vu), "valid_until must be unchanged after restore");
+        assert_eq!(reviews[0].computed_validity, "läuft bald ab");
+    }
+
+    #[test]
+    fn test_summary_empty_db_returns_zeros() {
+        let (conn, _tmp) = init_test_db();
+        let s = dashboard_summary(&conn).unwrap();
+        assert_eq!(s.total_active, 0);
+        assert_eq!(s.valid, 0);
+        assert_eq!(s.warning, 0);
+        assert_eq!(s.expired, 0);
+        assert_eq!(s.no_validity, 0);
+        assert_eq!(s.archived, 0);
+        assert_eq!(s.employees, 0);
+    }
+
+    #[test]
+    fn test_review_empty_db_returns_empty_list() {
+        let (conn, _tmp) = init_test_db();
+        let reviews = review_list(&conn).unwrap();
+        assert!(reviews.is_empty());
+    }
+
+    #[test]
+    fn test_review_only_null_validity_no_reminders() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        make_doc_with_validity(&conn, &storage, "Ohne Datum 1", None);
+        make_doc_with_validity(&conn, &storage, "Ohne Datum 2", None);
+        let reviews = review_list(&conn).unwrap();
+        assert!(reviews.is_empty(), "Only NULL-validity docs → no actionable reminders");
+        let s = dashboard_summary(&conn).unwrap();
+        assert_eq!(s.no_validity, 2);
+        assert_eq!(s.total_active, 2);
+        assert_eq!(s.valid, 0);
+        assert_eq!(s.warning, 0);
+        assert_eq!(s.expired, 0);
+    }
+
+    #[test]
+    fn test_summary_mixed_states() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let today = today_local_date();
+
+        // 2 gültig
+        make_doc_with_validity(&conn, &storage, "Gültig 1", Some("2099-12-31"));
+        make_doc_with_validity(&conn, &storage, "Gültig 2", Some("2099-06-01"));
+        // 1 läuft bald ab
+        make_doc_with_validity(&conn, &storage, "Bald ab", Some(&add_days(&today, 20)));
+        // 1 abgelaufen
+        make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        // 1 ohne Datum
+        make_doc_with_validity(&conn, &storage, "Ohne Datum", None);
+
+        let s = dashboard_summary(&conn).unwrap();
+        assert_eq!(s.total_active, 5);
+        assert_eq!(s.valid, 2);
+        assert_eq!(s.warning, 1);
+        assert_eq!(s.expired, 1);
+        assert_eq!(s.no_validity, 1);
+    }
+
+    #[test]
+    fn test_review_entry_has_no_file_paths() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 1);
+        // ReviewEntry must not expose file_path or file_name
+        let serialized = serde_json::to_string(&reviews[0]).unwrap();
+        assert!(!serialized.contains("file_path"), "ReviewEntry must not expose file_path");
+        assert!(!serialized.contains("file_name"), "ReviewEntry must not expose file_name");
+    }
+
+    #[test]
+    fn test_review_entry_has_document_uuid_for_navigation() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_validity(&conn, &storage, "Abgelaufen", Some("2000-01-01"));
+        let reviews = review_list(&conn).unwrap();
+        assert_eq!(reviews.len(), 1);
+        assert_eq!(reviews[0].id, doc.id, "Review entry must contain document UUID for navigation");
+        assert_eq!(reviews[0].document_number, doc.document_number, "Must contain document number for route");
+    }
+
+    /// Hilfsfunktion: Addiert Tage zu einem ISO-Datum (YYYY-MM-DD).
+    fn add_days(iso: &str, days: i64) -> String {
+        let (y, m, d) = parse_date(iso).unwrap();
+        let base = days_from_date(y, m, d);
+        let target = base + days;
+        // civil_from_days
+        let z = target + 719468;
+        let era = if z >= 0 { z } else { z - 146096 } / 146097;
+        let doe = z - era * 146097;
+        let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        let y2 = yoe + era * 400;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let d2 = doy - (153 * mp + 2) / 5 + 1;
+        let m2 = if mp < 10 { mp + 3 } else { mp - 9 };
+        let year = if m2 <= 2 { y2 + 1 } else { y2 };
+        format!("{:04}-{:02}-{:02}", year, m2, d2)
     }
 
 }

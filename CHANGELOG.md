@@ -2,6 +2,90 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.37] - 11.08.2026
+
+### Review-Erinnerungen und echtes Dashboard (Prompt 023)
+
+Verwandlung der bestehenden Gültigkeitslogik (Prompt 022 / ADR-028) in ein
+handlungsorientiertes Dashboard. Die Dashboard-Seite zeigt jetzt echte
+Persistenz-Zähler und eine Review-Liste mit Dokumenten, die eine Prüfung
+benötigen — abgeleitet aus dem kanonischen `calculate_validity_status`.
+
+#### Erinnerungssemantik (kanonisch, nicht erfunden)
+
+- **Abgeleitet, nicht persistiert:** Review-Einträge werden zur Laufzeit aus
+  `valid_until` und dem aktuellen Datum berechnet — keine separate Reminder-Tabelle
+- **Kein Acknowledgement/Snooze/Dismiss:** Keine dieser Semantiken ist in der
+  kanonischen Dokumentation definiert; nicht implementiert
+- **Global, nicht benutzerspezifisch:** PraxisQM hat Mitarbeiter, keine
+  authentifizierten Benutzerkonten — Erinnerungen sind global
+- **Aktive Dokumente nur:** Archivierte Dokumente erscheinen nicht in
+  Zählern oder der Review-Liste
+- **Zwei Kategorien:** "läuft bald ab" und "abgelaufen" — keine zusätzlichen
+  Dringlichkeitsstufen erfunden
+
+#### Backend (Rust / Tauri)
+
+- Neue Structs: `DashboardSummary` (Zähler), `ReviewEntry` (aktionsorientiert)
+- Neue Funktionen: `dashboard_summary(conn)`, `review_list(conn)`
+- `dashboard_summary`: Zählt aktiv/gültig/warnend/abgelaufen/ohne-Datum/archiviert/Mitarbeiter
+- `review_list`: Aktive Dokumente mit "läuft bald ab" oder "abgelaufen", sortiert
+- Sortierung: abgelaufen zuerst (älteste zuerst), dann läuft bald ab (nächste zuerst), bei gleichem Datum nach Dokumentennummer
+- Neue Commands: `cmd_dashboard_summary`, `cmd_review_list`
+- Verwendet `calculate_validity_status` aus Prompt 022 — keine zweite Schwellwert-Logik
+- `ReviewEntry` exponiert keine Dateipfade oder internen DB-Details
+
+#### Frontend (React)
+
+- `dashboardApi.ts` (neu): TypeScript-DTOs und Fetch-Funktionen für Summary und Review-Liste
+- `Startseite.tsx`: Echte Daten aus SQLite statt Platzhalter; Dashboard-Karten navigieren
+- `Startseite.tsx`: Gültigkeits-Karten (abgelaufen/läuft bald ab) erscheinen nur bei Bedarf
+- `Startseite.tsx`: Review-Sektion mit "Prüfungsbedürftige Dokumente"-Überschrift
+- `DashboardCard.tsx`: Um `onClick`-Prop für Navigation erweitert (Pfeil-Icon bei interaktiven Karten)
+- `ReviewList.tsx` (neu): Liste aktionsorientierter Einträge mit StatusBadge, Datum, Verantwortlicher
+- `ReviewList.tsx`: Klick navigiert zur existierenden Dokumentdetail-Seite (kanonische UUID-Route)
+- `ReviewList.tsx`: Empty-State "Keine Dokumente benötigen aktuell eine Prüfung."
+- `ReviewList.css` (neu): Listen-Styles mit Hover/Focus-Interaktion
+- `Startseite.css`: Styles für Review-Sektion und Gültigkeits-Karten
+
+#### Dashboard-Verhalten
+
+- Dashboard lädt beim Öffnen über `Promise.all` (Summary + Review parallel)
+- Nach Editieren/Archivieren/Restore: Zurück zum Dashboard zeigt korrekte Zähler/Review-Liste
+- Kein Application-Restart erforderlich
+- Keine Mock-Zähler — alle Werte sind echt oder zeigen "…"
+
+#### Navigation
+
+- Klick auf Review-Eintrag → `/dokumente/:documentNumber` (existierende Route)
+- Klick auf Dashboard-Karte → entsprechende Seite (Dokumente, Mitarbeiter, Archiv)
+- Keine duplizierte Reminder-Detail-Seite
+
+#### Tests
+
+20 neue Rust-Tests: gültig nicht in Liste, warnend erscheint, abgelaufen erscheint,
+NULL nicht in Liste, archiviert warnend ausgeschlossen, archiviert abgelaufen
+ausgeschlossen, restauriert warnend wieder aktiv, restauriert abgelaufen wieder
+aktiv, Summary gültig/warnend/abgelaufen Zähler, Summary schließt Archiv aus,
+Sortierung abgelaufen vor warnend, abgelaufen älteste zuerst, warnend nächste zuerst,
+gleiche Daten deterministisch, Editieren ändert Eligibility, Archiv entfernt
+Eligibility, Restore recalculiert, leere DB, nur-NULL keine Reminders,
+gemischte States, kein file_path in ReviewEntry, UUID für Navigation.
+
+#### Nicht implementiert (bewusst)
+
+- OS-Benachrichtigungen (out of scope)
+- Background-Scheduler (out of scope)
+- Email-Erinnerungen (out of scope)
+- Reminder Acknowledgement/Snooze/Dismiss (nicht kanonisch)
+- Benutzerspezifische Erinnerungen (keine Auth in v1)
+- Automatisches Archivieren bei Ablauf (out of scope)
+- Konfigurierbarer Schwellwert (fix für v1)
+
+#### Bekannte zurückgestellte Arbeit
+
+- `restore_document` setzt `status='aktiv' auch wenn Pre-Archive-Status `'Entwurf'` war — separater Lifecycle-Fix (seit Prompt 022 dokumentiert)
+
 ## [0.9.36] - 11.08.2026
 
 ### Dokument-Gültigkeitsstatus und Review-Status (Prompt 022 / 022A)
