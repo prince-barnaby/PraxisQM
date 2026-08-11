@@ -10,3 +10,17 @@
   color: var(--pqm-color-neutral);
   font-style: italic;
 }
+
+.pqm-archiv__error {
+  color: var(--pqm-color-error);
+  font-size: 0.85rem;
+  padding: var(--pqm-space-1) var(--pqm-space-2);
+  background-color: color-mix(in srgb, var(--pqm-color-error) 10%, transparent);
+  border-radius: var(--pqm-radius);
+}
+
+.pqm-archive-list__loading {
+  padding: var(--pqm-space-2);
+  color: var(--pqm-color-neutral);
+  font-size: 0.85rem;
+}

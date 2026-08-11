@@ -5,14 +5,23 @@ import EmptyState from "../documents/EmptyState";
 
 interface ArchiveListProps {
   entries: ArchiveRowData[];
+  loading?: boolean;
 }
 
-export default function ArchiveList({ entries }: ArchiveListProps) {
+export default function ArchiveList({ entries, loading }: ArchiveListProps) {
+  if (loading) {
+    return (
+      <div className="pqm-archive-list" role="region" aria-label="Archivliste">
+        <p className="pqm-archive-list__loading">Archiv wird geladen …</p>
+      </div>
+    );
+  }
+
   if (entries.length === 0) {
     return (
       <EmptyState
-        title="Noch keine archivierten Dokumente vorhanden"
-        message="Es wurden noch keine Dokumente archiviert. Diese Ansicht ist ein Platzhalter."
+        title="Keine archivierten Dokumente gefunden"
+        message="Es wurden noch keine Dokumente archiviert oder die aktiven Filter ergeben keine Treffer."
       />
     );
   }

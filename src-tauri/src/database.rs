@@ -994,6 +994,7 @@ pub fn list_documents(conn: &Connection) -> SqliteResult<Vec<Document>> {
              FROM document_versions
              WHERE rowid IN (SELECT MAX(rowid) FROM document_versions GROUP BY document_id)
          ) dv ON dv.document_id = d.id
+         WHERE d.archived_at IS NULL
          ORDER BY d.document_number;",
     )?;
 
@@ -1095,6 +1096,18 @@ pub fn update_document(
     )?;
     if exists == 0 {
         return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+
+    let archived: Option<String> = conn.query_row(
+        "SELECT archived_at FROM documents WHERE id = ?1;",
+        rusqlite::params![id],
+        |row| row.get(0),
+    )?;
+    if archived.is_some() {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some("Archivierte Dokumente können nicht bearbeitet werden.".to_string()),
+        ));
     }
 
     if let Some(ref person_id) = input.responsible_person_id {
@@ -1240,6 +1253,20 @@ pub fn create_version_from_source(
     let source = Path::new(&input.source_file_path);
     validate_pdf(source)?;
 
+    let archived: Option<String> = conn
+        .query_row(
+            "SELECT archived_at FROM documents WHERE id = ?1;",
+            rusqlite::params![input.document_id],
+            |row| row.get(0),
+        )
+        .ok()
+        .flatten();
+    if let Some(archived_at) = archived {
+        if !archived_at.is_empty() {
+            return Err("Archivierte Dokumente können nicht mit neuen Versionen versehen werden.".to_string());
+        }
+    }
+
     let version_id = uuid::Uuid::new_v4().to_string();
     let managed_file = copy_to_managed_storage(source, storage_dir, &version_id)?;
 
@@ -1260,6 +1287,134 @@ pub fn create_version_from_source(
             Err(e.to_string())
         }
     }
+}
+
+/// Archiviert ein Dokument: setzt status='archiviert' und archived_at=now.
+/// Alle Versionen und PDFs bleiben unangetastet.
+/// Transactional – bei Fehler wird nichts geändert.
+pub fn archive_document(conn: &mut Connection, document_id: &str) -> SqliteResult<Document> {
+    let exists: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM documents WHERE id = ?1;",
+        rusqlite::params![document_id],
+        |row| row.get(0),
+    )?;
+    if exists == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+
+    let already_archived: Option<String> = conn.query_row(
+        "SELECT archived_at FROM documents WHERE id = ?1;",
+        rusqlite::params![document_id],
+        |row| row.get(0),
+    )?;
+    if already_archived.is_some() {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some("Dokument ist bereits archiviert.".to_string()),
+        ));
+    }
+
+    let now = now_iso();
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE documents SET status = 'archiviert', archived_at = ?1, updated_at = ?2
+         WHERE id = ?3;",
+        rusqlite::params![now, now, document_id],
+    )?;
+    tx.commit()?;
+
+    load_document(conn, document_id)
+}
+
+/// Stellt ein archiviertes Dokument wieder her: setzt status='aktiv', löscht archived_at.
+/// Alle Versionen und PDFs bleiben unangetastet.
+/// Transactional – bei Fehler wird nichts geändert.
+pub fn restore_document(conn: &mut Connection, document_id: &str) -> SqliteResult<Document> {
+    let exists: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM documents WHERE id = ?1;",
+        rusqlite::params![document_id],
+        |row| row.get(0),
+    )?;
+    if exists == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+
+    let archived_at: Option<String> = conn.query_row(
+        "SELECT archived_at FROM documents WHERE id = ?1;",
+        rusqlite::params![document_id],
+        |row| row.get(0),
+    )?;
+    if archived_at.is_none() {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some("Dokument ist nicht archiviert.".to_string()),
+        ));
+    }
+
+    let now = now_iso();
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE documents SET status = 'aktiv', archived_at = NULL, updated_at = ?1
+         WHERE id = ?2;",
+        rusqlite::params![now, document_id],
+    )?;
+    tx.commit()?;
+
+    load_document(conn, document_id)
+}
+
+/// Lädt alle archivierten Dokumente (archived_at IS NOT NULL).
+pub fn list_archived_documents(conn: &Connection) -> SqliteResult<Vec<Document>> {
+    let mut stmt = conn.prepare(
+        "SELECT d.id, d.document_number, d.title,
+                d.category_id, c.name,
+                d.subcategory_id, s.name,
+                d.responsible_person_id,
+                e.last_name || ' ' || e.first_name,
+                d.version, d.status, d.validity, d.valid_until,
+                d.description, d.archived_at,
+                dv.file_name, dv.file_path,
+                d.created_at, d.updated_at
+         FROM documents d
+         LEFT JOIN categories c ON c.id = d.category_id
+         LEFT JOIN subcategories s ON s.id = d.subcategory_id
+         LEFT JOIN employees e ON e.id = d.responsible_person_id
+         LEFT JOIN (
+             SELECT document_id, file_name, file_path
+             FROM document_versions
+             WHERE rowid IN (SELECT MAX(rowid) FROM document_versions GROUP BY document_id)
+         ) dv ON dv.document_id = d.id
+         WHERE d.archived_at IS NOT NULL
+         ORDER BY d.archived_at DESC;",
+    )?;
+
+    let docs = stmt
+        .query_map([], |row| {
+            Ok(Document {
+                id: row.get(0)?,
+                document_number: row.get(1)?,
+                title: row.get(2)?,
+                category_id: row.get(3)?,
+                category_name: row.get(4)?,
+                subcategory_id: row.get(5)?,
+                subcategory_name: row.get(6)?,
+                responsible_person_id: row.get(7)?,
+                responsible_person_name: row.get(8)?,
+                version: row.get(9)?,
+                status: row.get(10)?,
+                validity: row.get(11)?,
+                valid_until: row.get(12)?,
+                description: row.get(13)?,
+                archived_at: row.get(14)?,
+                file_name: row.get(15)?,
+                file_path: row.get(16)?,
+                created_at: row.get(17)?,
+                updated_at: row.get(18)?,
+            })
+        })?
+        .collect::<SqliteResult<Vec<_>>>()?;
+
+    Ok(docs)
 }
 
 /// Lädt alle Versionen eines Dokuments, neueste zuerst.
@@ -3073,6 +3228,418 @@ mod tests {
         assert_eq!(versions.len(), 1);
         assert!(versions[0].is_current);
         assert!(!versions[0].version_number.is_empty());
+    }
+
+    // === Prompt 021: Archive & Restore Lifecycle Tests ===
+
+    fn make_archivable_document(conn: &Connection, storage: &tempfile::TempDir) -> Document {
+        let doc = make_test_document_with_relations(conn, storage, None, None);
+        let update = make_update_document_input(
+            "Aktives Dokument", None, None, None, "1.0", "aktiv", "gültig", None, None,
+        );
+        update_document(conn, &doc.id, &update).unwrap()
+    }
+
+    #[test]
+    fn test_archive_active_document() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let archived = archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(archived.status, "archiviert");
+        assert!(archived.archived_at.is_some(), "archived_at must be set");
+    }
+
+    #[test]
+    fn test_archive_uuid_unchanged() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let archived = archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(archived.id, doc.id, "UUID must not change on archive");
+    }
+
+    #[test]
+    fn test_archive_document_number_unchanged() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let archived = archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(archived.document_number, doc.document_number, "Document number must not change");
+    }
+
+    #[test]
+    fn test_archive_sets_archived_at_correctly() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let before = now_iso();
+        let archived = archive_document(&mut conn, &doc.id).unwrap();
+        let after = now_iso();
+
+        let archived_ts: i64 = archived.archived_at.as_ref().unwrap().parse().unwrap();
+        let before_ts: i64 = before.parse().unwrap();
+        let after_ts: i64 = after.parse().unwrap();
+        assert!(archived_ts >= before_ts && archived_ts <= after_ts,
+            "archived_at must be between start and end of archive operation");
+    }
+
+    #[test]
+    fn test_archived_document_excluded_from_active_list() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc1 = make_archivable_document(&conn, &storage);
+        let _doc2 = make_archivable_document(&conn, &storage);
+
+        let active = list_documents(&conn).unwrap();
+        assert_eq!(active.len(), 2, "Two active documents before archive");
+
+        archive_document(&mut conn, &doc1.id).unwrap();
+
+        let active_after = list_documents(&conn).unwrap();
+        assert_eq!(active_after.len(), 1, "Archived document must not appear in active list");
+        assert_ne!(active_after[0].id, doc1.id, "Remaining document must be the non-archived one");
+    }
+
+    #[test]
+    fn test_archived_document_appears_in_archive_list() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let archived_before = list_archived_documents(&conn).unwrap();
+        assert_eq!(archived_before.len(), 0, "No archived documents initially");
+
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        let archived_after = list_archived_documents(&conn).unwrap();
+        assert_eq!(archived_after.len(), 1, "Archived document must appear in archive list");
+        assert_eq!(archived_after[0].id, doc.id);
+    }
+
+    #[test]
+    fn test_versions_preserved_after_archive() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version_from_source(&mut conn, &input, storage.path()).unwrap();
+
+        let versions_before = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions_before.len(), 2);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        let versions_after = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions_after.len(), 2, "All versions must be preserved after archive");
+    }
+
+    #[test]
+    fn test_current_version_preserved_after_archive() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version_from_source(&mut conn, &input, storage.path()).unwrap();
+
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        let current = versions.iter().find(|v| v.is_current);
+        assert!(current.is_some(), "Current version must still resolve after archive");
+        assert_eq!(current.unwrap().version_number, "2.0");
+    }
+
+    #[test]
+    fn test_managed_pdfs_remain_untouched_after_archive() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let updated = create_version_from_source(&mut conn, &input, storage.path()).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        let v2 = versions.iter().find(|v| v.version_number == "2.0").unwrap();
+        let managed_path = std::path::Path::new(&v2.file_path);
+        assert!(managed_path.exists(), "Managed PDF must exist before archive");
+
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        assert!(managed_path.exists(), "Managed PDF must still exist after archive");
+
+        let reloaded = load_document(&conn, &doc.id).unwrap();
+        assert_eq!(reloaded.version, updated.version, "Current version metadata unchanged");
+    }
+
+    #[test]
+    fn test_archive_nonexistent_document_returns_error() {
+        let (mut conn, _tmp) = init_test_db();
+
+        let result = archive_document(&mut conn, "nonexistent-uuid");
+        assert!(result.is_err(), "Archiving a nonexistent document must fail");
+    }
+
+    #[test]
+    fn test_double_archive_handled_correctly() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        let second = archive_document(&mut conn, &doc.id);
+        assert!(second.is_err(), "Double archive must fail");
+    }
+
+    #[test]
+    fn test_archive_does_not_create_new_version() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let versions_before = list_versions(&conn, &doc.id).unwrap();
+        let count_before = versions_before.len();
+
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        let versions_after = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions_after.len(), count_before, "Archive must not create a new version");
+    }
+
+    #[test]
+    fn test_archive_counter_returns_correct_results() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc1 = make_archivable_document(&conn, &storage);
+        let doc2 = make_archivable_document(&conn, &storage);
+        let doc3 = make_archivable_document(&conn, &storage);
+
+        assert_eq!(list_documents(&conn).unwrap().len(), 3);
+        assert_eq!(list_archived_documents(&conn).unwrap().len(), 0);
+
+        archive_document(&mut conn, &doc1.id).unwrap();
+        assert_eq!(list_documents(&conn).unwrap().len(), 2);
+        assert_eq!(list_archived_documents(&conn).unwrap().len(), 1);
+
+        archive_document(&mut conn, &doc2.id).unwrap();
+        assert_eq!(list_documents(&conn).unwrap().len(), 1);
+        assert_eq!(list_archived_documents(&conn).unwrap().len(), 2);
+
+        archive_document(&mut conn, &doc3.id).unwrap();
+        assert_eq!(list_documents(&conn).unwrap().len(), 0);
+        assert_eq!(list_archived_documents(&conn).unwrap().len(), 3);
+    }
+
+    // === Restore Tests ===
+
+    #[test]
+    fn test_restore_archived_document() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+
+        assert_eq!(restored.status, "aktiv", "Restored document must have status aktiv");
+        assert!(restored.archived_at.is_none(), "archived_at must be cleared on restore");
+    }
+
+    #[test]
+    fn test_restored_document_returns_to_active_list() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(list_documents(&conn).unwrap().len(), 0);
+
+        restore_document(&mut conn, &doc.id).unwrap();
+        let active = list_documents(&conn).unwrap();
+        assert_eq!(active.len(), 1, "Restored document must reappear in active list");
+        assert_eq!(active[0].id, doc.id);
+    }
+
+    #[test]
+    fn test_restored_document_disappears_from_archive_list() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(list_archived_documents(&conn).unwrap().len(), 1);
+
+        restore_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(list_archived_documents(&conn).unwrap().len(), 0, "Restored document must leave archive list");
+    }
+
+    #[test]
+    fn test_restore_uuid_unchanged() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+
+        assert_eq!(restored.id, doc.id, "UUID must not change on restore");
+    }
+
+    #[test]
+    fn test_restore_document_number_unchanged() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+
+        assert_eq!(restored.document_number, doc.document_number, "Document number must not change on restore");
+    }
+
+    #[test]
+    fn test_versions_preserved_after_restore() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version_from_source(&mut conn, &input, storage.path()).unwrap();
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        restore_document(&mut conn, &doc.id).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 2, "All versions must be preserved after restore");
+    }
+
+    #[test]
+    fn test_managed_pdfs_preserved_after_restore() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version_from_source(&mut conn, &input, storage.path()).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        let v2 = versions.iter().find(|v| v.version_number == "2.0").unwrap();
+        let managed_path = std::path::Path::new(&v2.file_path);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        restore_document(&mut conn, &doc.id).unwrap();
+
+        assert!(managed_path.exists(), "Managed PDF must still exist after restore");
+    }
+
+    #[test]
+    fn test_restore_nonexistent_document_handled() {
+        let (mut conn, _tmp) = init_test_db();
+
+        let result = restore_document(&mut conn, "nonexistent-uuid");
+        assert!(result.is_err(), "Restoring a nonexistent document must fail");
+    }
+
+    #[test]
+    fn test_restore_non_archived_document_handled() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let result = restore_document(&mut conn, &doc.id);
+        assert!(result.is_err(), "Restoring a non-archived document must fail");
+    }
+
+    #[test]
+    fn test_update_blocked_when_archived() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        let update = make_update_document_input(
+            "Geändert", None, None, None, "1.0", "aktiv", "gültig", None, None,
+        );
+        let result = update_document(&conn, &doc.id, &update);
+        assert!(result.is_err(), "Editing an archived document must fail");
+    }
+
+    #[test]
+    fn test_create_version_blocked_when_archived() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let result = create_version_from_source(&mut conn, &input, storage.path());
+        assert!(result.is_err(), "Creating a new version of an archived document must fail");
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 1, "No new version should be created");
+    }
+
+    #[test]
+    fn test_archive_restore_roundtrip_preserves_everything() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_archivable_document(&conn, &storage);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version_from_source(&mut conn, &input, storage.path()).unwrap();
+
+        let original_number = doc.document_number.clone();
+        let original_id = doc.id.clone();
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+
+        assert_eq!(restored.id, original_id, "UUID preserved through archive/restore roundtrip");
+        assert_eq!(restored.document_number, original_number, "Document number preserved through roundtrip");
+        assert_eq!(restored.status, "aktiv", "Status restored to aktiv");
+        assert!(restored.archived_at.is_none(), "archived_at cleared after restore");
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 2, "Both versions preserved through roundtrip");
+        let current = versions.iter().find(|v| v.is_current).unwrap();
+        assert_eq!(current.version_number, "2.0", "Current version preserved through roundtrip");
     }
 
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FileText, ChevronLeft } from "lucide-react";
 import StatusBadge from "../components/documents/StatusBadge";
@@ -6,7 +6,14 @@ import DocumentMetadata from "../components/documents/DocumentMetadata";
 import type { MetadataEntry } from "../components/documents/DocumentMetadata";
 import DocumentActionBar from "../components/documents/DocumentActionBar";
 import DocumentHistory from "../components/documents/DocumentHistory";
-import { fetchDocumentByNumber, listVersions, type Document, type DocumentVersion } from "../lib/documentApi";
+import {
+  fetchDocumentByNumber,
+  listVersions,
+  archiveDocument,
+  restoreDocument,
+  type Document,
+  type DocumentVersion,
+} from "../lib/documentApi";
 import "./DokumentDetail.css";
 
 function statusToVariant(status: string): "success" | "neutral" {
@@ -22,21 +29,63 @@ export default function DokumentDetail() {
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
-    fetchDocumentByNumber(documentNumber)
-      .then((d) => {
-        setDoc(d);
-        return listVersions(d.id);
-      })
-      .then((v) => setVersions(v))
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => setLoading(false));
+    try {
+      const d = await fetchDocumentByNumber(documentNumber);
+      setDoc(d);
+      const v = await listVersions(d.id);
+      setVersions(v);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
   }, [documentNumber]);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const handleArchive = useCallback(async () => {
+    if (!doc) return;
+    const confirmed = window.confirm(
+      `Möchten Sie das Dokument "${doc.title}" (${doc.document_number}) wirklich archivieren?\n\nArchivierte Dokumente verschwinden aus der aktiven Übersicht, bleiben aber vollständig erhalten und können wiederhergestellt werden.`,
+    );
+    if (!confirmed) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await archiveDocument(doc.id);
+      await loadAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }, [doc, loadAll]);
+
+  const handleRestore = useCallback(async () => {
+    if (!doc) return;
+    const confirmed = window.confirm(
+      `Möchten Sie das Dokument "${doc.title}" (${doc.document_number}) wiederherstellen?\n\nDas Dokument erscheint wieder in der aktiven Übersicht.`,
+    );
+    if (!confirmed) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await restoreDocument(doc.id);
+      await loadAll();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }, [doc, loadAll]);
 
   if (loading) {
     return (
@@ -64,6 +113,8 @@ export default function DokumentDetail() {
     );
   }
 
+  const isArchived = doc.status === "archiviert";
+
   const metadata: MetadataEntry[] = [
     { label: "Dokumentnummer", value: doc.document_number, mono: true },
     { label: "Titel", value: doc.title },
@@ -76,15 +127,25 @@ export default function DokumentDetail() {
     { label: "Letzte Änderung", value: doc.updated_at },
   ];
 
+  if (isArchived && doc.archived_at) {
+    const secs = Number(doc.archived_at);
+    if (!Number.isNaN(secs) && secs > 0) {
+      metadata.splice(metadata.length - 1, 0, {
+        label: "Archivierungsdatum",
+        value: new Date(secs * 1000).toLocaleString("de-DE"),
+      });
+    }
+  }
+
   return (
     <div className="pqm-dokument-detail">
       <a
-        href="/dokumente"
+        href={isArchived ? "/archiv" : "/dokumente"}
         className="pqm-dokument-detail__back"
-        aria-label="Zurück zu Dokumenten"
+        aria-label={isArchived ? "Zurück zum Archiv" : "Zurück zu Dokumenten"}
       >
         <ChevronLeft size={16} aria-hidden="true" />
-        Zurück zu Dokumenten
+        {isArchived ? "Zurück zum Archiv" : "Zurück zu Dokumenten"}
       </a>
 
       <header className="pqm-dokument-detail__header">
@@ -128,10 +189,19 @@ export default function DokumentDetail() {
 
       <DocumentHistory versions={versions} />
 
+      {actionError && (
+        <p className="pqm-dokument-detail__error" role="alert">
+          {actionError}
+        </p>
+      )}
+
       <DocumentActionBar
         pdfFileName={doc.file_name ?? "—"}
-        onEdit={() => navigate(`/dokumente/${doc.document_number}/bearbeiten`)}
-        onNewVersion={() => navigate(`/dokumente/${doc.document_number}/neue-version`)}
+        isArchived={isArchived}
+        onEdit={!isArchived ? () => navigate(`/dokumente/${doc.document_number}/bearbeiten`) : undefined}
+        onNewVersion={!isArchived ? () => navigate(`/dokumente/${doc.document_number}/neue-version`) : undefined}
+        onArchive={!isArchived && !actionLoading ? handleArchive : undefined}
+        onRestore={isArchived && !actionLoading ? handleRestore : undefined}
       />
     </div>
   );

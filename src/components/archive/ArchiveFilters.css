@@ -70,11 +70,12 @@
   border-radius: var(--pqm-radius);
   font-size: 0.85rem;
   font-family: var(--pqm-font-family);
-  color: var(--pqm-color-neutral);
+  color: var(--pqm-color-primary);
   background-color: var(--pqm-color-background);
-  cursor: not-allowed;
+  cursor: pointer;
 }
 
-.pqm-archive-filters__field select:disabled {
-  opacity: 0.6;
+.pqm-archive-filters__field select:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: 2px;
 }

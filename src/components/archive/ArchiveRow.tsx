@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { BadgeVariant } from "../documents/StatusBadge";
 import StatusBadge from "../documents/StatusBadge";
 
@@ -19,9 +20,12 @@ interface ArchiveRowProps {
 }
 
 export default function ArchiveRow({ entry }: ArchiveRowProps) {
+  const navigate = useNavigate();
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
+      navigate(`/dokumente/${entry.documentNumber}`);
     }
   };
 
@@ -31,6 +35,7 @@ export default function ArchiveRow({ entry }: ArchiveRowProps) {
       tabIndex={0}
       role="link"
       aria-label={`Archiviertes Dokument ${entry.documentNumber} – ${entry.title}`}
+      onClick={() => navigate(`/dokumente/${entry.documentNumber}`)}
       onKeyDown={handleKeyDown}
     >
       <td className="pqm-archive-row__number">{entry.documentNumber}</td>

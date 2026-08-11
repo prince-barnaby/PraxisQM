@@ -2,6 +2,65 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.35] - 11.08.2026
+
+### Dokument-Archivierungs- und Wiederherstellungs-Lebenszyklus (Prompt 021)
+
+Implementierung des kanonischen Archivierungs- und Restore-Lebenszyklus
+gemäß ADR-003 (Archivieren statt Löschen). Archivierte Dokumente
+verschwinden aus der aktiven Übersicht, erscheinen im Archiv und können
+wiederhergestellt werden. Keine permanente Löschung.
+
+#### Kanonische Archiv-Semantik
+
+- **Archivierung** setzt DB-001 `status='archiviert'` und `archived_at=now`
+- **Wiederherstellung** setzt DB-001 `status='aktiv'` und `archived_at=NULL`
+- Alle DB-002-Versionen und verwalteten PDFs bleiben unangetastet
+- Dokumentnummer wird niemals freigegeben oder wiederverwendet
+- Archivierte Dokumente sind schreibgeschützt (kein Edit, keine neue Version)
+- Archivierung erstellt keine neue Version
+
+#### Backend (Rust / Tauri)
+
+- Neue DB-Funktionen: `archive_document`, `restore_document`,
+  `list_archived_documents`
+- `list_documents` filtert jetzt `WHERE archived_at IS NULL` (nur aktive)
+- `update_document` blockt Bearbeitung archivierter Dokumente
+- `create_version_from_source` blockt neue Versionen für archivierte Dokumente
+- Neue Commands: `cmd_archive_document`, `cmd_restore_document`,
+  `cmd_list_archived_documents`
+- Alle Operationen sind transaktional (SQLite-Transaktion)
+
+#### Frontend (React)
+
+- `Archiv.tsx`: Echte archivierte Dokumente aus SQLite statt Platzhalter
+- `ArchiveFilters.tsx`: Funktionierende Filter (Kategorie, Unterkategorie,
+  Verantwortliche Person, Status) aus echten Daten
+- `ArchiveRow.tsx`: Klick/Enter navigiert zum Dokumentdetail
+- `ArchiveList.tsx`: Echter Empty-State, kein Platzhalter-Hinweis mehr
+- `DocumentActionBar.tsx`: Archivieren-Button (aktiv), Restore-Button,
+  Edit/Neue-Version ausgeblendet bei archivierten Dokumenten
+- `DokumentDetail.tsx`: Archivieren/Wiederherstellen mit Bestätigungsdialog,
+  Archivierungsdatum in Metadaten, Read-Only-Modus bei archiviert
+- `documentApi.ts`: `archiveDocument`, `restoreDocument`,
+  `fetchArchivedDocuments` hinzugefügt
+
+#### Tests
+
+22 neue Rust-Tests: Archivierung, UUID/Nummer invariant, archived_at gesetzt,
+aktive Liste filtert, Archiv-Liste zeigt, Versionen erhalten, Current-Version
+erhalten, Managed PDFs erhalten, Nichtexistent-Fehler, Doppel-Archivierung,
+Zähler korrekt, keine neue Version, Restore, aktive/Archiv-Liste nach Restore,
+UUID/Nummer nach Restore, Versionen/PDFs nach Restore, Nicht-Archiviert-Fehler,
+Edit blockiert bei archiviert, Neue-Version blockiert bei archiviert,
+Roundtrip Archive/Restore.
+
+#### Nicht implementiert (bewusst)
+
+- Permanente Löschung (out of scope)
+- Automatische Archivierung nach Ablauf (out of scope)
+- Archivierungszeitraum-Filter (zurückgestellt – Datumsspanne-UI)
+
 ## [0.9.34] - 11.08.2026
 
 ### Kanonische Dokumentversionierung & PDF-Revisionshistorie (Prompt 020)

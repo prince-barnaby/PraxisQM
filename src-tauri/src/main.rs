@@ -58,6 +58,9 @@ fn main() {
             cmd_update_document,
             cmd_create_version,
             cmd_list_versions,
+            cmd_archive_document,
+            cmd_restore_document,
+            cmd_list_archived_documents,
             cmd_list_categories,
             cmd_list_subcategories,
             cmd_select_pdf,
@@ -294,6 +297,39 @@ fn cmd_create_version(
 fn cmd_list_versions(state: State<DbState>, document_id: String) -> Result<Vec<DocumentVersion>, String> {
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     database::list_versions(&conn, &document_id).map_err(|e| e.to_string())
+}
+
+/// Archiviert ein Dokument (Lifecycle, keine Löschung).
+#[tauri::command]
+fn cmd_archive_document(state: State<DbState>, id: String) -> Result<Document, String> {
+    let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::archive_document(&mut conn, &id) {
+        Ok(doc) => Ok(doc),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            Err("Dokument nicht gefunden.".to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Stellt ein archiviertes Dokument wieder her.
+#[tauri::command]
+fn cmd_restore_document(state: State<DbState>, id: String) -> Result<Document, String> {
+    let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::restore_document(&mut conn, &id) {
+        Ok(doc) => Ok(doc),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            Err("Dokument nicht gefunden.".to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Lädt alle archivierten Dokumente.
+#[tauri::command]
+fn cmd_list_archived_documents(state: State<DbState>) -> Result<Vec<Document>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::list_archived_documents(&conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -121,3 +121,15 @@ export async function fetchSubcategories(): Promise<SubcategoryItem[]> {
 export async function selectPdf(): Promise<string | null> {
   return invoke<string | null>("cmd_select_pdf");
 }
+
+export async function archiveDocument(id: string): Promise<Document> {
+  return invoke<Document>("cmd_archive_document", { id });
+}
+
+export async function restoreDocument(id: string): Promise<Document> {
+  return invoke<Document>("cmd_restore_document", { id });
+}
+
+export async function fetchArchivedDocuments(): Promise<Document[]> {
+  return invoke<Document[]>("cmd_list_archived_documents");
+}

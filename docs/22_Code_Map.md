@@ -32,7 +32,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dashboard | Startseite mit Übersicht, Statuskarten und Schnellzugriffen | `src/pages/`, `src/components/dashboard/` | aktiv |
 | Navigation | Sidebar, Header, Seitenwechsel | `src/components/` | aktiv |
 | Dokumente | Dokumentenverwaltung, Listen, Upload, Versionierung | `src/pages/`, `src/components/documents/` | vorbereitet |
-| Archiv | Archivierte Dokumente und Wiederherstellung | `src/pages/`, `src/components/archive/` | vorbereitet |
+| Archiv | Archivierte Dokumente und Wiederherstellung | `src/pages/`, `src/components/archive/` | aktiv |
 | Mitarbeiter | Mitarbeiterregister, Übersicht der Mitarbeitenden, Persistenz in SQLite | `src/pages/`, `src/components/employees/`, `src/lib/` | aktiv |
 | Einstellungen | Konfigurationsbereiche, Systeminformationen | `src/pages/`, `src/components/settings/` | vorbereitet |
 | Datenhaltung | lokale Speicherung und Datenmodell | `database/` / `src/` | geplant |
@@ -75,19 +75,20 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dokumentdetail-Seite | Dokumente | `src/pages/DokumentDetail.tsx` | `DokumentDetail` | Statische Dokumentdetailansicht mit Metadaten, Beschreibung, Datei, Tags, Aktionen und Historie | vorbereitet |
 | Metadaten-Komponente | Dokumente | `src/components/documents/DocumentMetadata.tsx` | `DocumentMetadata` | Zweispaltige Metadaten-Tabelle (Platzhalter) | vorbereitet |
 | Tag-Liste | Dokumente | `src/components/documents/TagList.tsx` | `TagList` | Anzeige von Schlagwörtern als Pills (Platzhalter) | vorbereitet |
-| Aktionsleiste | Dokumente | `src/components/documents/DocumentActionBar.tsx` | `DocumentActionBar` | Aktion-Buttons: Bearbeiten (navigiert zur Bearbeitungsroute), PDF öffnen, Archivieren (Platzhalter, deaktiviert) | aktiv |
+| Aktionsleiste | Dokumente | `src/components/documents/DocumentActionBar.tsx` | `DocumentActionBar` | Aktion-Buttons: Bearbeiten, Neue Version, PDF öffnen, Archivieren (aktiv); bei archiviert: Wiederherstellen (aktiv), Bearbeiten/Neue Version ausgeblendet | aktiv |
 | Versionshistorie | Dokumente | `src/components/documents/DocumentHistory.tsx` | `DocumentHistory` | Einfache Timeline der Versionshistorie (Platzhalter) | vorbereitet |
 | Dokumentformular | Dokumente | `src/components/documents/DocumentForm.tsx` | `DocumentForm` | Wiederverwendbares Formular für Erstellen (`create`) und Bearbeiten (`edit`); Felder: Dokumentnummer (read-only), Titel, Kategorie, Unterkategorie, Version, Status, Verantwortliche Person, Gültig bis, Beschreibung, Tags | vorbereitet |
 | Formular-Abschnitt | Dokumente | `src/components/documents/DocumentFormSection.tsx` | `DocumentFormSection` | Abschnitts-Wrapper für Formularbereiche (fieldset/legend) | vorbereitet |
 | Formular-Feld | Dokumente | `src/components/documents/FormField.tsx` | `FormField` | Wiederverwendbarer Field-Wrapper mit Label, Hint und Flex-Layout | vorbereitet |
 | Neue-Dokument-Seite | Dokumente | `src/pages/DokumentNeu.tsx` | `DokumentNeu` | Statische Seite zum Anlegen eines neuen Dokuments; verwendet `DocumentForm` im Modus `create` | vorbereitet |
 | Bearbeiten-Seite | Dokumente | `src/pages/DokumentBearbeiten.tsx` | `DokumentBearbeiten` | Statische Seite zum Bearbeiten eines bestehenden Dokuments; verwendet `DocumentForm` im Modus `edit` | vorbereitet |
-| Button „Dokument archivieren“ | Dokumente / Archiv | `src/` | noch offen | Verschiebt Dokument ins Archiv | geplant |
-| Archiv-Seite | Archiv | `src/pages/Archiv.tsx` | `Archiv` | Statische Archivübersicht mit Werkzeugleiste, einklappbarem Filterbereich und Tabelle archivierter Dokumente | vorbereitet |
-| Archiv-Werkzeugleiste | Archiv | `src/components/archive/ArchiveToolbar.tsx` | `ArchiveToolbar` | Werkzeugleiste mit Seitentitel, Kurzbeschreibung und Archivzähler | vorbereitet |
-| Archiv-Filter | Archiv | `src/components/archive/ArchiveFilters.tsx` | `ArchiveFilters` | Einklappbarer Filterbereich mit dokumentierten Archiv-Filtern: Kategorie, Unterkategorie, Verantwortliche Person, Archivierungszeitraum, Status | vorbereitet |
-| Archiv-Liste | Archiv | `src/components/archive/ArchiveList.tsx` | `ArchiveList` | Tabellarische Übersicht archivierter Dokumente; zeigt `EmptyState` bei leerem Eingabearray | vorbereitet |
-| Archiv-Zeile | Archiv | `src/components/archive/ArchiveRow.tsx` | `ArchiveRow` | Tabellenzeile mit archivspezifischen Feldern; Hover-State, Keyboard-Focus, visuelle Anzeige einer künftigen Archivdetailansicht | vorbereitet |
+| Button „Dokument archivieren“ | Dokumente / Archiv | `src/pages/DokumentDetail.tsx`, `src/components/documents/DocumentActionBar.tsx` | `DokumentDetail` / `DocumentActionBar` | Archiviert ein Dokument (setzt status='archiviert', archived_at=now) mit Bestätigungsdialog | aktiv |
+| Button „Dokument wiederherstellen“ | Archiv | `src/pages/DokumentDetail.tsx`, `src/components/documents/DocumentActionBar.tsx` | `DokumentDetail` / `DocumentActionBar` | Stellt ein archiviertes Dokument wieder her (setzt status='aktiv', archived_at=NULL) mit Bestätigungsdialog | aktiv |
+| Archiv-Seite | Archiv | `src/pages/Archiv.tsx` | `Archiv` | Archivübersicht mit echten archivierten Dokumenten aus SQLite, Werkzeugleiste, einklappbarem Filterbereich und Tabelle | aktiv |
+| Archiv-Werkzeugleiste | Archiv | `src/components/archive/ArchiveToolbar.tsx` | `ArchiveToolbar` | Werkzeugleiste mit Seitentitel, Kurzbeschreibung und Archivzähler | aktiv |
+| Archiv-Filter | Archiv | `src/components/archive/ArchiveFilters.tsx` | `ArchiveFilters` | Einklappbarer Filterbereich mit funktionsfähigen Filtern: Kategorie, Unterkategorie, Verantwortliche Person, Status (aus echten Daten) | aktiv |
+| Archiv-Liste | Archiv | `src/components/archive/ArchiveList.tsx` | `ArchiveList` | Tabellarische Übersicht archivierter Dokumente; zeigt `EmptyState` bei leerem Eingabearray | aktiv |
+| Archiv-Zeile | Archiv | `src/components/archive/ArchiveRow.tsx` | `ArchiveRow` | Tabellenzeile mit archivspezifischen Feldern; Hover-State, Keyboard-Focus; Klick/Enter navigiert zur Dokumentdetailansicht | aktiv |
 | Mitarbeiter-Seite | Mitarbeiter | `src/pages/Mitarbeiter.tsx` | `Mitarbeiter` | Statische Mitarbeiterübersicht mit Werkzeugleiste, Filtern und Liste | vorbereitet |
 | Mitarbeiter-Werkzeugleiste | Mitarbeiter | `src/components/employees/EmployeeToolbar.tsx` | `EmployeeToolbar` | Werkzeugleiste mit Seitentitel „Mitarbeiter”, Kurzbeschreibung und Mitarbeiterzähler | vorbereitet |
 | Mitarbeiter-Filter | Mitarbeiter | `src/components/employees/EmployeeFilters.tsx` | `EmployeeFilters` | Einklappbarer Filterbereich mit drei dokumentierten Filtern: Funktion, Bereich, Aktivstatus (Platzhalter, nicht funktional); Standard: eingeklappt | vorbereitet |
@@ -105,8 +106,9 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Service / Funktion | Datei | Zweck | Verwendet von | Status |
 |---|---|---|---|---|
 | Dokument speichern | noch offen | Speichert Dokumentmetadaten lokal | Dokumente | geplant |
-| Dokument archivieren | noch offen | Markiert Dokument als archiviert | Dokumente / Archiv | geplant |
-| Dokument wiederherstellen | noch offen | Holt Dokument aus dem Archiv zurück | Archiv | geplant |
+| Dokument archivieren | `src-tauri/src/database.rs`, `src-tauri/src/main.rs` | Markiert Dokument als archiviert (status='archiviert', archived_at=now) | Dokumente / Archiv | aktiv |
+| Dokument wiederherstellen | `src-tauri/src/database.rs`, `src-tauri/src/main.rs` | Holt Dokument aus dem Archiv zurück (status='aktiv', archived_at=NULL) | Archiv | aktiv |
+| Archivierte Dokumente laden | `src-tauri/src/database.rs`, `src-tauri/src/main.rs` | Lädt alle Dokumente mit archived_at IS NOT NULL | Archiv | aktiv |
 | Dokument suchen | noch offen | Filtert Dokumente nach Suchbegriff | Dokumente | geplant |
 | Mitarbeiter speichern | noch offen | Speichert Mitarbeiterdaten lokal | Mitarbeiter | geplant |
 | Backup erstellen | noch offen | Erstellt lokale Sicherung | Einstellungen / Backup | geplant |
@@ -191,6 +193,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-11 | Code Map für Prompt 018C (Korrektur: Tauri v1 API-Mismatches und PDF-Öffnen zurückgestellt; FileDialogBuilder::new(&app) → new() ohne Argumente korrigiert; cmd_open_pdf vollständig aus main.rs entfernt; shell-open Feature aus Cargo.toml entfernt; shell.open Allowlist aus tauri.conf.json entfernt; documentApi.ts openPdf() entfernt; DokumentDetail.tsx + DocumentActionBar.tsx PDF-Öffnen-Button deaktiviert; gespeicherte PDF-Datei bleibt im Dokumentenspeicher erhalten; keine weiteren v2-API-Mismatches gefunden) aktualisiert | Saskia / Bolt |
 | 2026-08-11 | Code Map für Prompt 019 (Persistierte Dokumentdetail- und Bearbeitungsansicht: update_document DB-Funktion mit transaktionaler Metadaten-Aktualisierung + optionaler PDF-Ersetzung als neue DB-002 DocumentVersion; load_previous_file_path Helper für Datei-Cleanup; UpdateDocumentInput-Struct; cmd_update_document Tauri Command mit Datei-Compensation (copy → tx → rollback-cleanup); list_documents/query_document_row von MIN(id) auf MAX(rowid) für neueste Datei-Version; DocumentForm mit initialValues-Prop für Edit-Modus Pre-Population; DokumentBearbeiten.tsx komplett neu — lädt echtes Dokument + Kategorien + Mitarbeitende, speichert via updateDocument; documentApi.ts UpdateDocumentInput + updateDocument; 18 neue Rust-Tests) aktualisiert | Saskia / Bolt |
 | 2026-08-11 | Code Map für Prompt 020 (Kanonische Dokumentversionierung: create_version DB-Funktion (DB-002 insert + DB-001 current-version update, transaktional); list_versions mit is_current via DB-001 version-Abgleich; DocumentVersion + CreateVersionInput Structs; UpdateDocumentInput auf Metadaten-only reduziert (PDF-Felder entfernt); cmd_create_version + cmd_list_versions Tauri Commands; cmd_update_document vereinfacht (keine PDF-Compensation); load_previous_file_path entfernt; DocumentHistory.tsx von Platzhalter zu echter Timeline-UI; DokumentNeueVersion.tsx (neue Seite für Versionserstellung mit PDF-Auswahl); DocumentActionBar.tsx "Neue Version"-Button; DocumentForm.tsx Edit-Modus Version/Status/Gültigkeit read-only; DokumentBearbeiten.tsx metadata-only; DokumentDetail.tsx lädt Versionshistorie; Route /dokumente/:id/neue-version; 20 neue Rust-Tests) aktualisiert | Saskia / Bolt |
+| 2026-08-11 | Code Map für Prompt 021 (Dokument-Archivierungs- und Wiederherstellungs-Lebenszyklus: archive_document/restore_document/list_archived_documents DB-Funktionen; list_documents filtert archived_at IS NULL; update_document blockt archivierte Dokumente; create_version_from_source blockt archivierte Dokumente; cmd_archive_document/cmd_restore_document/cmd_list_archived_documents Tauri Commands; Archiv.tsx mit echten archivierten Dokumenten; ArchiveFilters mit funktionsfähigen Filtern; ArchiveRow mit Navigation; ArchiveList mit echtem Empty-State; DocumentActionBar mit Archivieren/Wiederherstellen; DokumentDetail mit Bestätigungsdialog, Archivierungsdatum, Read-Only-Modus; documentApi.ts archiveDocument/restoreDocument/fetchArchivedDocuments; 22 neue Rust-Tests) aktualisiert | Saskia / Bolt |
 
 ---
 
