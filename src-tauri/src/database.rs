@@ -15,7 +15,7 @@ use tauri::AppHandle;
 
 /// Aktuelle Schema-Version.
 /// Muss erhöht werden, wenn das Schema geändert wird.
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 /// Dateiname der SQLite-Datenbank.
 const DB_FILENAME: &str = "praxisqm.sqlite";
@@ -238,6 +238,12 @@ pub fn init_database(db_path: &Path) -> SqliteResult<()> {
         set_schema_version(&conn, SCHEMA_VERSION)?;
     }
 
+    // Schema-Migrationen (idempotent, nicht-destruktiv)
+    // Migration 1→2: pre_archive_status-Spalte für Lifecycle-Erhaltung (Prompt 024)
+    if current_version < 2 {
+        migrate_v1_to_v2(&conn)?;
+    }
+
     // Verifiziere Foreign-Key-Enforcement
     let fk_enabled: i64 =
         conn.query_row("PRAGMA foreign_keys;", [], |row| row.get(0))?;
@@ -262,6 +268,39 @@ pub fn now_iso() -> String {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     format!("{}", secs)
+}
+
+/// --- Schema-Migrationen --------------------------------------------------
+
+/// Migration v1→v2: Fügt die Spalte `pre_archive_status` zur documents-Tabelle hinzu.
+/// Nullable TEXT-Spalte — leer für nicht-archivierte und vor Prompt 024 erstellte Dokumente.
+/// Idempotent: prüft Spalten-Existenz vor ALTER TABLE.
+fn migrate_v1_to_v2(conn: &Connection) -> SqliteResult<()> {
+    // Prüfe, ob die Spalte bereits existiert (Idempotenz)
+    let columns: Vec<String> = conn
+        .prepare("PRAGMA table_info(documents);")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .collect();
+    if !columns.iter().any(|c| c == "pre_archive_status") {
+        conn.execute(
+            "ALTER TABLE documents ADD COLUMN pre_archive_status TEXT;",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+/// --- Dokument-Lifecycle (Prompt 024) -------------------------------------
+
+/// Kanonische DB-001/DB-002 Status-Werte (Enum-Audit SDD-004B).
+pub const STATUS_ENTWURF: &str = "Entwurf";
+pub const STATUS_AKTIV: &str = "aktiv";
+pub const STATUS_ARCHIVIERT: &str = "archiviert";
+
+/// Prüft, ob ein Status-Wert kanonisch ist.
+pub fn is_valid_status(status: &str) -> bool {
+    status == STATUS_ENTWURF || status == STATUS_AKTIV || status == STATUS_ARCHIVIERT
 }
 
 /// --- Gültigkeitsberechnung -----------------------------------------------
