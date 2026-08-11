@@ -36,17 +36,6 @@ export interface CreateDocumentInput {
   original_file_name: string;
 }
 
-export interface CategoryItem {
-  id: string;
-  name: string;
-}
-
-export interface SubcategoryItem {
-  id: string;
-  name: string;
-  category_id: string;
-}
-
 export interface UpdateDocumentInput {
   title: string;
   category_id: string | null;
@@ -57,8 +46,40 @@ export interface UpdateDocumentInput {
   validity: string;
   valid_until: string | null;
   description: string | null;
-  source_file_path: string | null;
-  original_file_name: string | null;
+}
+
+export interface DocumentVersion {
+  id: string;
+  document_id: string;
+  version_number: string;
+  file_name: string;
+  status: string;
+  validity: string;
+  valid_until: string | null;
+  uploaded_at: string;
+  created_at: string;
+  is_current: boolean;
+}
+
+export interface CreateVersionInput {
+  document_id: string;
+  version_number: string;
+  status: string;
+  validity: string;
+  valid_until: string | null;
+  source_file_path: string;
+  original_file_name: string;
+}
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+}
+
+export interface SubcategoryItem {
+  id: string;
+  name: string;
+  category_id: string;
 }
 
 export async function fetchDocuments(): Promise<Document[]> {
@@ -71,6 +92,14 @@ export async function fetchDocument(id: string): Promise<Document> {
 
 export async function updateDocument(id: string, input: UpdateDocumentInput): Promise<Document> {
   return invoke<Document>("cmd_update_document", { id, input });
+}
+
+export async function createVersion(input: CreateVersionInput): Promise<Document> {
+  return invoke<Document>("cmd_create_version", { input });
+}
+
+export async function listVersions(documentId: string): Promise<DocumentVersion[]> {
+  return invoke<DocumentVersion[]>("cmd_list_versions", { documentId });
 }
 
 export async function fetchDocumentByNumber(number: string): Promise<Document> {
@@ -92,4 +121,3 @@ export async function fetchSubcategories(): Promise<SubcategoryItem[]> {
 export async function selectPdf(): Promise<string | null> {
   return invoke<string | null>("cmd_select_pdf");
 }
-

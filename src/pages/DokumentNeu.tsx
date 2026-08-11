@@ -48,8 +48,8 @@ export default function DokumentNeu() {
       validity: data.validity,
       valid_until: data.valid_until,
       description: data.description,
-      source_file_path: data.source_file_path,
-      original_file_name: data.original_file_name,
+      source_file_path: data.source_file_path ?? "",
+      original_file_name: data.original_file_name ?? "",
     });
     navigate("/dokumente");
   };

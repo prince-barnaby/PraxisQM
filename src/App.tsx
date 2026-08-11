@@ -6,6 +6,7 @@ import DokumentNeu from "./pages/DokumentNeu";
 import Archiv from "./pages/Archiv";
 import DokumentDetail from "./pages/DokumentDetail";
 import DokumentBearbeiten from "./pages/DokumentBearbeiten";
+import DokumentNeueVersion from "./pages/DokumentNeueVersion";
 import Mitarbeiter from "./pages/Mitarbeiter";
 import MitarbeiterNeu from "./pages/MitarbeiterNeu";
 import MitarbeiterBearbeiten from "./pages/MitarbeiterBearbeiten";
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/dokumente/neu" element={<DokumentNeu />} />
         <Route path="/dokumente/:id" element={<DokumentDetail />} />
         <Route path="/dokumente/:id/bearbeiten" element={<DokumentBearbeiten />} />
+        <Route path="/dokumente/:id/neue-version" element={<DokumentNeueVersion />} />
         <Route path="/archiv" element={<Archiv />} />
         <Route path="/mitarbeiter" element={<Mitarbeiter />} />
         <Route path="/mitarbeiter/neu" element={<MitarbeiterNeu />} />

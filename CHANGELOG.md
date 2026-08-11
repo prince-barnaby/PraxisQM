@@ -2,6 +2,46 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.34] - 11.08.2026
+
+### Kanonische Dokumentversionierung & PDF-Revisionshistorie (Prompt 020)
+
+Implementierung des kanonischen Dokumentversions-Workflows gemäß DB-002
+DocumentVersions-Architektur. Zentrale Regel: Eine neue Revision zerstört
+niemals die vorherige Revision.
+
+#### Korrektur des Prompt-019-Konflikts
+
+Prompt 019 implementierte PDF-Ersetzung innerhalb `cmd_update_document` und
+löschte die alte PDF nach Erfolg. Dies verletzt "Versionieren statt
+Überschreiben" (SDD-001 Kapitel 2). Korrektur: `cmd_update_document` ist
+jetzt reine Metadaten-Aktualisierung. `cmd_create_version` ist der
+kanonische Weg für neue Versionen. Alte PDFs werden nicht gelöscht.
+
+#### Backend (Rust / Tauri)
+
+- Neue Structs: `DocumentVersion`, `CreateVersionInput`
+- `UpdateDocumentInput` um PDF-Felder reduziert (Metadaten-only)
+- Neue DB-Funktionen: `create_version`, `list_versions`
+- `update_document` auf reine Metadaten-Aktualisierung reduziert
+- Neue Commands: `cmd_create_version`, `cmd_list_versions`
+- `cmd_update_document` vereinfacht (keine PDF-Compensation)
+- Transaktion: PDF vor Transaktion kopiert, bei DB-Fehler Orphan bereinigt
+
+#### Frontend (React)
+
+- `DokumentNeueVersion.tsx` (neu): Dedizierte Seite für Versionserstellung
+- `DocumentHistory.tsx`: Echte Versionshistorie mit Timeline-UI
+- `DocumentActionBar.tsx`: "Neue Version"-Button
+- `DocumentForm.tsx`: Edit-Modus Version/Status/Gültigkeit read-only
+- `DokumentBearbeiten.tsx`: Metadata-only, kein PDF
+- `DokumentDetail.tsx`: Zeigt Versionshistorie
+- Route `/dokumente/:id/neue-version` hinzugefügt
+
+#### Tests
+
+20 neue Rust-Tests für Versionierungsinvarianten.
+
 ## [0.9.33] - 11.08.2026
 
 ### Persistierte Dokumentdetail- und Bearbeitungsansicht (Prompt 019)

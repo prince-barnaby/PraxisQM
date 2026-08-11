@@ -12,7 +12,6 @@ import {
   fetchCategories,
   fetchSubcategories,
   updateDocument,
-  selectPdf,
   type Document,
   type UpdateDocumentInput,
 } from "../lib/documentApi";
@@ -67,8 +66,6 @@ export default function DokumentBearbeiten() {
     validity: string;
     valid_until: string | null;
     description: string | null;
-    source_file_path: string;
-    original_file_name: string;
   }) => {
     if (!doc) return;
     const input: UpdateDocumentInput = {
@@ -81,15 +78,9 @@ export default function DokumentBearbeiten() {
       validity: data.validity,
       valid_until: data.valid_until,
       description: data.description,
-      source_file_path: data.source_file_path || null,
-      original_file_name: data.original_file_name || null,
     };
     await updateDocument(doc.id, input);
     navigate(`/dokumente/${documentNumber}`);
-  };
-
-  const handleSelectPdf = async () => {
-    return await selectPdf();
   };
 
   const initialValues: DocumentFormInitialValues | undefined = doc
@@ -176,7 +167,6 @@ export default function DokumentBearbeiten() {
         initialValues={initialValues}
         onSubmit={handleSubmit}
         onCancel={() => navigate(`/dokumente/${documentNumber}`)}
-        onSelectPdf={handleSelectPdf}
       />
     </div>
   );

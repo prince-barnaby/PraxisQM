@@ -749,8 +749,31 @@ pub struct UpdateDocumentInput {
     pub validity: String,
     pub valid_until: Option<String>,
     pub description: Option<String>,
-    pub source_file_path: Option<String>,
-    pub original_file_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentVersion {
+    pub id: String,
+    pub document_id: String,
+    pub version_number: String,
+    pub file_name: String,
+    pub status: String,
+    pub validity: String,
+    pub valid_until: Option<String>,
+    pub uploaded_at: String,
+    pub created_at: String,
+    pub is_current: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateVersionInput {
+    pub document_id: String,
+    pub version_number: String,
+    pub status: String,
+    pub validity: String,
+    pub valid_until: Option<String>,
+    pub source_file_path: String,
+    pub original_file_name: String,
 }
 
 /// --- Dokument-Operationen ------------------------------------------------
@@ -1057,17 +1080,13 @@ fn query_document_row(
     })
 }
 
-/// Aktualisiert ein bestehendes Dokument und optional die Datei-Version.
-/// UUID und Dokumentnummer bleiben unverändert. created_at bleibt unverändert.
-/// updated_at wird aktualisiert. Alle Änderungen in einer Transaktion.
-/// Bei PDF-Ersetzung wird ein neuer DB-002 DocumentVersion-Eintrag erstellt.
-/// Bei Fehler wird die gesamte Transaktion zurückgerollt.
+/// Aktualisiert die Metadaten eines bestehenden Dokuments (DB-001).
+/// UUID, Dokumentnummer und created_at bleiben unverändert. updated_at wird aktualisiert.
+/// Keine PDF-Ersetzung — dafür gibt create_version.
 pub fn update_document(
     conn: &Connection,
     id: &str,
     input: &UpdateDocumentInput,
-    managed_file_path: Option<&str>,
-    new_version_id: Option<&str>,
 ) -> SqliteResult<Document> {
     let exists: i64 = conn.query_row(
         "SELECT COUNT(*) FROM documents WHERE id = ?1;",
@@ -1141,40 +1160,110 @@ pub fn update_document(
         ],
     )?;
 
-    if let (Some(path), Some(version_id)) = (managed_file_path, new_version_id) {
-        let file_name = input.original_file_name.as_deref().unwrap_or("ersetzt.pdf");
-        conn.execute(
-            "INSERT INTO document_versions (id, document_id, version_number, file_name, file_path,
-             status, validity, valid_until, uploaded_by, uploaded_at, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, ?9, ?10, ?11);",
-            rusqlite::params![
-                version_id,
-                id,
-                input.version,
-                file_name,
-                path,
-                input.status,
-                input.validity,
-                input.valid_until,
-                now,
-                now,
-                now,
-            ],
-        )?;
-    }
-
     load_document(conn, id)
 }
 
-/// Lädt den Dateipfad der vorherigen (nun veralteten) Datei-Version.
-/// Wird nach erfolgreichem Update aufgerufen, um die alte Datei zu bereinigen.
-/// `exclude_path` ist der Pfad der neuen Datei, der nicht gelöscht werden soll.
-pub fn load_previous_file_path(conn: &Connection, document_id: &str, exclude_path: &str) -> Option<String> {
-    conn.query_row(
-        "SELECT file_path FROM document_versions WHERE document_id = ?1 AND file_path != ?2\n         ORDER BY rowid DESC LIMIT 1;",
-        rusqlite::params![document_id, exclude_path],
+/// Erstellt eine neue Dokumentversion (DB-002) und aktualisiert DB-001
+/// current-version metadata. Die vorherige Version bleibt erhalten.
+pub fn create_version(
+    conn: &Connection,
+    input: &CreateVersionInput,
+    managed_file_path: &str,
+) -> SqliteResult<Document> {
+    let exists: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM documents WHERE id = ?1;",
+        rusqlite::params![input.document_id],
         |row| row.get(0),
-    ).ok()
+    )?;
+    if exists == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+
+    let dup_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM document_versions WHERE document_id = ?1 AND version_number = ?2;",
+        rusqlite::params![input.document_id, input.version_number],
+        |row| row.get(0),
+    )?;
+    if dup_count > 0 {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some("Diese Versionsnummer existiert bereits.".to_string()),
+        ));
+    }
+
+    let version_id = uuid::Uuid::new_v4().to_string();
+    let now = now_iso();
+
+    conn.execute(
+        "INSERT INTO document_versions (id, document_id, version_number, file_name, file_path,
+         status, validity, valid_until, uploaded_by, uploaded_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, ?9, ?10, ?11);",
+        rusqlite::params![
+            version_id,
+            input.document_id,
+            input.version_number,
+            input.original_file_name,
+            managed_file_path,
+            input.status,
+            input.validity,
+            input.valid_until,
+            now,
+            now,
+            now,
+        ],
+    )?;
+
+    conn.execute(
+        "UPDATE documents SET version = ?1, status = ?2, validity = ?3, valid_until = ?4,
+         updated_at = ?5 WHERE id = ?6;",
+        rusqlite::params![
+            input.version_number,
+            input.status,
+            input.validity,
+            input.valid_until,
+            now,
+            input.document_id,
+        ],
+    )?;
+
+    load_document(conn, &input.document_id)
+}
+
+/// Lädt alle Versionen eines Dokuments, neueste zuerst.
+/// is_current wird durch Abgleich mit DB-001 version-Spalte bestimmt.
+pub fn list_versions(conn: &Connection, document_id: &str) -> SqliteResult<Vec<DocumentVersion>> {
+    let current_version: Option<String> = conn
+        .query_row(
+            "SELECT version FROM documents WHERE id = ?1;",
+            rusqlite::params![document_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let mut stmt = conn.prepare(
+        "SELECT id, document_id, version_number, file_name, status, validity,
+         valid_until, uploaded_at, created_at
+         FROM document_versions WHERE document_id = ?1
+         ORDER BY rowid DESC;",
+    )?;
+    let versions = stmt
+        .query_map(rusqlite::params![document_id], |row| {
+            let version_number: String = row.get(2)?;
+            Ok(DocumentVersion {
+                id: row.get(0)?,
+                document_id: row.get(1)?,
+                is_current: current_version.as_deref() == Some(version_number.as_str()),
+                version_number,
+                file_name: row.get(3)?,
+                status: row.get(4)?,
+                validity: row.get(5)?,
+                valid_until: row.get(6)?,
+                uploaded_at: row.get(7)?,
+                created_at: row.get(8)?,
+            })
+        })?
+        .collect::<SqliteResult<Vec<_>>>()?;
+    Ok(versions)
 }
 
 /// Lädt ein Dokument anhand der Dokumentennummer (z.B. PQM-0001).
@@ -2341,8 +2430,6 @@ mod tests {
             validity: validity.to_string(),
             valid_until: valid_until.map(|s| s.to_string()),
             description: description.map(|s| s.to_string()),
-            source_file_path: None,
-            original_file_name: None,
         }
     }
 
@@ -2371,7 +2458,7 @@ mod tests {
         let input = make_update_document_input(
             "Neuer Titel", None, None, None, "1.0", "Entwurf", "gültig", None, None,
         );
-        let updated = update_document(&conn, &doc.id, &input, None, None).unwrap();
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
         assert_eq!(updated.title, "Neuer Titel");
     }
 
@@ -2384,7 +2471,7 @@ mod tests {
             "Testdokument", None, None, None, "1.0", "Entwurf", "gültig", None,
             Some("Neue Beschreibung"),
         );
-        let updated = update_document(&conn, &doc.id, &input, None, None).unwrap();
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
         assert_eq!(updated.description, Some("Neue Beschreibung".to_string()));
     }
 
@@ -2397,7 +2484,7 @@ mod tests {
             "Testdokument", None, None, None, "2.0", "aktiv", "gültig",
             Some("2026-12-31"), None,
         );
-        let updated = update_document(&conn, &doc.id, &input, None, None).unwrap();
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
         assert_eq!(updated.version, "2.0");
         assert_eq!(updated.status, "aktiv");
         assert_eq!(updated.valid_until, Some("2026-12-31".to_string()));
@@ -2412,7 +2499,7 @@ mod tests {
         let input = make_update_document_input(
             "Geändert", None, None, None, "1.1", "aktiv", "gültig", None, None,
         );
-        let updated = update_document(&conn, &doc.id, &input, None, None).unwrap();
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
         assert_eq!(updated.id, original_id);
     }
 
@@ -2425,7 +2512,7 @@ mod tests {
         let input = make_update_document_input(
             "Geändert", None, None, None, "1.1", "aktiv", "gültig", None, None,
         );
-        let updated = update_document(&conn, &doc.id, &input, None, None).unwrap();
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
         assert_eq!(updated.document_number, original_number);
     }
 
@@ -2438,7 +2525,7 @@ mod tests {
         let input = make_update_document_input(
             "Geändert", None, None, None, "1.1", "aktiv", "gültig", None, None,
         );
-        update_document(&conn, &doc.id, &input, None, None).unwrap();
+        update_document(&conn, &doc.id, &input).unwrap();
         let reloaded = load_document(&conn, &doc.id).unwrap();
         assert_eq!(reloaded.created_at, original_created);
     }
@@ -2453,7 +2540,7 @@ mod tests {
         let input = make_update_document_input(
             "Geändert", None, None, None, "1.1", "aktiv", "gültig", None, None,
         );
-        let updated = update_document(&conn, &doc.id, &input, None, None).unwrap();
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
         assert_ne!(updated.updated_at, original_updated);
     }
 
@@ -2466,7 +2553,7 @@ mod tests {
             "Geändert", Some("nonexistent-cat-id"), None, None,
             "1.0", "Entwurf", "gültig", None, None,
         );
-        let result = update_document(&conn, &doc.id, &input, None, None);
+        let result = update_document(&conn, &doc.id, &input);
         assert!(result.is_err());
         let reloaded = load_document(&conn, &doc.id).unwrap();
         assert_eq!(reloaded.title, "Testdokument");
@@ -2481,7 +2568,7 @@ mod tests {
             "Geändert", None, None, Some("nonexistent-emp-id"),
             "1.0", "Entwurf", "gültig", None, None,
         );
-        let result = update_document(&conn, &doc.id, &input, None, None);
+        let result = update_document(&conn, &doc.id, &input);
         assert!(result.is_err());
         let reloaded = load_document(&conn, &doc.id).unwrap();
         assert_eq!(reloaded.title, "Testdokument");
@@ -2498,7 +2585,7 @@ mod tests {
             "Mit Kategorie", Some(&cat.id), None, Some(&emp.id),
             "1.0", "aktiv", "gültig", None, None,
         );
-        let updated = update_document(&conn, &doc.id, &input, None, None).unwrap();
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
         assert_eq!(updated.category_id, Some(cat.id));
         assert_eq!(updated.responsible_person_id, Some(emp.id));
         assert_eq!(updated.category_name, Some("Hygiene".to_string()));
@@ -2513,7 +2600,7 @@ mod tests {
             "Neu geladen", None, None, None, "2.0", "aktiv", "gültig",
             Some("2027-01-01"), Some("Persistiert"),
         );
-        update_document(&conn, &doc.id, &input, None, None).unwrap();
+        update_document(&conn, &doc.id, &input).unwrap();
         let reloaded = load_document(&conn, &doc.id).unwrap();
         assert_eq!(reloaded.title, "Neu geladen");
         assert_eq!(reloaded.version, "2.0");
@@ -2528,140 +2615,428 @@ mod tests {
         let input = make_update_document_input(
             "Geändert", None, None, None, "1.0", "Entwurf", "gültig", None, None,
         );
-        let result = update_document(&conn, "nonexistent-uuid", &input, None, None);
+        let result = update_document(&conn, "nonexistent-uuid", &input);
         assert!(result.is_err());
     }
 
-    // --- PDF-Ersetzungs-Tests ---
+    // --- Versionierungs-Tests (Prompt 020) ---
 
-    #[test]
-    fn test_pdf_replacement_creates_new_version() {
-        let (conn, _tmp) = init_test_db();
-        let storage = init_test_storage();
-        let doc = make_test_document_with_relations(&conn, &storage, None, None);
-        let original_file = doc.file_path.clone().unwrap();
-
-        let new_pdf = make_valid_pdf(&storage, "replacement.pdf");
-        let new_version_id = uuid::Uuid::new_v4().to_string();
-        let new_managed = copy_to_managed_storage(&new_pdf, storage.path(), &new_version_id).unwrap();
-        let new_path = new_managed.clone();
-
-        let input = make_update_document_input(
-            "Testdokument", None, None, None, "1.0", "Entwurf", "gültig", None, None,
-        );
-        let input = UpdateDocumentInput {
-            source_file_path: Some(new_pdf.to_str().unwrap().to_string()),
-            original_file_name: Some("replacement.pdf".to_string()),
-            ..input
-        };
-
-        let updated = update_document(
-            &conn, &doc.id, &input, Some(&new_managed), Some(&new_version_id),
-        ).unwrap();
-        assert_eq!(updated.file_name, Some("replacement.pdf".to_string()));
-        assert_eq!(updated.file_path, Some(new_path));
-
-        let version_count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM document_versions WHERE document_id = ?1;",
-                rusqlite::params![doc.id],
-                |row| row.get(0),
-            )
-            .unwrap();
-        assert_eq!(version_count, 2);
+    fn make_create_version_input(
+        document_id: &str,
+        version_number: &str,
+        status: &str,
+        validity: &str,
+        valid_until: Option<&str>,
+        source_path: &str,
+        file_name: &str,
+    ) -> CreateVersionInput {
+        CreateVersionInput {
+            document_id: document_id.to_string(),
+            version_number: version_number.to_string(),
+            status: status.to_string(),
+            validity: validity.to_string(),
+            valid_until: valid_until.map(|s| s.to_string()),
+            source_file_path: source_path.to_string(),
+            original_file_name: file_name.to_string(),
+        }
     }
 
     #[test]
-    fn test_old_pdf_remains_until_new_update_succeeds() {
+    fn test_create_first_persisted_version() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 1);
+        assert!(versions[0].is_current);
+        assert_eq!(versions[0].version_number, "1.0");
+    }
+
+    #[test]
+    fn test_create_subsequent_version() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let updated = create_version(&conn, &input, &managed).unwrap();
+        assert_eq!(updated.version, "2.0");
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 2);
+        assert_eq!(versions[0].version_number, "2.0");
+        assert!(versions[0].is_current);
+        assert_eq!(versions[1].version_number, "1.0");
+        assert!(!versions[1].is_current);
+    }
+
+    #[test]
+    fn test_version_document_uuid_unchanged() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+        let original_id = doc.id.clone();
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let updated = create_version(&conn, &input, &managed).unwrap();
+        assert_eq!(updated.id, original_id);
+    }
+
+    #[test]
+    fn test_version_document_number_unchanged() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+        let original_number = doc.document_number.clone();
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let updated = create_version(&conn, &input, &managed).unwrap();
+        assert_eq!(updated.document_number, original_number);
+    }
+
+    #[test]
+    fn test_version_ids_unique() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version(&conn, &input, &managed).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        let ids: Vec<&str> = versions.iter().map(|v| v.id.as_str()).collect();
+        assert_eq!(ids.len(), 2);
+        assert_ne!(ids[0], ids[1]);
+    }
+
+    #[test]
+    fn test_version_identifier_follows_input() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "3.5.1", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version(&conn, &input, &managed).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions[0].version_number, "3.5.1");
+        assert_eq!(versions[0].is_current, true);
+    }
+
+    #[test]
+    fn test_duplicate_version_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "1.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let result = create_version(&conn, &input, &managed);
+        assert!(result.is_err(), "Duplicate version number must be rejected");
+    }
+
+    #[test]
+    fn test_previous_version_record_preserved() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version(&conn, &input, &managed).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 2);
+        assert_eq!(versions[1].version_number, "1.0");
+        assert_eq!(versions[1].file_name, "test.pdf");
+    }
+
+    #[test]
+    fn test_previous_pdf_preserved() {
         let (conn, _tmp) = init_test_db();
         let storage = init_test_storage();
         let doc = make_test_document_with_relations(&conn, &storage, None, None);
         let original_file = doc.file_path.clone().unwrap();
         let original_managed = storage.path().join(&original_file);
-        assert!(original_managed.exists());
 
-        let new_pdf = make_valid_pdf(&storage, "replacement.pdf");
-        let new_version_id = uuid::Uuid::new_v4().to_string();
-        let new_managed = copy_to_managed_storage(&new_pdf, storage.path(), &new_version_id).unwrap();
-
-        let input = make_update_document_input(
-            "Testdokument", None, None, None, "1.0", "Entwurf", "gültig", None, None,
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
         );
-        let input = UpdateDocumentInput {
-            source_file_path: Some(new_pdf.to_str().unwrap().to_string()),
-            original_file_name: Some("replacement.pdf".to_string()),
-            ..input
-        };
+        create_version(&conn, &input, &managed).unwrap();
 
-        update_document(
-            &conn, &doc.id, &input, Some(&new_managed), Some(&new_version_id),
-        ).unwrap();
-
-        assert!(original_managed.exists(), "Old PDF must still exist until cleanup");
+        assert!(original_managed.exists(), "Previous PDF must be preserved");
     }
 
     #[test]
-    fn test_db_failure_preserves_old_pdf() {
+    fn test_new_pdf_copied_into_managed_storage() {
         let (conn, _tmp) = init_test_db();
         let storage = init_test_storage();
         let doc = make_test_document_with_relations(&conn, &storage, None, None);
-        let original_file = doc.file_path.clone().unwrap();
-        let original_managed = storage.path().join(&original_file);
 
-        let new_pdf = make_valid_pdf(&storage, "replacement.pdf");
-        let new_version_id = uuid::Uuid::new_v4().to_string();
-        let new_managed = copy_to_managed_storage(&new_pdf, storage.path(), &new_version_id).unwrap();
-
-        let input = make_update_document_input(
-            "Testdokument", Some("nonexistent-cat"), None, None,
-            "1.0", "Entwurf", "gültig", None, None,
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
         );
-        let input = UpdateDocumentInput {
-            source_file_path: Some(new_pdf.to_str().unwrap().to_string()),
-            original_file_name: Some("replacement.pdf".to_string()),
-            ..input
-        };
+        create_version(&conn, &input, &managed).unwrap();
 
-        let result = update_document(
-            &conn, &doc.id, &input, Some(&new_managed), Some(&new_version_id),
-        );
-        assert!(result.is_err());
-
-        assert!(original_managed.exists(), "Old PDF must be preserved on DB failure");
-        let new_managed_file = storage.path().join(&new_managed);
-        assert!(new_managed_file.exists(), "New copy exists — caller cleans up orphan");
-        remove_managed_file(storage.path(), &new_managed);
-        assert!(!new_managed_file.exists(), "Orphan cleaned up");
+        let managed_file = storage.path().join(&managed);
+        assert!(managed_file.exists(), "New PDF must be in managed storage");
     }
 
     #[test]
-    fn test_source_pdf_removable_after_replacement() {
+    fn test_source_pdf_removable_after_version_import() {
         let (conn, _tmp) = init_test_db();
         let storage = init_test_storage();
         let doc = make_test_document_with_relations(&conn, &storage, None, None);
 
         let source_dir = tempfile::TempDir::new().unwrap();
-        let new_pdf = make_valid_pdf(&source_dir, "new_source.pdf");
-        let new_version_id = uuid::Uuid::new_v4().to_string();
-        let new_managed = copy_to_managed_storage(&new_pdf, storage.path(), &new_version_id).unwrap();
-
-        let input = make_update_document_input(
-            "Testdokument", None, None, None, "1.0", "Entwurf", "gültig", None, None,
+        let new_pdf = make_valid_pdf(&source_dir, "source_v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "source_v2.pdf",
         );
-        let input = UpdateDocumentInput {
-            source_file_path: Some(new_pdf.to_str().unwrap().to_string()),
-            original_file_name: Some("new_source.pdf".to_string()),
-            ..input
-        };
-
-        update_document(
-            &conn, &doc.id, &input, Some(&new_managed), Some(&new_version_id),
-        ).unwrap();
+        create_version(&conn, &input, &managed).unwrap();
 
         drop(source_dir);
         assert!(!new_pdf.exists(), "Source should be gone");
-        let managed_file = storage.path().join(&new_managed);
-        assert!(managed_file.exists(), "Managed replacement should still exist");
+        let managed_file = storage.path().join(&managed);
+        assert!(managed_file.exists(), "Managed copy must survive");
+    }
+
+    #[test]
+    fn test_current_version_resolution_correct() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        create_version(&conn, &input, &managed).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert!(versions[0].is_current, "Newest version must be current");
+        assert_eq!(versions[0].version_number, "2.0");
+        assert!(!versions[1].is_current, "Old version must not be current");
+    }
+
+    #[test]
+    fn test_version_history_ordered_newest_first() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        for ver in &["2.0", "3.0"] {
+            let pdf = make_valid_pdf(&storage, &format!("{}.pdf", ver));
+            let vid = uuid::Uuid::new_v4().to_string();
+            let m = copy_to_managed_storage(&pdf, storage.path(), &vid).unwrap();
+            let input = make_create_version_input(
+                &doc.id, ver, "aktiv", "gültig", None,
+                pdf.to_str().unwrap(), &format!("{}.pdf", ver),
+            );
+            create_version(&conn, &input, &m).unwrap();
+        }
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 3);
+        assert_eq!(versions[0].version_number, "3.0");
+        assert_eq!(versions[1].version_number, "2.0");
+        assert_eq!(versions[2].version_number, "1.0");
+    }
+
+    #[test]
+    fn test_db_failure_preserves_previous_current_version() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+        let original_version = doc.version.clone();
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "1.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let result = create_version(&conn, &input, &managed);
+        assert!(result.is_err(), "Duplicate must fail");
+
+        let reloaded = load_document(&conn, &doc.id).unwrap();
+        assert_eq!(reloaded.version, original_version, "Current version must be unchanged");
+    }
+
+    #[test]
+    fn test_db_failure_cleans_new_orphan_pdf() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let managed_path = managed.clone();
+        let input = make_create_version_input(
+            &doc.id, "1.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let result = create_version(&conn, &input, &managed);
+        assert!(result.is_err());
+
+        remove_managed_file(storage.path(), &managed_path);
+        let managed_file = storage.path().join(&managed_path);
+        assert!(!managed_file.exists(), "Orphan must be cleaned");
+    }
+
+    #[test]
+    fn test_invalid_pdf_creates_no_version() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let fake_pdf = storage.path().join("fake.pdf");
+        std::fs::write(&fake_pdf, b"not a real pdf").unwrap();
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&fake_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            fake_pdf.to_str().unwrap(), "fake.pdf",
+        );
+        let result = create_version(&conn, &input, &managed);
+        assert!(result.is_err(), "Invalid PDF must not create version");
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 1, "No new version should exist");
+    }
+
+    #[test]
+    fn test_missing_source_pdf_creates_no_version() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = "nonexistent-managed-file.pdf".to_string();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            "/nonexistent/path/file.pdf", "file.pdf",
+        );
+        let result = create_version(&conn, &input, &managed);
+        let _ = result;
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 1, "No new version should exist");
+    }
+
+    #[test]
+    fn test_metadata_relationships_stored_at_document_level() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let cat = make_test_category(&conn, "Hygiene");
+        let emp = make_test_employee(&conn, &[], &[]);
+        let doc = make_test_document_with_relations(&conn, &storage, Some(&cat.id), Some(&emp.id));
+
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_id = uuid::Uuid::new_v4().to_string();
+        let managed = copy_to_managed_storage(&new_pdf, storage.path(), &version_id).unwrap();
+        let input = make_create_version_input(
+            &doc.id, "2.0", "aktiv", "gültig", None,
+            new_pdf.to_str().unwrap(), "v2.pdf",
+        );
+        let updated = create_version(&conn, &input, &managed).unwrap();
+
+        assert_eq!(updated.category_id, Some(cat.id), "Category stays at document level");
+        assert_eq!(updated.responsible_person_id, Some(emp.id), "Employee stays at document level");
+        assert_eq!(updated.title, "Testdokument", "Title stays at document level");
+    }
+
+    #[test]
+    fn test_application_reload_returns_complete_version_history() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        for ver in &["2.0", "3.0"] {
+            let pdf = make_valid_pdf(&storage, &format!("{}.pdf", ver));
+            let vid = uuid::Uuid::new_v4().to_string();
+            let m = copy_to_managed_storage(&pdf, storage.path(), &vid).unwrap();
+            let input = make_create_version_input(
+                &doc.id, ver, "aktiv", "gültig", None,
+                pdf.to_str().unwrap(), &format!("{}.pdf", ver),
+            );
+            create_version(&conn, &input, &m).unwrap();
+        }
+
+        let reloaded = load_document(&conn, &doc.id).unwrap();
+        assert_eq!(reloaded.version, "3.0");
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 3);
+        assert_eq!(versions[0].version_number, "3.0");
+        assert!(versions[0].is_current);
+    }
+
+    #[test]
+    fn test_zero_version_history_behaves_correctly() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_test_document_with_relations(&conn, &storage, None, None);
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 1);
+        assert!(versions[0].is_current);
+        assert!(!versions[0].version_number.is_empty());
     }
 
 }

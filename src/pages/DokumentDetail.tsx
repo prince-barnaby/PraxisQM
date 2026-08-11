@@ -5,8 +5,9 @@ import StatusBadge from "../components/documents/StatusBadge";
 import DocumentMetadata from "../components/documents/DocumentMetadata";
 import type { MetadataEntry } from "../components/documents/DocumentMetadata";
 import DocumentActionBar from "../components/documents/DocumentActionBar";
+import DocumentHistory from "../components/documents/DocumentHistory";
+import { fetchDocumentByNumber, listVersions, type Document, type DocumentVersion } from "../lib/documentApi";
 import "./DokumentDetail.css";
-import { fetchDocumentByNumber, type Document } from "../lib/documentApi";
 
 function statusToVariant(status: string): "success" | "neutral" {
   return status === "aktiv" ? "success" : "neutral";
@@ -18,6 +19,7 @@ export default function DokumentDetail() {
   const documentNumber = id ?? "Unbekannt";
 
   const [doc, setDoc] = useState<Document | null>(null);
+  const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +27,11 @@ export default function DokumentDetail() {
     setLoading(true);
     setError(null);
     fetchDocumentByNumber(documentNumber)
-      .then((d) => setDoc(d))
+      .then((d) => {
+        setDoc(d);
+        return listVersions(d.id);
+      })
+      .then((v) => setVersions(v))
       .catch((err) => {
         setError(err instanceof Error ? err.message : String(err));
       })
@@ -120,9 +126,12 @@ export default function DokumentDetail() {
         </div>
       </section>
 
+      <DocumentHistory versions={versions} />
+
       <DocumentActionBar
         pdfFileName={doc.file_name ?? "—"}
         onEdit={() => navigate(`/dokumente/${doc.document_number}/bearbeiten`)}
+        onNewVersion={() => navigate(`/dokumente/${doc.document_number}/neue-version`)}
       />
     </div>
   );

@@ -11,8 +11,9 @@
 mod database;
 
 use database::{
-    CategoryItem, CreateDocumentInput, CreateEmployeeInput, Document, Employee,
-    MasterDataItem, SubcategoryItem, UpdateDocumentInput, UpdateEmployeeInput,
+    CategoryItem, CreateDocumentInput, CreateEmployeeInput, CreateVersionInput, Document,
+    DocumentVersion, Employee, MasterDataItem, SubcategoryItem, UpdateDocumentInput,
+    UpdateEmployeeInput,
 };
 use rusqlite::Connection;
 use std::sync::Mutex;
@@ -55,6 +56,8 @@ fn main() {
             cmd_get_document_by_number,
             cmd_create_document,
             cmd_update_document,
+            cmd_create_version,
+            cmd_list_versions,
             cmd_list_categories,
             cmd_list_subcategories,
             cmd_select_pdf,
@@ -247,56 +250,72 @@ fn cmd_create_document(
     }
 }
 
-/// Aktualisiert ein bestehendes Dokument. UUID und Dokumentnummer bleiben unverändert.
-/// Bei PDF-Ersetzung wird ein neuer DB-002 DocumentVersion-Eintrag erstellt.
+/// Aktualisiert die Metadaten eines bestehenden Dokuments (nur DB-001).
+/// Keine PDF-Ersetzung — dafür gibt cmd_create_version.
 #[tauri::command]
 fn cmd_update_document(
     state: State<DbState>,
-    app: tauri::AppHandle,
     id: String,
     input: UpdateDocumentInput,
 ) -> Result<Document, String> {
-    let storage_dir = database::document_storage_path(&app);
-
-    let (managed_path, version_id) = if let Some(ref source_path) = input.source_file_path {
-        let source = std::path::Path::new(source_path);
-        database::validate_pdf(source)?;
-
-        let new_version_id = uuid::Uuid::new_v4().to_string();
-        let managed = database::copy_to_managed_storage(source, &storage_dir, &new_version_id)?;
-        (Some(managed), Some(new_version_id))
-    } else {
-        (None, None)
-    };
-
     let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    match database::update_document(&tx, &id, &input, managed_path.as_deref(), version_id.as_deref()) {
+    match database::update_document(&tx, &id, &input) {
         Ok(doc) => {
             tx.commit().map_err(|e| e.to_string())?;
-            if let Some(ref path) = managed_path {
-                let old_file = database::load_previous_file_path(&conn, &id, path);
-                if let Some(old) = old_file {
-                    database::remove_managed_file(&storage_dir, &old);
-                }
-            }
             Ok(doc)
         }
         Err(rusqlite::Error::QueryReturnedNoRows) => {
             let _ = tx.rollback();
-            if let Some(ref path) = managed_path {
-                database::remove_managed_file(&storage_dir, path);
-            }
             Err("Dokument nicht gefunden.".to_string())
         }
         Err(e) => {
             let _ = tx.rollback();
-            if let Some(ref path) = managed_path {
-                database::remove_managed_file(&storage_dir, path);
-            }
             Err(e.to_string())
         }
     }
+}
+
+/// Erstellt eine neue Dokumentversion mit neuer PDF.
+/// Die vorherige Version und deren PDF bleiben erhalten.
+#[tauri::command]
+fn cmd_create_version(
+    state: State<DbState>,
+    app: tauri::AppHandle,
+    input: CreateVersionInput,
+) -> Result<Document, String> {
+    let source = std::path::Path::new(&input.source_file_path);
+    database::validate_pdf(source)?;
+
+    let storage_dir = database::document_storage_path(&app);
+    let version_id = uuid::Uuid::new_v4().to_string();
+    let managed_file = database::copy_to_managed_storage(source, &storage_dir, &version_id)?;
+
+    let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    match database::create_version(&tx, &input, &managed_file) {
+        Ok(doc) => {
+            tx.commit().map_err(|e| e.to_string())?;
+            Ok(doc)
+        }
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            let _ = tx.rollback();
+            database::remove_managed_file(&storage_dir, &managed_file);
+            Err("Dokument nicht gefunden.".to_string())
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            database::remove_managed_file(&storage_dir, &managed_file);
+            Err(e.to_string())
+        }
+    }
+}
+
+/// Lädt alle Versionen eines Dokuments.
+#[tauri::command]
+fn cmd_list_versions(state: State<DbState>, document_id: String) -> Result<Vec<DocumentVersion>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::list_versions(&conn, &document_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

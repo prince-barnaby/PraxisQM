@@ -58,8 +58,8 @@ export interface DocumentFormData {
   validity: string;
   valid_until: string | null;
   description: string | null;
-  source_file_path: string;
-  original_file_name: string;
+  source_file_path?: string;
+  original_file_name?: string;
 }
 
 export default function DocumentForm({
@@ -121,7 +121,7 @@ export default function DocumentForm({
     ? "PDF ausgewählt – wird beim Speichern in den Dokumentenspeicher kopiert"
     : isCreate
       ? "Wählen Sie eine PDF-Datei aus"
-      : "Aktuelle Datei kann ersetzt werden";
+      : "Datei kann nicht hier ersetzt werden — neue Version erstellen";
 
   const filteredSubcategories = categoryId
     ? subcategories.filter((s) => s.category_id === categoryId)
@@ -167,8 +167,10 @@ export default function DocumentForm({
         validity,
         valid_until: validUntil || null,
         description: description.trim() || null,
-        source_file_path: selectedPdfPath ?? "",
-        original_file_name: selectedPdfName ?? "",
+        ...(isCreate ? {
+          source_file_path: selectedPdfPath ?? "",
+          original_file_name: selectedPdfName ?? "",
+        } : {}),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -271,6 +273,7 @@ export default function DocumentForm({
         <FormField
           label="Version"
           htmlFor="doc-version"
+          hint={isCreate ? undefined : "Version ist nur über neue Version änderbar"}
           className="pqm-form-field--compact"
         >
           <input
@@ -281,12 +284,15 @@ export default function DocumentForm({
             onChange={(e) => setVersion(e.target.value)}
             aria-label="Version"
             required
+            readOnly={!isCreate}
+            disabled={!isCreate}
           />
         </FormField>
 
         <FormField
           label="Status"
           htmlFor="doc-status"
+          hint={isCreate ? undefined : "Status ist nur über neue Version änderbar"}
           className="pqm-form-field--compact"
         >
           <select
@@ -294,6 +300,7 @@ export default function DocumentForm({
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             aria-label="Status"
+            disabled={!isCreate}
           >
             <option value="Entwurf">Entwurf</option>
             <option value="aktiv">aktiv</option>
@@ -322,6 +329,7 @@ export default function DocumentForm({
         <FormField
           label="Gültig bis"
           htmlFor="doc-validity"
+          hint={isCreate ? undefined : "Nur über neue Version änderbar"}
           className="pqm-form-field--compact"
         >
           <input
@@ -330,12 +338,14 @@ export default function DocumentForm({
             value={validUntil}
             onChange={(e) => setValidUntil(e.target.value)}
             aria-label="Gültig bis"
+            disabled={!isCreate}
           />
         </FormField>
 
         <FormField
           label="Gültigkeit"
           htmlFor="doc-validity-status"
+          hint={isCreate ? undefined : "Nur über neue Version änderbar"}
           className="pqm-form-field--compact"
         >
           <select
@@ -343,6 +353,7 @@ export default function DocumentForm({
             value={validity}
             onChange={(e) => setValidity(e.target.value)}
             aria-label="Gültigkeitsstatus"
+            disabled={!isCreate}
           >
             <option value="gültig">gültig</option>
             <option value="läuft bald ab">läuft bald ab</option>
@@ -368,6 +379,7 @@ export default function DocumentForm({
         </FormField>
       </DocumentFormSection>
 
+      {isCreate && (
       <DocumentFormSection title="Dokumentdatei">
         <div className="pqm-document-form__file-area">
           <FileText size={32} aria-hidden="true" />
@@ -384,12 +396,19 @@ export default function DocumentForm({
             className="pqm-document-form__file-button"
             onClick={handleSelectPdf}
             disabled={!onSelectPdf}
-            aria-label={isCreate ? "PDF auswählen" : "PDF ersetzen"}
+            aria-label="PDF auswählen"
           >
-            {isCreate ? "PDF auswählen" : "PDF ersetzen"}
+            PDF auswählen
           </button>
         </div>
       </DocumentFormSection>
+      )}
+
+      {error && (
+        <p className="pqm-document-form__error" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="pqm-document-form__actions" role="group" aria-label="Formular-Aktionen">
         <button
