@@ -3382,7 +3382,7 @@ mod tests {
             rusqlite::params![doc.id, "2.0"],
             |row| row.get(0),
         ).unwrap();
-        let managed_path = std::path::Path::new(&v2_file_path);
+        let managed_path = storage.path().join(&v2_file_path);
         assert!(managed_path.exists(), "Managed PDF must exist before archive");
 
         archive_document(&mut conn, &doc.id).unwrap();
@@ -3557,7 +3557,7 @@ mod tests {
             rusqlite::params![doc.id, "2.0"],
             |row| row.get(0),
         ).unwrap();
-        let managed_path = std::path::Path::new(&v2_file_path);
+        let managed_path = storage.path().join(&v2_file_path);
 
         archive_document(&mut conn, &doc.id).unwrap();
         restore_document(&mut conn, &doc.id).unwrap();
