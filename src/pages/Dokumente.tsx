@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DocumentToolbar from "../components/documents/DocumentToolbar";
 import DocumentFilters from "../components/documents/DocumentFilters";
 import DocumentList from "../components/documents/DocumentList";
@@ -7,7 +7,19 @@ import type { BadgeVariant } from "../components/documents/StatusBadge";
 import { fetchDocuments, type Document } from "../lib/documentApi";
 import "./Dokumente.css";
 
-function validityToVariant(validity: string): BadgeVariant {
+export type ValidityFilterValue =
+  | "all"
+  | "gültig"
+  | "läuft bald ab"
+  | "abgelaufen"
+  | "none";
+
+export interface ValidityFilterState {
+  validity: ValidityFilterValue;
+}
+
+function validityToVariant(validity: string | null): BadgeVariant {
+  if (validity === null) return "neutral";
   switch (validity) {
     case "gültig":
       return "success";
@@ -34,6 +46,7 @@ function statusToVariant(status: string): BadgeVariant {
 }
 
 function toRowData(doc: Document): DocumentRowData {
+  const cv = doc.computed_validity;
   return {
     id: doc.id,
     documentNumber: doc.document_number,
@@ -43,8 +56,8 @@ function toRowData(doc: Document): DocumentRowData {
     status: doc.status,
     statusVariant: statusToVariant(doc.status),
     responsible: doc.responsible_person_name ?? "—",
-    validity: doc.validity,
-    validityVariant: validityToVariant(doc.validity),
+    validity: cv ?? "—",
+    validityVariant: validityToVariant(cv),
     version: doc.version,
   };
 }
@@ -53,6 +66,7 @@ export default function Dokumente() {
   const [documents, setDocuments] = useState<DocumentRowData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [validityFilter, setValidityFilter] = useState<ValidityFilterValue>("all");
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -71,16 +85,27 @@ export default function Dokumente() {
     loadDocuments();
   }, [loadDocuments]);
 
+  const filteredDocuments = useMemo(() => {
+    if (validityFilter === "all") return documents;
+    return documents.filter((doc) => {
+      if (validityFilter === "none") return doc.validity === "—";
+      return doc.validity === validityFilter;
+    });
+  }, [documents, validityFilter]);
+
   return (
     <div className="pqm-dokumente">
-      <DocumentToolbar resultCount={documents.length} />
-      <DocumentFilters />
+      <DocumentToolbar resultCount={filteredDocuments.length} />
+      <DocumentFilters
+        validityFilter={validityFilter}
+        onValidityFilterChange={setValidityFilter}
+      />
       {error && (
         <p className="pqm-dokumente__error" role="alert">
           Fehler beim Laden der Dokumente: {error}
         </p>
       )}
-      <DocumentList documents={documents} loading={loading} />
+      <DocumentList documents={filteredDocuments} loading={loading} />
     </div>
   );
 }

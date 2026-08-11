@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FileText, ChevronLeft } from "lucide-react";
 import StatusBadge from "../components/documents/StatusBadge";
+import type { BadgeVariant } from "../components/documents/StatusBadge";
 import DocumentMetadata from "../components/documents/DocumentMetadata";
 import type { MetadataEntry } from "../components/documents/DocumentMetadata";
 import DocumentActionBar from "../components/documents/DocumentActionBar";
@@ -18,6 +19,20 @@ import "./DokumentDetail.css";
 
 function statusToVariant(status: string): "success" | "neutral" {
   return status === "aktiv" ? "success" : "neutral";
+}
+
+function validityToVariant(validity: string | null): BadgeVariant {
+  if (validity === null) return "neutral";
+  switch (validity) {
+    case "gültig":
+      return "success";
+    case "läuft bald ab":
+      return "warning";
+    case "abgelaufen":
+      return "error";
+    default:
+      return "neutral";
+  }
 }
 
 export default function DokumentDetail() {
@@ -123,6 +138,7 @@ export default function DokumentDetail() {
     { label: "Version", value: doc.version, mono: true },
     { label: "Status", value: doc.status },
     { label: "Verantwortliche Person", value: doc.responsible_person_name ?? "—" },
+    { label: "Gültigkeit", value: doc.computed_validity ?? "—" },
     { label: "Gültig bis", value: doc.valid_until ?? "—" },
     { label: "Letzte Änderung", value: doc.updated_at },
   ];
@@ -154,6 +170,12 @@ export default function DokumentDetail() {
           <span className="pqm-dokument-detail__number">{doc.document_number}</span>
         </div>
         <StatusBadge label={doc.status} variant={statusToVariant(doc.status)} />
+        {doc.computed_validity && (
+          <StatusBadge
+            label={doc.computed_validity}
+            variant={validityToVariant(doc.computed_validity)}
+          />
+        )}
       </header>
 
       <DocumentMetadata entries={metadata} />

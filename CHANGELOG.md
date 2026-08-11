@@ -2,6 +2,69 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.36] - 11.08.2026
+
+### Dokument-Gültigkeitsstatus und Review-Status (Prompt 022 / 022A)
+
+Implementierung der kanonischen Gültigkeitsberechnung für aktive QM-Dokumente.
+Die Runtime-Gültigkeit wird aus `valid_until` und dem aktuellen Kalenderdatum
+abgeleitet — nicht aus dem gespeicherten `validity`-Enum-Feld.
+
+#### Kanonische Gültigkeitssemantik (Prompt 022A)
+
+- **Schwellwert:** 30 Kalendertage vor `valid_until` → "läuft bald ab" (fix für v1)
+- **Quelle der Wahrheit:** `valid_until` (DB-001) ist die Runtime-Quelle
+- **Abgeleitete States:** `gültig`, `läuft bald ab`, `abgelaufen`, oder `None` (kein Ablaufdatum)
+- **NULL `valid_until`:** Dokument wird nicht überwacht (kein automatischer Status)
+- **Datumsgrenzen:** Dokument ist gültig BIS zum Ablaufdatum (inklusiv); Tag danach = abgelaufen
+- **Lebenszyklus-Unabhängigkeit:** `validity` und `status` bleiben unabhängig — kein automatisches Archivieren
+- **Archiv-Exklusion:** Archivierte Dokumente behalten `valid_until`, werden aber nicht in aktive Warnungen einbezogen
+- **Versionierung:** DB-001 `valid_until` ist Quelle für aktuelle Anzeige; DB-002 behält historische Metadaten
+- **Persistierte `validity`-Kompatibilität:** Feld bleibt im Schema, wird aber nicht als Runtime-Wahrheit verwendet
+
+#### Backend (Rust / Tauri)
+
+- Neue reine Funktion `calculate_validity_status(valid_until, today)` — testbar mit festem Datum
+- Neue Funktion `today_local_date()` — liefert aktuelles lokales Kalenderdatum als YYYY-MM-DD
+- `Document`-Struct um `computed_validity: Option<String>` erweitert (serde, skip_serializing_if = None)
+- Alle drei Document-Konstruktionsstellen (list_documents, query_document_row, list_archived_documents) berechnen `computed_validity` zur Laufzeit
+- Keine Schema-Migration, keine neuen Commands — Berechnung erfolgt in bestehenden Query-Funktionen
+- Datumsarithmetik ohne externe Bibliothek (Howard Hinnant Algorithmus, std-only)
+
+#### Frontend (React)
+
+- `documentApi.ts`: `Document`-Interface um `computed_validity: string | null` erweitert
+- `Dokumente.tsx`: Gültigkeits-Badge verwendet `computed_validity` statt gespeichertem `validity`-Feld
+- `Dokumente.tsx`: Funktionsfähiger Gültigkeits-Filter (alle/gültig/läuft bald ab/abgelaufen/kein Ablaufdatum)
+- `Dokumente.tsx`: Zähler zeigt gefilterte Trefferzahl
+- `DocumentFilters.tsx`: Von Platzhalter zu funktionsfähigem Filter umgebaut (Gültigkeit-Dropdown)
+- `DocumentFilters.css`: Von deaktiviert zu aktivem Filter-Style aktualisiert
+- `DokumentDetail.tsx`: Gültigkeits-Badge im Header zeigt abgeleiteten Status
+- `DokumentDetail.tsx`: Gültigkeits-State in Metadaten-Tabelle
+
+#### Tests
+
+20 neue Rust-Tests: NULL→None, 31 Tage→gültig, 30 Tage→läuft bald ab, 29 Tage→läuft bald ab,
+1 Tag→läuft bald ab, Ablaufdatum→läuft bald ab, Tag danach→abgelaufen, Monatsgrenze,
+Jahresgrenze, Schaltjahr-Grenze, Schaltjahr-Threshold, ungültiges Datum→None,
+computed_validity in Liste, NULL in Liste, stale persisted überschrieben, Reload stabil,
+Archiv-Exklusion, Restore behält valid_until, Editieren recalculiert, Versionierung behält
+Vorgänger-Metadaten, today_local_date Format.
+
+#### Nicht implementiert (bewusst)
+
+- OS-Benachrichtigungen (out of scope)
+- Background-Scheduler (out of scope)
+- Email-Erinnerungen (out of scope)
+- Automatisches Archivieren bei Ablauf (out of scope)
+- Dashboard-Gültigkeits-Widgets (zurückgestellt — keine existierenden Widgets)
+- Konfigurierbarer Schwellwert (fix für v1, zukünftige Konfiguration möglich)
+- Restore-Status-Mismatch (restore_document setzt immer status='aktiv' auch bei ehemaligem 'Entwurf' — als zurückgestellt dokumentiert)
+
+#### Bekannte zurückgestellte Arbeit
+
+- `restore_document` setzt `status='aktiv'` auch wenn der Pre-Archive-Status `'Entwurf'` war — separater Lifecycle-Fix, nicht Teil dieses Prompts
+
 ## [0.9.35] - 11.08.2026
 
 ### Dokument-Archivierungs- und Wiederherstellungs-Lebenszyklus (Prompt 021)

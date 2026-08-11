@@ -14,6 +14,7 @@ export interface Document {
   status: string;
   validity: string;
   valid_until: string | null;
+  computed_validity: string | null;
   description: string | null;
   archived_at: string | null;
   file_name: string | null;

@@ -264,6 +264,96 @@ pub fn now_iso() -> String {
     format!("{}", secs)
 }
 
+/// --- Gültigkeitsberechnung -----------------------------------------------
+
+/// Kanonische Gültigkeits-States (abgeleitet, nicht gespeichert).
+pub const VALIDITY_GUELTIG: &str = "gültig";
+pub const VALIDITY_BALD_AB: &str = "läuft bald ab";
+pub const VALIDITY_ABGELAUFEN: &str = "abgelaufen";
+
+/// Schwellwert in Kalendertagen für "läuft bald ab" (Prompt 022A, kanonisch für v1).
+const VALIDITY_THRESHOLD_DAYS: i64 = 30;
+
+/// Parst ein ISO-Datum im Format "YYYY-MM-DD" in ein (Jahr, Monat, Tag) Triple.
+/// Gibt None bei ungültigem Format zurück.
+fn parse_date(s: &str) -> Option<(i32, u32, u32)> {
+    let parts: Vec<&str> = s.trim().split('-').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let year: i32 = parts[0].parse().ok()?;
+    let month: u32 = parts[1].parse().ok()?;
+    let day: u32 = parts[2].parse().ok()?;
+    if month < 1 || month > 12 || day < 1 || day > 31 {
+        return None;
+    }
+    Some((year, month, day))
+}
+
+/// Konvertiert ein (Jahr, Monat, Tag) Triple in eine fortlaufende Tageszahl.
+/// Verwendet die Algorithmus von Howard Hinnant (days_from_civil).
+/// Ermöglicht Kalenderdatums-Vergleiche ohne externe Bibliothek.
+fn days_from_date(year: i32, month: u32, day: u32) -> i64 {
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = (y - era * 400) as u32;
+    let doy = (153 * (if month > 2 { month - 3 } else { month + 9 }) + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    (era as i64) * 146097 + (doe as i64) - 719468
+}
+
+/// Berechnet den kanonischen Gültigkeitsstatus aus valid_until und dem
+/// aktuellen Kalenderdatum. Der `today`-Parameter ermöglicht deterministische Tests.
+///
+/// Rückgabe:
+/// - None: valid_until ist NULL → nicht überwacht
+/// - Some("gültig"): today < (valid_until - 30 Tage)
+/// - Some("läuft bald ab"): today >= (valid_until - 30 Tage) UND today <= valid_until
+/// - Some("abgelaufen"): today > valid_until
+pub fn calculate_validity_status(
+    valid_until: Option<&str>,
+    today: &str,
+) -> Option<&'static str> {
+    let vu = valid_until?;
+    let (vy, vm, vd) = parse_date(vu)?;
+    let (ty, tm, td) = parse_date(today)?;
+
+    let vu_days = days_from_date(vy, vm, vd);
+    let today_days = days_from_date(ty, tm, td);
+    let threshold = vu_days - VALIDITY_THRESHOLD_DAYS;
+
+    if today_days > vu_days {
+        Some(VALIDITY_ABGELAUFEN)
+    } else if today_days >= threshold {
+        Some(VALIDITY_BALD_AB)
+    } else {
+        Some(VALIDITY_GUELTIG)
+    }
+}
+
+/// Liefert das aktuelle lokale Kalenderdatum als "YYYY-MM-DD".
+/// Verwendet SystemTime und berechnet das Datum aus Unix-Epoch-Sekunden.
+pub fn today_local_date() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+
+    let days = secs.div_euclid(86400);
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if m <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02}", year, m, d)
+}
+
 /// --- Datenmodelle -------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -702,6 +792,8 @@ pub struct Document {
     pub status: String,
     pub validity: String,
     pub valid_until: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub computed_validity: Option<String>,
     pub description: Option<String>,
     pub archived_at: Option<String>,
     pub file_name: Option<String>,
@@ -1000,6 +1092,11 @@ pub fn list_documents(conn: &Connection) -> SqliteResult<Vec<Document>> {
 
     let docs = stmt
         .query_map([], |row| {
+            let valid_until: Option<String> = row.get(12)?;
+            let computed_validity = calculate_validity_status(
+                valid_until.as_deref(),
+                &today_local_date(),
+            ).map(|s| s.to_string());
             Ok(Document {
                 id: row.get(0)?,
                 document_number: row.get(1)?,
@@ -1013,7 +1110,8 @@ pub fn list_documents(conn: &Connection) -> SqliteResult<Vec<Document>> {
                 version: row.get(9)?,
                 status: row.get(10)?,
                 validity: row.get(11)?,
-                valid_until: row.get(12)?,
+                valid_until,
+                computed_validity,
                 description: row.get(13)?,
                 archived_at: row.get(14)?,
                 file_name: row.get(15)?,
@@ -1057,6 +1155,11 @@ fn query_document_row(
     );
 
     conn.query_row(&sql, params, |row| {
+        let valid_until: Option<String> = row.get(12)?;
+        let computed_validity = calculate_validity_status(
+            valid_until.as_deref(),
+            &today_local_date(),
+        ).map(|s| s.to_string());
         Ok(Document {
             id: row.get(0)?,
             document_number: row.get(1)?,
@@ -1070,7 +1173,8 @@ fn query_document_row(
             version: row.get(9)?,
             status: row.get(10)?,
             validity: row.get(11)?,
-            valid_until: row.get(12)?,
+            valid_until,
+            computed_validity,
             description: row.get(13)?,
             archived_at: row.get(14)?,
             file_name: row.get(15)?,
@@ -1390,6 +1494,11 @@ pub fn list_archived_documents(conn: &Connection) -> SqliteResult<Vec<Document>>
 
     let docs = stmt
         .query_map([], |row| {
+            let valid_until: Option<String> = row.get(12)?;
+            let computed_validity = calculate_validity_status(
+                valid_until.as_deref(),
+                &today_local_date(),
+            ).map(|s| s.to_string());
             Ok(Document {
                 id: row.get(0)?,
                 document_number: row.get(1)?,
@@ -1403,7 +1512,8 @@ pub fn list_archived_documents(conn: &Connection) -> SqliteResult<Vec<Document>>
                 version: row.get(9)?,
                 status: row.get(10)?,
                 validity: row.get(11)?,
-                valid_until: row.get(12)?,
+                valid_until,
+                computed_validity,
                 description: row.get(13)?,
                 archived_at: row.get(14)?,
                 file_name: row.get(15)?,
@@ -3646,6 +3756,460 @@ mod tests {
         assert_eq!(versions.len(), 2, "Both versions preserved through roundtrip");
         let current = versions.iter().find(|v| v.is_current).unwrap();
         assert_eq!(current.version_number, "2.0", "Current version preserved through roundtrip");
+    }
+
+    // === Prompt 022A: Validity Calculation Tests ===
+
+    #[test]
+    fn test_validity_null_returns_none() {
+        assert_eq!(calculate_validity_status(None, "2025-06-15"), None);
+    }
+
+    #[test]
+    fn test_validity_31_days_before_expiry_is_gueltig() {
+        // valid_until = 2025-07-16, today = 2025-06-16 → 30 days before = 2025-06-16
+        // 31 days before = 2025-06-15 → gültig
+        assert_eq!(
+            calculate_validity_status(Some("2025-07-16"), "2025-06-15"),
+            Some(VALIDITY_GUELTIG)
+        );
+    }
+
+    #[test]
+    fn test_validity_exactly_30_days_before_is_bald_ab() {
+        // valid_until = 2025-07-16, threshold = 2025-06-16
+        assert_eq!(
+            calculate_validity_status(Some("2025-07-16"), "2025-06-16"),
+            Some(VALIDITY_BALD_AB)
+        );
+    }
+
+    #[test]
+    fn test_validity_29_days_before_is_bald_ab() {
+        assert_eq!(
+            calculate_validity_status(Some("2025-07-16"), "2025-06-17"),
+            Some(VALIDITY_BALD_AB)
+        );
+    }
+
+    #[test]
+    fn test_validity_1_day_before_is_bald_ab() {
+        assert_eq!(
+            calculate_validity_status(Some("2025-07-16"), "2025-07-15"),
+            Some(VALIDITY_BALD_AB)
+        );
+    }
+
+    #[test]
+    fn test_validity_exact_expiry_date_is_bald_ab() {
+        // Document is valid THROUGH the valid_until date
+        assert_eq!(
+            calculate_validity_status(Some("2025-07-16"), "2025-07-16"),
+            Some(VALIDITY_BALD_AB)
+        );
+    }
+
+    #[test]
+    fn test_validity_1_day_after_is_abgelaufen() {
+        assert_eq!(
+            calculate_validity_status(Some("2025-07-16"), "2025-07-17"),
+            Some(VALIDITY_ABGELAUFEN)
+        );
+    }
+
+    #[test]
+    fn test_validity_month_boundary() {
+        // valid_until = 2025-08-01, threshold = 2025-07-02
+        assert_eq!(
+            calculate_validity_status(Some("2025-08-01"), "2025-07-01"),
+            Some(VALIDITY_GUELTIG)
+        );
+        assert_eq!(
+            calculate_validity_status(Some("2025-08-01"), "2025-07-02"),
+            Some(VALIDITY_BALD_AB)
+        );
+        assert_eq!(
+            calculate_validity_status(Some("2025-08-01"), "2025-08-02"),
+            Some(VALIDITY_ABGELAUFEN)
+        );
+    }
+
+    #[test]
+    fn test_validity_year_boundary() {
+        // valid_until = 2025-12-31, threshold = 2025-12-01
+        assert_eq!(
+            calculate_validity_status(Some("2025-12-31"), "2025-11-30"),
+            Some(VALIDITY_GUELTIG)
+        );
+        assert_eq!(
+            calculate_validity_status(Some("2025-12-31"), "2025-12-01"),
+            Some(VALIDITY_BALD_AB)
+        );
+        assert_eq!(
+            calculate_validity_status(Some("2025-12-31"), "2026-01-01"),
+            Some(VALIDITY_ABGELAUFEN)
+        );
+    }
+
+    #[test]
+    fn test_validity_leap_year_boundary() {
+        // 2024 is a leap year: Feb 29 exists
+        // valid_until = 2024-02-29, threshold = 2024-01-30
+        assert_eq!(
+            calculate_validity_status(Some("2024-02-29"), "2024-01-29"),
+            Some(VALIDITY_GUELTIG)
+        );
+        assert_eq!(
+            calculate_validity_status(Some("2024-02-29"), "2024-01-30"),
+            Some(VALIDITY_BALD_AB)
+        );
+        assert_eq!(
+            calculate_validity_status(Some("2024-02-29"), "2024-03-01"),
+            Some(VALIDITY_ABGELAUFEN)
+        );
+    }
+
+    #[test]
+    fn test_validity_leap_year_threshold_crosses_feb() {
+        // valid_until = 2024-03-31, threshold = 2024-03-01 (30 days before, crosses Feb 29)
+        assert_eq!(
+            calculate_validity_status(Some("2024-03-31"), "2024-02-29"),
+            Some(VALIDITY_GUELTIG)
+        );
+        assert_eq!(
+            calculate_validity_status(Some("2024-03-31"), "2024-03-01"),
+            Some(VALIDITY_BALD_AB)
+        );
+    }
+
+    #[test]
+    fn test_validity_invalid_date_returns_none() {
+        assert_eq!(calculate_validity_status(Some("not-a-date"), "2025-06-15"), None);
+        assert_eq!(calculate_validity_status(Some("2025-13-01"), "2025-06-15"), None);
+    }
+
+    #[test]
+    fn test_computed_validity_populated_in_list_documents() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        // Create a document with valid_until far in the future → should be gültig
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Gültiges Dokument".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2099-12-31".to_string()),
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        create_document(&conn, &input, &managed).unwrap();
+
+        let docs = list_documents(&conn).unwrap();
+        assert_eq!(docs.len(), 1);
+        assert_eq!(
+            docs[0].computed_validity.as_deref(),
+            Some("gültig"),
+            "computed_validity must be derived from valid_until"
+        );
+    }
+
+    #[test]
+    fn test_computed_validity_null_when_no_valid_until() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Ohne Ablaufdatum".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        create_document(&conn, &input, &managed).unwrap();
+
+        let docs = list_documents(&conn).unwrap();
+        assert_eq!(docs.len(), 1);
+        assert!(
+            docs[0].computed_validity.is_none(),
+            "computed_validity must be None when valid_until is NULL"
+        );
+    }
+
+    #[test]
+    fn test_computed_validity_stale_persisted_does_not_override() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        // Persist "gültig" but set valid_until to a date far in the past → derived should be "abgelaufen"
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Stale Validity".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2000-01-01".to_string()),
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        create_document(&conn, &input, &managed).unwrap();
+
+        let docs = list_documents(&conn).unwrap();
+        assert_eq!(docs.len(), 1);
+        assert_eq!(
+            docs[0].computed_validity.as_deref(),
+            Some("abgelaufen"),
+            "Derived validity must override stale persisted value"
+        );
+        // Persisted validity is still "gültig" (compatibility)
+        assert_eq!(docs[0].validity, "gültig", "Persisted validity field unchanged");
+    }
+
+    #[test]
+    fn test_computed_validity_survives_reload() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Reload Test".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2099-12-31".to_string()),
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        create_document(&conn, &input, &managed).unwrap();
+
+        let docs1 = list_documents(&conn).unwrap();
+        let cv1 = docs1[0].computed_validity.clone();
+
+        // Reload by calling list_documents again
+        let docs2 = list_documents(&conn).unwrap();
+        assert_eq!(
+            docs2[0].computed_validity, cv1,
+            "computed_validity must be stable across reloads"
+        );
+    }
+
+    #[test]
+    fn test_archived_document_excluded_from_active_validity() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        // Create an expired document
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Abgelaufen".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2000-01-01".to_string()),
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        create_document(&conn, &input, &managed).unwrap();
+
+        // Verify it appears in active list with abgelaufen
+        let active = list_documents(&conn).unwrap();
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].computed_validity.as_deref(), Some("abgelaufen"));
+
+        // Archive it
+        archive_document(&mut conn, &active[0].id).unwrap();
+
+        // It must not appear in active list anymore
+        let active_after = list_documents(&conn).unwrap();
+        assert_eq!(active_after.len(), 0, "Archived document excluded from active list");
+
+        // It appears in archive list with computed_validity still set
+        let archived = list_archived_documents(&conn).unwrap();
+        assert_eq!(archived.len(), 1);
+        assert_eq!(
+            archived[0].computed_validity.as_deref(),
+            Some("abgelaufen"),
+            "Archived document retains computed validity"
+        );
+    }
+
+    #[test]
+    fn test_restore_preserves_valid_until() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Restore Test".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2099-12-31".to_string()),
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+
+        assert_eq!(
+            restored.valid_until,
+            Some("2099-12-31".to_string()),
+            "valid_until must survive archive/restore"
+        );
+        assert_eq!(
+            restored.computed_validity.as_deref(),
+            Some("gültig"),
+            "computed_validity must survive archive/restore"
+        );
+    }
+
+    #[test]
+    fn test_editing_valid_until_recalculates_state() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        // Create with far-future date → gültig
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Edit Test".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2099-12-31".to_string()),
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+
+        assert_eq!(doc.computed_validity.as_deref(), Some("gültig"));
+
+        // Edit valid_until to a past date → abgelaufen
+        let update = UpdateDocumentInput {
+            title: "Edit Test".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2000-01-01".to_string()),
+            description: None,
+        };
+        let updated = update_document(&conn, &doc.id, &update).unwrap();
+
+        assert_eq!(
+            updated.computed_validity.as_deref(),
+            Some("abgelaufen"),
+            "Editing valid_until must recalculate computed_validity"
+        );
+    }
+
+    #[test]
+    fn test_version_creation_preserves_previous_version_validity() {
+        let (mut conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        // Create document with valid_until
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Version Test".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2099-12-31".to_string()),
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+
+        // Create a new version with different valid_until
+        let new_pdf = make_valid_pdf(&storage, "v2.pdf");
+        let version_input = CreateVersionInput {
+            document_id: doc.id.clone(),
+            version_number: "2.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: Some("2000-01-01".to_string()),
+            source_file_path: new_pdf.to_str().unwrap().to_string(),
+            original_file_name: "v2.pdf".to_string(),
+        };
+        create_version_from_source(&mut conn, &version_input, storage.path()).unwrap();
+
+        // The parent document's computed_validity should reflect the new version's valid_until
+        let reloaded = load_document(&conn, &doc.id).unwrap();
+        assert_eq!(
+            reloaded.computed_validity.as_deref(),
+            Some("abgelaufen"),
+            "Document validity follows current version's valid_until"
+        );
+
+        // Previous version's validity metadata must be unchanged
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        let v1 = versions.iter().find(|v| v.version_number == "1.0").unwrap();
+        assert_eq!(
+            v1.valid_until,
+            Some("2099-12-31".to_string()),
+            "Previous version valid_until must be unchanged"
+        );
+        assert_eq!(
+            v1.validity, "gültig",
+            "Previous version persisted validity must be unchanged"
+        );
+    }
+
+    #[test]
+    fn test_today_local_date_format() {
+        let today = today_local_date();
+        assert!(
+            parse_date(&today).is_some(),
+            "today_local_date must return a valid YYYY-MM-DD date, got: {today}"
+        );
     }
 
 }
