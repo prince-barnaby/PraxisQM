@@ -1229,6 +1229,39 @@ pub fn create_version(
     load_document(conn, &input.document_id)
 }
 
+/// Vollständige Versionserstellung: PDF validieren → kopieren → DB-Transaktion.
+/// Bei DB-Fehler wird die Orphan-Kopie bereinigt. Die vorherige Version bleibt unangetastet.
+/// Diese Funktion ist testbar ohne Tauri-AppHandle.
+pub fn create_version_from_source(
+    conn: &mut Connection,
+    input: &CreateVersionInput,
+    storage_dir: &Path,
+) -> Result<Document, String> {
+    let source = Path::new(&input.source_file_path);
+    validate_pdf(source)?;
+
+    let version_id = uuid::Uuid::new_v4().to_string();
+    let managed_file = copy_to_managed_storage(source, storage_dir, &version_id)?;
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    match create_version(&tx, &input, &managed_file) {
+        Ok(doc) => {
+            tx.commit().map_err(|e| e.to_string())?;
+            Ok(doc)
+        }
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            let _ = tx.rollback();
+            remove_managed_file(storage_dir, &managed_file);
+            Err("Dokument nicht gefunden.".to_string())
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            remove_managed_file(storage_dir, &managed_file);
+            Err(e.to_string())
+        }
+    }
+}
+
 /// Lädt alle Versionen eines Dokuments, neueste zuerst.
 /// is_current wird durch Abgleich mit DB-001 version-Spalte bestimmt.
 pub fn list_versions(conn: &Connection, document_id: &str) -> SqliteResult<Vec<DocumentVersion>> {
@@ -2942,41 +2975,44 @@ mod tests {
 
     #[test]
     fn test_invalid_pdf_creates_no_version() {
-        let (conn, _tmp) = init_test_db();
+        let (mut conn, _tmp) = init_test_db();
         let storage = init_test_storage();
         let doc = make_test_document_with_relations(&conn, &storage, None, None);
 
         let fake_pdf = storage.path().join("fake.pdf");
         std::fs::write(&fake_pdf, b"not a real pdf").unwrap();
-        let version_id = uuid::Uuid::new_v4().to_string();
-        let managed = copy_to_managed_storage(&fake_pdf, storage.path(), &version_id).unwrap();
         let input = make_create_version_input(
             &doc.id, "2.0", "aktiv", "gültig", None,
             fake_pdf.to_str().unwrap(), "fake.pdf",
         );
-        let result = create_version(&conn, &input, &managed);
+        let result = create_version_from_source(&mut conn, &input, storage.path());
         assert!(result.is_err(), "Invalid PDF must not create version");
 
         let versions = list_versions(&conn, &doc.id).unwrap();
         assert_eq!(versions.len(), 1, "No new version should exist");
+
+        let reloaded = load_document(&conn, &doc.id).unwrap();
+        assert_eq!(reloaded.version, "1.0", "DB-001 current version must be unchanged");
     }
 
     #[test]
     fn test_missing_source_pdf_creates_no_version() {
-        let (conn, _tmp) = init_test_db();
+        let (mut conn, _tmp) = init_test_db();
         let storage = init_test_storage();
         let doc = make_test_document_with_relations(&conn, &storage, None, None);
 
-        let version_id = uuid::Uuid::new_v4().to_string();
-        let managed = "nonexistent-managed-file.pdf".to_string();
         let input = make_create_version_input(
             &doc.id, "2.0", "aktiv", "gültig", None,
             "/nonexistent/path/file.pdf", "file.pdf",
         );
-        let result = create_version(&conn, &input, &managed);
-        let _ = result;
+        let result = create_version_from_source(&mut conn, &input, storage.path());
+        assert!(result.is_err(), "Missing source PDF must not create version");
+
         let versions = list_versions(&conn, &doc.id).unwrap();
         assert_eq!(versions.len(), 1, "No new version should exist");
+
+        let reloaded = load_document(&conn, &doc.id).unwrap();
+        assert_eq!(reloaded.version, "1.0", "DB-001 current version must be unchanged");
     }
 
     #[test]

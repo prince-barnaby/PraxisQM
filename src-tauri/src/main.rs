@@ -284,31 +284,9 @@ fn cmd_create_version(
     app: tauri::AppHandle,
     input: CreateVersionInput,
 ) -> Result<Document, String> {
-    let source = std::path::Path::new(&input.source_file_path);
-    database::validate_pdf(source)?;
-
     let storage_dir = database::document_storage_path(&app);
-    let version_id = uuid::Uuid::new_v4().to_string();
-    let managed_file = database::copy_to_managed_storage(source, &storage_dir, &version_id)?;
-
     let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-    match database::create_version(&tx, &input, &managed_file) {
-        Ok(doc) => {
-            tx.commit().map_err(|e| e.to_string())?;
-            Ok(doc)
-        }
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            let _ = tx.rollback();
-            database::remove_managed_file(&storage_dir, &managed_file);
-            Err("Dokument nicht gefunden.".to_string())
-        }
-        Err(e) => {
-            let _ = tx.rollback();
-            database::remove_managed_file(&storage_dir, &managed_file);
-            Err(e.to_string())
-        }
-    }
+    database::create_version_from_source(&mut conn, &input, &storage_dir)
 }
 
 /// Lädt alle Versionen eines Dokuments.
