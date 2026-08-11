@@ -2,6 +2,35 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.30] - 11.08.2026
+
+### Korrektur: Ungültiges Tauri v1 `shell`-Feature entfernt (Prompt 018A)
+
+Bei der lokalen Verifikation von Prompt 018 schlug `cargo build` fehl,
+da `Cargo.toml` das Cargo-Feature `shell` für Tauri v1 deklarierte.
+Tauri v1 (aufgelöst 1.8.3) hat kein Cargo-Feature namens `shell` —
+der korrekte Feature-Name für das Öffnen von Dateien über
+`tauri::api::shell::open` lautet `shell-open`.
+
+#### Korrektur
+
+- **Cargo.toml:** Feature `shell` → `shell-open` korrigiert
+- **tauri.conf.json:** Keine Änderung erforderlich — `shell.open: true`
+  in der Allowlist ist korrekt für Tauri v1
+- **main.rs:** Keine Änderung erforderlich — `tauri::api::shell::open`
+  ist eine gültige Tauri-v1-API
+- **cmd_select_pdf:** Keine Änderung — verwendet `tauri::api::dialog::FileDialogBuilder`,
+  die mit dem Cargo-Feature `dialog` korrekt funktioniert
+- **cmd_open_pdf:** Keine Änderung — verwendet `tauri::api::shell::open`,
+  die mit dem korrigierten Feature `shell-open` funktioniert
+- **Tests:** Keine Änderung — keine Tests hängen vom Shell-Feature ab
+- **Cargo.lock:** Wird bei nächstem `cargo build` automatisch aktualisiert
+
+#### Keine anderen Tauri-v2-Annahmen gefunden
+
+Alle durch Prompt 018 erstellten Dateien wurden auf Tauri-v2-only-APIs
+geprüft. Es wurden keine weiteren Kompatibilitätsprobleme gefunden.
+
 ## [0.9.29] - 08.08.2026
 
 ### Dokumenten-Persistenz-Foundation und PDF-Speicherung (Prompt 018)
