@@ -29,9 +29,7 @@
       "dialog": {
         "open": true
       },
-      "shell": {
-        "open": true
-      }
+
     },
     "bundle": {
       "active": true,

@@ -2,6 +2,46 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.32] - 11.08.2026
+
+### Korrektur: Tauri v1 API-Mismatches und PDF-Öffnen zurückgestellt (Prompt 018C)
+
+Nach den Feature-Korrekturen (018A/018B) erreichte `cargo test` die
+Rust-Kompilierung, schlug aber mit zwei Tauri-v1-API-Mismatches fehl:
+
+1. `FileDialogBuilder::new(&app)` — Tauri v1 erwartet `new()` ohne Argumente
+2. `tauri::api::shell::open(&app, ...)` — erwartet `&ShellScope`, nicht `&AppHandle`
+
+#### Korrektur FileDialogBuilder
+
+- **main.rs:** `FileDialogBuilder::new(&app)` → `FileDialogBuilder::new()`
+- Der Tauri-v1-FileDialogBuilder benötigt kein AppHandle-Argument
+
+#### PDF-Öffnen zurückgestellt
+
+- **cmd_open_pdf** vollständig aus main.rs entfernt (war nicht registriert)
+- **shell-open Feature** aus Cargo.toml entfernt (nicht mehr benötigt)
+- **shell.open Allowlist** aus tauri.conf.json entfernt
+- **documentApi.ts:** `openPdf()`-Funktion entfernt
+- **DokumentDetail.tsx:** PDF-Öffnen-Button bleibt sichtbar aber deaktiviert
+- **DocumentActionBar.tsx:** PDF-Öffnen-Button bleibt sichtbar aber deaktiviert,
+  `onOpenPdf`-Prop entfernt
+- Die gespeicherte PDF-Datei bleibt im Dokumentenspeicher erhalten und
+  kann in einem späteren Prompt implementiert werden
+
+#### Keine weiteren Tauri-v1-API-Mismatches
+
+Alle durch Prompt 018 erstellten Rust-Quellen wurden auf v2-only-API-Signaturen
+geprüft. Keine weiteren Mismatches gefunden.
+
+#### Cargo.toml
+
+- neu: `["dialog", "dialog-open"]` (shell-open entfernt)
+
+#### tauri.conf.json
+
+- `shell.open` Allowlist-Eintrag entfernt
+
 ## [0.9.31] - 11.08.2026
 
 ### Korrektur: Tauri v1 Allowlist/Cargo-Feature-Mismatch für Dialog (Prompt 018B)

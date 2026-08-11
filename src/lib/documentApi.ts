@@ -75,6 +75,3 @@ export async function selectPdf(): Promise<string | null> {
   return invoke<string | null>("cmd_select_pdf");
 }
 
-export async function openPdf(documentId: string): Promise<void> {
-  return invoke<void>("cmd_open_pdf", { documentId });
-}

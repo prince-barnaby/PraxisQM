@@ -4,10 +4,9 @@ import "./DocumentActionBar.css";
 interface DocumentActionBarProps {
   pdfFileName: string;
   onEdit?: () => void;
-  onOpenPdf?: () => void;
 }
 
-export default function DocumentActionBar({ pdfFileName, onEdit, onOpenPdf }: DocumentActionBarProps) {
+export default function DocumentActionBar({ pdfFileName, onEdit }: DocumentActionBarProps) {
   return (
     <div
       className="pqm-action-bar"
@@ -27,9 +26,8 @@ export default function DocumentActionBar({ pdfFileName, onEdit, onOpenPdf }: Do
       <button
         type="button"
         className="pqm-action-bar__button"
-        onClick={onOpenPdf}
-        disabled={!onOpenPdf}
-        aria-label={`PDF öffnen – ${pdfFileName}`}
+        disabled
+        aria-label={`PDF öffnen – noch nicht implementiert – ${pdfFileName}`}
       >
         <FileText size={16} aria-hidden="true" />
         PDF öffnen

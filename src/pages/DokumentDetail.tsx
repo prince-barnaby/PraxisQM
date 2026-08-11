@@ -6,7 +6,7 @@ import DocumentMetadata from "../components/documents/DocumentMetadata";
 import type { MetadataEntry } from "../components/documents/DocumentMetadata";
 import DocumentActionBar from "../components/documents/DocumentActionBar";
 import "./DokumentDetail.css";
-import { fetchDocumentByNumber, openPdf, type Document } from "../lib/documentApi";
+import { fetchDocumentByNumber, type Document } from "../lib/documentApi";
 
 function statusToVariant(status: string): "success" | "neutral" {
   return status === "aktiv" ? "success" : "neutral";
@@ -31,15 +31,6 @@ export default function DokumentDetail() {
       })
       .finally(() => setLoading(false));
   }, [documentNumber]);
-
-  const handleOpenPdf = async () => {
-    if (!doc) return;
-    try {
-      await openPdf(doc.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
 
   if (loading) {
     return (
@@ -121,9 +112,8 @@ export default function DokumentDetail() {
           <button
             type="button"
             className="pqm-dokument-detail__pdf-button"
-            onClick={handleOpenPdf}
-            disabled={!doc.file_path}
-            aria-label="PDF öffnen"
+            disabled
+            aria-label="PDF öffnen – noch nicht implementiert"
           >
             PDF öffnen
           </button>

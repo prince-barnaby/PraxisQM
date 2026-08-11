@@ -57,7 +57,6 @@ fn main() {
             cmd_list_categories,
             cmd_list_subcategories,
             cmd_select_pdf,
-            cmd_open_pdf,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten von PraxisQM");
@@ -264,7 +263,7 @@ async fn cmd_select_pdf(app: tauri::AppHandle) -> Result<Option<String>, String>
     use tauri::api::dialog::FileDialogBuilder;
 
     let (tx, rx) = std::sync::mpsc::channel::<Option<std::path::PathBuf>>();
-    FileDialogBuilder::new(&app)
+    FileDialogBuilder::new()
         .add_filter("PDF-Dateien", &["pdf"])
         .pick_file(move |path| {
             let _ = tx.send(path);
@@ -277,29 +276,3 @@ async fn cmd_select_pdf(app: tauri::AppHandle) -> Result<Option<String>, String>
     }
 }
 
-#[tauri::command]
-fn cmd_open_pdf(
-    state: State<DbState>,
-    app: tauri::AppHandle,
-    document_id: String,
-) -> Result<(), String> {
-    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    let doc = database::load_document(&conn, &document_id).map_err(|e| {
-        if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
-            "Dokument nicht gefunden.".to_string()
-        } else {
-            e.to_string()
-        }
-    })?;
-
-    let file_path = doc.file_path.ok_or_else(|| "Keine Datei hinterlegt.".to_string())?;
-    let storage_dir = database::document_storage_path(&app);
-    let full_path = storage_dir.join(&file_path);
-
-    if !full_path.exists() {
-        return Err("Die Datei wurde nicht im Dokumentenspeicher gefunden.".to_string());
-    }
-
-    tauri::api::shell::open(&app, full_path.to_string_lossy().to_string(), None)
-        .map_err(|_| "PDF konnte nicht geöffnet werden.".to_string())
-}
