@@ -22,6 +22,19 @@ export interface EmployeeOption {
   name: string;
 }
 
+export interface DocumentFormInitialValues {
+  title: string;
+  category_id: string | null;
+  subcategory_id: string | null;
+  responsible_person_id: string | null;
+  version: string;
+  status: string;
+  validity: string;
+  valid_until: string | null;
+  description: string | null;
+  file_name: string | null;
+}
+
 interface DocumentFormProps {
   mode: DocumentFormMode;
   documentNumber?: string;
@@ -29,6 +42,7 @@ interface DocumentFormProps {
   categories?: CategoryOption[];
   subcategories?: SubcategoryOption[];
   employees?: EmployeeOption[];
+  initialValues?: DocumentFormInitialValues;
   onSubmit?: (data: DocumentFormData) => Promise<void>;
   onCancel?: () => void;
   onSelectPdf?: () => Promise<string | null>;
@@ -55,6 +69,7 @@ export default function DocumentForm({
   categories = [],
   subcategories = [],
   employees = [],
+  initialValues,
   onSubmit,
   onCancel,
   onSelectPdf,
@@ -84,12 +99,29 @@ export default function DocumentForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fileText = selectedPdfName ?? (isCreate ? "Noch keine Datei ausgewählt" : pdfFileName ?? "—");
+  useEffect(() => {
+    if (initialValues && mode === "edit") {
+      setTitle(initialValues.title);
+      setCategoryId(initialValues.category_id ?? "");
+      setSubcategoryId(initialValues.subcategory_id ?? "");
+      setResponsiblePersonId(initialValues.responsible_person_id ?? "");
+      setVersion(initialValues.version);
+      setStatus(initialValues.status);
+      setValidity(initialValues.validity);
+      setValidUntil(initialValues.valid_until ?? "");
+      setDescription(initialValues.description ?? "");
+    }
+  }, [initialValues, mode]);
+
+  const fileText = selectedPdfName
+    ?? (isCreate
+      ? "Noch keine Datei ausgewählt"
+      : initialValues?.file_name ?? pdfFileName ?? "—");
   const fileHint = selectedPdfPath
     ? "PDF ausgewählt – wird beim Speichern in den Dokumentenspeicher kopiert"
     : isCreate
       ? "Wählen Sie eine PDF-Datei aus"
-      : "Datei kann später ersetzt werden";
+      : "Aktuelle Datei kann ersetzt werden";
 
   const filteredSubcategories = categoryId
     ? subcategories.filter((s) => s.category_id === categoryId)

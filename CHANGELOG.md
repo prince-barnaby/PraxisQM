@@ -2,6 +2,84 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.33] - 11.08.2026
+
+### Persistierte Dokumentdetail- und Bearbeitungsansicht (Prompt 019)
+
+Vervollständigung des Dokumenten-Workflows: Ein bestehendes Dokument kann
+geladen, angezeigt, bearbeitet und mit optionalem PDF-Ersatz gespeichert
+werden. Alle Änderungen sind transaktional und sicher.
+
+#### Backend (Rust / Tauri)
+
+- **Neuer Tauri Command:** `cmd_update_document` — aktualisiert ein
+  Dokument transaktional, mit optionaler PDF-Ersetzung
+- **Neue Datenbankfunktionen:** `update_document`,
+  `load_previous_file_path`
+- **Neuer Struct:** `UpdateDocumentInput` mit allen bearbeitbaren Feldern
+  plus optionaler `source_file_path` / `original_file_name` für
+  PDF-Ersetzung
+- **Transaktionssicherheit:** Alle Metadaten-Updates und
+  Datei-Version-Erstellungen in einer SQLite-Transaktion. Bei Fehler
+  wird alles zurückgerollt.
+- **PDF-Ersetzung:** Kanonisch als neue DB-002 DocumentVersion
+  implementiert (DB-001 hat keine Datei-Spalten). Die Abfrage wurde von
+  `MIN(id)` auf `MAX(rowid)` geändert, damit die neueste Datei-Version
+  angezeigt wird.
+- **Datei-Compensation:** Neue PDF wird vor DB-Transaktion kopiert.
+  Bei DB-Fehler wird das neue PDF als Orphan bereinigt. Bei Erfolg
+  wird die alte Datei nach Commit entfernt.
+- **Validierung:** Ungültige Kategorie- oder Mitarbeiter-IDs verursachen
+  Transaktions-Rollback. Dokument-UUID und Dokumentnummer bleiben
+  unverändert. `created_at` bleibt unverändert, `updated_at` wird
+  aktualisiert.
+
+#### Frontend (React)
+
+- **DokumentBearbeiten.tsx:** Komplett neu implementiert — lädt echtes
+  Dokument, Kategorien, Unterkategorien und Mitarbeitende parallel.
+  Pre-Population aller Felder aus persisted data. Speichern via
+  `updateDocument`. Cancel navigiert zurück ohne Speicherung.
+- **DocumentForm.tsx:** Neuer `initialValues`-Prop für Edit-Modus
+  (gleiches Muster wie EmployeeForm). `useEffect` pre-populiert alle
+  Felder. Datei-Anzeige zeigt echten Dateinamen. "PDF ersetzen"-Button
+  aktiv im Edit-Modus.
+- **documentApi.ts:** `UpdateDocumentInput`-Interface und
+  `updateDocument`-Funktion hinzugefügt.
+- **DokumentBearbeiten.css:** Loading- und Error-Styles hinzugefügt.
+
+#### Kanonische Versionierungsregel
+
+DB-001 `documents` hat keine Datei-Spalten — Datei-Referenzen leben
+ausschließlich in DB-002 `document_versions`. Daher erfordert
+PDF-Ersetzung kanonisch einen neuen DB-002-Eintrag. Dies ist keine
+automatische Version-History (keine UI dafür), sondern die kanonische
+Datei-Speicherstrategie.
+
+#### Tags
+
+Tags (DB-007/DB-008) bleiben zurückgestellt — keine
+Stammdatenverwaltung für Schlagwörter vorhanden.
+
+#### Tests
+
+18 neue Rust-Tests: get existing, nonexistent error, update title,
+update description, update validity, UUID unchanged, number
+unchanged, created_at unchanged, updated_at changes, invalid category
+rollback, invalid employee rollback, relationship persists, survives
+reload, nonexistent error, PDF replacement creates new version, old
+PDF remains until success, DB failure preserves old PDF + cleans
+orphan, source removable after replacement.
+
+#### Nicht implementiert (bewusst)
+
+- Archivierung/Restore (out of scope)
+- Permanente Löschung (out of scope)
+- Version-History-UI (out of scope)
+- Tags (zurückgestellt)
+- Ablauf-Automatisierung (out of scope)
+- Authentifizierung (out of scope)
+
 ## [0.9.32] - 11.08.2026
 
 ### Korrektur: Tauri v1 API-Mismatches und PDF-Öffnen zurückgestellt (Prompt 018C)

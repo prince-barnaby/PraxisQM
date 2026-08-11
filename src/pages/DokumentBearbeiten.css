@@ -46,3 +46,15 @@
   font-size: 0.9rem;
   color: var(--pqm-color-neutral);
 }
+
+.pqm-dokument-bearbeiten__loading {
+  color: var(--pqm-color-neutral);
+  font-size: 0.9rem;
+  padding: var(--pqm-space-3) 0;
+}
+
+.pqm-dokument-bearbeiten__error {
+  color: var(--pqm-color-error);
+  font-size: 0.9rem;
+  padding: var(--pqm-space-2) 0;
+}

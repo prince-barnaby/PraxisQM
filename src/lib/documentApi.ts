@@ -47,12 +47,30 @@ export interface SubcategoryItem {
   category_id: string;
 }
 
+export interface UpdateDocumentInput {
+  title: string;
+  category_id: string | null;
+  subcategory_id: string | null;
+  responsible_person_id: string | null;
+  version: string;
+  status: string;
+  validity: string;
+  valid_until: string | null;
+  description: string | null;
+  source_file_path: string | null;
+  original_file_name: string | null;
+}
+
 export async function fetchDocuments(): Promise<Document[]> {
   return invoke<Document[]>("cmd_list_documents");
 }
 
 export async function fetchDocument(id: string): Promise<Document> {
   return invoke<Document>("cmd_get_document", { id });
+}
+
+export async function updateDocument(id: string, input: UpdateDocumentInput): Promise<Document> {
+  return invoke<Document>("cmd_update_document", { id, input });
 }
 
 export async function fetchDocumentByNumber(number: string): Promise<Document> {
