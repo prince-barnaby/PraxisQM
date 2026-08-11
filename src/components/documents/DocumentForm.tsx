@@ -304,7 +304,6 @@ export default function DocumentForm({
           >
             <option value="Entwurf">Entwurf</option>
             <option value="aktiv">aktiv</option>
-            <option value="archiviert">archiviert</option>
           </select>
         </FormField>
 

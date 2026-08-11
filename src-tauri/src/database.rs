@@ -298,9 +298,15 @@ pub const STATUS_ENTWURF: &str = "Entwurf";
 pub const STATUS_AKTIV: &str = "aktiv";
 pub const STATUS_ARCHIVIERT: &str = "archiviert";
 
-/// Prüft, ob ein Status-Wert kanonisch ist.
+/// Prüft, ob ein Status-Wert kanonisch ist (alle drei Lifecycle-States).
 pub fn is_valid_status(status: &str) -> bool {
     status == STATUS_ENTWURF || status == STATUS_AKTIV || status == STATUS_ARCHIVIERT
+}
+
+/// Prüft, ob ein Status bei Erstellung/Bearbeitung erlaubt ist (nicht-archivierte Lifecycle-States).
+/// "archiviert" ist hier nicht erlaubt — Archivierung erfolgt ausschließlich über archive_document.
+pub fn is_valid_creation_status(status: &str) -> bool {
+    status == STATUS_ENTWURF || status == STATUS_AKTIV
 }
 
 /// --- Gültigkeitsberechnung -----------------------------------------------
@@ -839,6 +845,8 @@ pub struct Document {
     pub file_path: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_archive_status: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -998,6 +1006,17 @@ pub fn create_document(
     let now = now_iso();
     let doc_number = generate_document_number(conn)?;
 
+    // Lifecycle-Validierung: Bei Erstellung nur Entwurf oder aktiv erlaubt (Prompt 024)
+    if !is_valid_creation_status(&input.status) {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some(format!(
+                "Ungültiger Status bei Erstellung: {}. Nur Entwurf oder aktiv erlaubt.",
+                input.status
+            )),
+        ));
+    }
+
     // Validiere responsible_person_id falls angegeben
     if let Some(ref person_id) = input.responsible_person_id {
         let count: i64 = conn.query_row(
@@ -1115,7 +1134,7 @@ pub fn list_documents(conn: &Connection) -> SqliteResult<Vec<Document>> {
                 d.version, d.status, d.validity, d.valid_until,
                 d.description, d.archived_at,
                 dv.file_name, dv.file_path,
-                d.created_at, d.updated_at
+                d.created_at, d.updated_at, d.pre_archive_status
          FROM documents d
          LEFT JOIN categories c ON c.id = d.category_id
          LEFT JOIN subcategories s ON s.id = d.subcategory_id
@@ -1157,6 +1176,7 @@ pub fn list_documents(conn: &Connection) -> SqliteResult<Vec<Document>> {
                 file_path: row.get(16)?,
                 created_at: row.get(17)?,
                 updated_at: row.get(18)?,
+                pre_archive_status: row.get(19)?,
             })
         })?
         .collect::<SqliteResult<Vec<_>>>()?;
@@ -1179,7 +1199,7 @@ fn query_document_row(
                 d.version, d.status, d.validity, d.valid_until,
                 d.description, d.archived_at,
                 dv.file_name, dv.file_path,
-                d.created_at, d.updated_at
+                d.created_at, d.updated_at, d.pre_archive_status
          FROM documents d
          LEFT JOIN categories c ON c.id = d.category_id
          LEFT JOIN subcategories s ON s.id = d.subcategory_id
@@ -1220,6 +1240,7 @@ fn query_document_row(
             file_path: row.get(16)?,
             created_at: row.get(17)?,
             updated_at: row.get(18)?,
+            pre_archive_status: row.get(19)?,
         })
     })
 }
@@ -1250,6 +1271,17 @@ pub fn update_document(
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
             Some("Archivierte Dokumente können nicht bearbeitet werden.".to_string()),
+        ));
+    }
+
+    // Lifecycle-Validierung: Bei Bearbeitung nur Entwurf oder aktiv erlaubt (Prompt 024)
+    if !is_valid_creation_status(&input.status) {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some(format!(
+                "Ungültiger Status bei Bearbeitung: {}. Nur Entwurf oder aktiv erlaubt. Archivierung erfolgt über die dedizierte Archiv-Aktion.",
+                input.status
+            )),
         ));
     }
 
@@ -1349,6 +1381,17 @@ pub fn create_version(
 
     let version_id = uuid::Uuid::new_v4().to_string();
     let now = now_iso();
+
+    // Lifecycle-Validierung: Neue Versionen dürfen nur Entwurf oder aktiv als Status setzen (Prompt 024)
+    if !is_valid_creation_status(&input.status) {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some(format!(
+                "Ungültiger Status für neue Version: {}. Nur Entwurf oder aktiv erlaubt.",
+                input.status
+            )),
+        ));
+    }
 
     conn.execute(
         "INSERT INTO document_versions (id, document_id, version_number, file_name, file_path,
@@ -1460,7 +1503,7 @@ pub fn archive_document(conn: &mut Connection, document_id: &str) -> SqliteResul
     let now = now_iso();
     let tx = conn.transaction()?;
     tx.execute(
-        "UPDATE documents SET status = 'archiviert', archived_at = ?1, updated_at = ?2
+        "UPDATE documents SET pre_archive_status = status, status = 'archiviert', archived_at = ?1, updated_at = ?2
          WHERE id = ?3;",
         rusqlite::params![now, now, document_id],
     )?;
@@ -1494,12 +1537,29 @@ pub fn restore_document(conn: &mut Connection, document_id: &str) -> SqliteResul
         ));
     }
 
+    let pre_archive_status: Option<String> = conn.query_row(
+        "SELECT pre_archive_status FROM documents WHERE id = ?1;",
+        rusqlite::params![document_id],
+        |row| row.get(0),
+    )?;
+
+    // Legacy-Dokumente ohne pre_archive_status können nicht automatisch wiederhergestellt werden (Prompt 024)
+    let restored_status = match pre_archive_status.as_deref() {
+        Some(s) if is_valid_creation_status(s) => s.to_string(),
+        _ => {
+            return Err(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+                Some("Der vorherige Status kann nicht automatisch ermittelt werden. Bitte nach der Wiederherstellung den Status manuell setzen.".to_string()),
+            ));
+        }
+    };
+
     let now = now_iso();
     let tx = conn.transaction()?;
     tx.execute(
-        "UPDATE documents SET status = 'aktiv', archived_at = NULL, updated_at = ?1
-         WHERE id = ?2;",
-        rusqlite::params![now, document_id],
+        "UPDATE documents SET status = ?1, archived_at = NULL, pre_archive_status = NULL, updated_at = ?2
+         WHERE id = ?3;",
+        rusqlite::params![restored_status, now, document_id],
     )?;
     tx.commit()?;
 
@@ -1517,7 +1577,7 @@ pub fn list_archived_documents(conn: &Connection) -> SqliteResult<Vec<Document>>
                 d.version, d.status, d.validity, d.valid_until,
                 d.description, d.archived_at,
                 dv.file_name, dv.file_path,
-                d.created_at, d.updated_at
+                d.created_at, d.updated_at, d.pre_archive_status
          FROM documents d
          LEFT JOIN categories c ON c.id = d.category_id
          LEFT JOIN subcategories s ON s.id = d.subcategory_id
@@ -1559,6 +1619,7 @@ pub fn list_archived_documents(conn: &Connection) -> SqliteResult<Vec<Document>>
                 file_path: row.get(16)?,
                 created_at: row.get(17)?,
                 updated_at: row.get(18)?,
+                pre_archive_status: row.get(19)?,
             })
         })?
         .collect::<SqliteResult<Vec<_>>>()?;
@@ -4774,6 +4835,484 @@ mod tests {
         let m2 = if mp < 10 { mp + 3 } else { mp - 9 };
         let year = if m2 <= 2 { y2 + 1 } else { y2 };
         format!("{:04}-{:02}-{:02}", year, m2, d2)
+    }
+
+    // --- Prompt 024: Dokument-Lifecycle Tests ---
+
+    /// Helper: Erstellt ein Dokument mit gegebenem Status.
+    fn make_doc_with_status(conn: &Connection, storage: &tempfile::TempDir, status: &str) -> Document {
+        let pdf = make_valid_pdf(storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Testdokument".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: status.to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "test-uuid").unwrap();
+        create_document(conn, &input, &managed).unwrap()
+    }
+
+    #[test]
+    fn test_is_valid_status_all_three() {
+        assert!(is_valid_status(STATUS_ENTWURF));
+        assert!(is_valid_status(STATUS_AKTIV));
+        assert!(is_valid_status(STATUS_ARCHIVIERT));
+    }
+
+    #[test]
+    fn test_is_valid_status_rejects_invalid() {
+        assert!(!is_valid_status(""));
+        assert!(!is_valid_status("draft"));
+        assert!(!is_valid_status("active"));
+        assert!(!is_valid_status("Archiviert"));
+        assert!(!is_valid_status("entwurf"));
+    }
+
+    #[test]
+    fn test_is_valid_creation_status_excludes_archiviert() {
+        assert!(is_valid_creation_status(STATUS_ENTWURF));
+        assert!(is_valid_creation_status(STATUS_AKTIV));
+        assert!(!is_valid_creation_status(STATUS_ARCHIVIERT));
+    }
+
+    #[test]
+    fn test_is_valid_creation_status_rejects_invalid() {
+        assert!(!is_valid_creation_status(""));
+        assert!(!is_valid_creation_status("draft"));
+        assert!(!is_valid_creation_status("archiviert"));
+    }
+
+    #[test]
+    fn test_create_document_rejects_archiviert_status() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = CreateDocumentInput {
+            title: "Test".to_string(),
+            category_id: None,
+            subcategory_id: None,
+            responsible_person_id: None,
+            version: "1.0".to_string(),
+            status: "archiviert".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            description: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "test.pdf".to_string(),
+        };
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "test-uuid").unwrap();
+        let result = create_document(&conn, &input, &managed);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("Nur Entwurf oder aktiv"));
+    }
+
+    #[test]
+    fn test_create_document_accepts_entwurf() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        assert_eq!(doc.status, "Entwurf");
+        assert!(doc.archived_at.is_none());
+        assert!(doc.pre_archive_status.is_none());
+    }
+
+    #[test]
+    fn test_create_document_accepts_aktiv() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        assert_eq!(doc.status, "aktiv");
+        assert!(doc.archived_at.is_none());
+    }
+
+    #[test]
+    fn test_update_document_rejects_archiviert_status() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        let input = make_update_document_input(
+            "Test", None, None, None, "1.0", "archiviert", "gültig", None, None,
+        );
+        let result = update_document(&conn, &doc.id, &input);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("Nur Entwurf oder aktiv"));
+    }
+
+    #[test]
+    fn test_update_document_allows_entwurf_to_aktiv() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        let input = make_update_document_input(
+            "Test", None, None, None, "1.0", "aktiv", "gültig", None, None,
+        );
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
+        assert_eq!(updated.status, "aktiv");
+    }
+
+    #[test]
+    fn test_update_document_allows_aktiv_to_entwurf() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let input = make_update_document_input(
+            "Test", None, None, None, "1.0", "Entwurf", "gültig", None, None,
+        );
+        let updated = update_document(&conn, &doc.id, &input).unwrap();
+        assert_eq!(updated.status, "Entwurf");
+    }
+
+    #[test]
+    fn test_archive_preserves_pre_archive_status_entwurf() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        let mut conn = conn;
+        let archived = archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(archived.status, "archiviert");
+        assert!(archived.archived_at.is_some());
+        assert_eq!(archived.pre_archive_status.as_deref(), Some("Entwurf"));
+    }
+
+    #[test]
+    fn test_archive_preserves_pre_archive_status_aktiv() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        let archived = archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(archived.status, "archiviert");
+        assert!(archived.archived_at.is_some());
+        assert_eq!(archived.pre_archive_status.as_deref(), Some("aktiv"));
+    }
+
+    #[test]
+    fn test_archive_rejects_already_archived() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        archive_document(&mut conn, &doc.id).unwrap();
+        let result = archive_document(&mut conn, &doc.id);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("bereits archiviert"));
+    }
+
+    #[test]
+    fn test_archive_nonexistent_document() {
+        let (conn, _tmp) = init_test_db();
+        let mut conn = conn;
+        let result = archive_document(&mut conn, "nonexistent-id");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_restore_entwurf_document() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        let mut conn = conn;
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(restored.status, "Entwurf");
+        assert!(restored.archived_at.is_none());
+        assert!(restored.pre_archive_status.is_none());
+    }
+
+    #[test]
+    fn test_restore_aktiv_document() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(restored.status, "aktiv");
+        assert!(restored.archived_at.is_none());
+        assert!(restored.pre_archive_status.is_none());
+    }
+
+    #[test]
+    fn test_restore_non_archived_document_fails() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        let mut conn = conn;
+        let result = restore_document(&mut conn, &doc.id);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("nicht archiviert"));
+    }
+
+    #[test]
+    fn test_restore_legacy_document_with_null_pre_archive_status() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        // Simuliere Legacy-Archivierung: pre_archive_status bleibt NULL
+        let now = now_iso();
+        let tx = conn.transaction().unwrap();
+        tx.execute(
+            "UPDATE documents SET status = 'archiviert', archived_at = ?1, updated_at = ?2
+             WHERE id = ?3;",
+            rusqlite::params![now, now, doc.id],
+        ).unwrap();
+        tx.commit().unwrap();
+        // Restore muss fehlschlagen mit kontrolliertem Fehler
+        let result = restore_document(&mut conn, &doc.id);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("kann nicht automatisch ermittelt werden"));
+    }
+
+    #[test]
+    fn test_restore_nonexistent_document() {
+        let (conn, _tmp) = init_test_db();
+        let mut conn = conn;
+        let result = restore_document(&mut conn, "nonexistent-id");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_archive_restore_roundtrip_entwurf() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        let mut conn = conn;
+        let archived = archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(archived.status, "archiviert");
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(restored.status, "Entwurf");
+        assert!(restored.archived_at.is_none());
+        assert!(restored.pre_archive_status.is_none());
+    }
+
+    #[test]
+    fn test_archive_restore_roundtrip_aktiv() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        let archived = archive_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(archived.status, "archiviert");
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(restored.status, "aktiv");
+        assert!(restored.archived_at.is_none());
+        assert!(restored.pre_archive_status.is_none());
+    }
+
+    #[test]
+    fn test_archived_document_not_in_active_list() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        archive_document(&mut conn, &doc.id).unwrap();
+        let active = list_documents(&conn).unwrap();
+        assert!(active.iter().all(|d| d.id != doc.id));
+    }
+
+    #[test]
+    fn test_archived_document_in_archive_list() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        archive_document(&mut conn, &doc.id).unwrap();
+        let archived = list_archived_documents(&conn).unwrap();
+        assert!(archived.iter().any(|d| d.id == doc.id));
+        let archived_doc = archived.iter().find(|d| d.id == doc.id).unwrap();
+        assert_eq!(archived_doc.pre_archive_status.as_deref(), Some("aktiv"));
+    }
+
+    #[test]
+    fn test_entwurf_and_aktiv_both_in_active_list() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc1 = make_doc_with_status(&conn, &storage, "Entwurf");
+        let doc2 = make_doc_with_status(&conn, &storage, "aktiv");
+        let active = list_documents(&conn).unwrap();
+        assert!(active.iter().any(|d| d.id == doc1.id));
+        assert!(active.iter().any(|d| d.id == doc2.id));
+    }
+
+    #[test]
+    fn test_dashboard_counts_non_archived_only() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let _doc1 = make_doc_with_status(&conn, &storage, "Entwurf");
+        let _doc2 = make_doc_with_status(&conn, &storage, "aktiv");
+        let summary = dashboard_summary(&conn).unwrap();
+        assert_eq!(summary.total_active, 2);
+        let mut conn = conn;
+        archive_document(&mut conn, &_doc1.id).unwrap();
+        let summary2 = dashboard_summary(&conn).unwrap();
+        assert_eq!(summary2.total_active, 1);
+        assert_eq!(summary2.archived, 1);
+    }
+
+    #[test]
+    fn test_create_version_rejects_archiviert_status() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        let pdf = make_valid_pdf(&storage, "v2.pdf");
+        let input = CreateVersionInput {
+            document_id: doc.id.clone(),
+            version_number: "2.0".to_string(),
+            status: "archiviert".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            source_file_path: pdf.to_str().unwrap().to_string(),
+            original_file_name: "v2.pdf".to_string(),
+        };
+        let mut conn = conn;
+        let result = create_version_from_source(&mut conn, &input, storage.path());
+        assert!(result.is_err());
+        let msg = result.unwrap_err();
+        assert!(msg.contains("Nur Entwurf oder aktiv"));
+    }
+
+    #[test]
+    fn test_update_archived_document_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        archive_document(&mut conn, &doc.id).unwrap();
+        let input = make_update_document_input(
+            "Geändert", None, None, None, "1.0", "aktiv", "gültig", None, None,
+        );
+        let result = update_document(&conn, &doc.id, &input);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("Archivierte Dokumente können nicht bearbeitet werden"));
+    }
+
+    #[test]
+    fn test_migration_v1_to_v2_adds_column() {
+        let tmp = NamedTempFile::new().unwrap();
+        let conn = Connection::open(tmp.path()).unwrap();
+        conn.execute("PRAGMA foreign_keys = ON;", []).unwrap();
+        ensure_schema_version_table(&conn).unwrap();
+        for stmt in schema_statements() {
+            conn.execute(stmt, []).unwrap();
+        }
+        set_schema_version(&conn, 1).unwrap();
+        // Vor Migration: keine pre_archive_status-Spalte
+        let columns_before: Vec<String> = conn
+            .prepare("PRAGMA table_info(documents);")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(!columns_before.iter().any(|c| c == "pre_archive_status"));
+        // Migration ausführen
+        migrate_v1_to_v2(&conn).unwrap();
+        // Nach Migration: Spalte existiert
+        let columns_after: Vec<String> = conn
+            .prepare("PRAGMA table_info(documents);")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(columns_after.iter().any(|c| c == "pre_archive_status"));
+    }
+
+    #[test]
+    fn test_migration_v1_to_v2_idempotent() {
+        let tmp = NamedTempFile::new().unwrap();
+        let conn = Connection::open(tmp.path()).unwrap();
+        conn.execute("PRAGMA foreign_keys = ON;", []).unwrap();
+        ensure_schema_version_table(&conn).unwrap();
+        for stmt in schema_statements() {
+            conn.execute(stmt, []).unwrap();
+        }
+        migrate_v1_to_v2(&conn).unwrap();
+        // Zweite Ausführung darf nicht fehlschlagen
+        migrate_v1_to_v2(&conn).unwrap();
+        let columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(documents);")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        let count = columns.iter().filter(|c| *c == "pre_archive_status").count();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_init_database_creates_v2_schema() {
+        let tmp = NamedTempFile::new().unwrap();
+        init_database(tmp.path()).unwrap();
+        let conn = Connection::open(tmp.path()).unwrap();
+        let version: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_version;", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 2);
+        let columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(documents);")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(columns.iter().any(|c| c == "pre_archive_status"));
+    }
+
+    #[test]
+    fn test_pre_archive_status_null_for_non_archived() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        assert!(doc.pre_archive_status.is_none());
+        let doc2 = make_doc_with_status(&conn, &storage, "aktiv");
+        assert!(doc2.pre_archive_status.is_none());
+    }
+
+    #[test]
+    fn test_restore_clears_pre_archive_status() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        archive_document(&mut conn, &doc.id).unwrap();
+        let archived = load_document(&conn, &doc.id).unwrap();
+        assert!(archived.pre_archive_status.is_some());
+        restore_document(&mut conn, &doc.id).unwrap();
+        let restored = load_document(&conn, &doc.id).unwrap();
+        assert!(restored.pre_archive_status.is_none());
+    }
+
+    #[test]
+    fn test_double_archive_restore_cycle() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let mut conn = conn;
+        // Erster Zyklus
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored = restore_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(restored.status, "aktiv");
+        // Zweiter Zyklus
+        archive_document(&mut conn, &doc.id).unwrap();
+        let restored2 = restore_document(&mut conn, &doc.id).unwrap();
+        assert_eq!(restored2.status, "aktiv");
+        assert!(restored2.pre_archive_status.is_none());
     }
 
 }

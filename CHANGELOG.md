@@ -2,6 +2,50 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.38] - 11.08.2026
+
+### Dokument-Lifecycle und Archiv-Wiederherstellung (Prompt 024 / ADR-029)
+
+Korrektur des Document-Lifecycle: Archivierung sichert den Pre-Archive-Status,
+Restore stellt ihn exakt wieder her. `archiviert` ist nur über die dedizierte
+Archiv-Aktion erreichbar, nicht über gewöhnliche Bearbeitung.
+
+#### Kanonische Lifecycle-Entscheidungen (ADR-029)
+
+- **Non-Archived-Status:** `Entwurf`, `aktiv` — kanonische Bearbeitungsstatus
+- **Archive-Status:** `archiviert` — nur über `archive_document` erreichbar
+- **Manuelle Übergänge:** `Entwurf` ↔ `aktiv` (beide Richtungen)
+- **Archiv-Übergänge:** `Entwurf` → `archiviert`, `aktiv` → `archiviert`
+- **Restore-Übergänge:** exakte Wiederherstellung des Pre-Archive-Status
+- **`pre_archive_status`-Spalte (DB-001):** nullable TEXT, sichert Status bei Archivierung
+- **Legacy-Archivierte:** `pre_archive_status` bleibt NULL, Restore gibt kontrollierten Fehler
+
+#### Backend (Rust / Tauri)
+
+- Schema-Migration v1→v2: `ALTER TABLE documents ADD COLUMN pre_archive_status TEXT`
+- `SCHEMA_VERSION` von 1 auf 2 erhöht
+- `migrate_v1_to_v2`: idempotente Migration, prüft Spalten-Existenz
+- Neue Konstanten: `STATUS_ENTWURF`, `STATUS_AKTIV`, `STATUS_ARCHIVIERT`
+- Neue Helper: `is_valid_status` (alle drei), `is_valid_creation_status` (nur Entwurf/aktiv)
+- `archive_document`: sichert `pre_archive_status = status` vor Setzen auf `archiviert`
+- `restore_document`: liest `pre_archive_status`, stellt exakt wieder her, setzt `pre_archive_status = NULL`
+- `restore_document`: Legacy-Dokumente mit NULL `pre_archive_status` geben kontrollierten Fehler
+- `create_document`: weist `archiviert` als Status mit Constraint-Fehler zurück
+- `update_document`: weist `archiviert` als Status mit Constraint-Fehler zurück
+- `create_version`: weist `archiviert` als Status mit Constraint-Fehler zurück
+- `Document`-Struct um `pre_archive_status: Option<String>` erweitert
+- Alle drei SELECT-Statements (list_documents, query_document_row, list_archived_documents) um `pre_archive_status` erweitert
+
+#### Frontend (React)
+
+- `DocumentForm.tsx`: `archiviert` aus Status-Dropdown entfernt — Archivierung nur über dedizierte Aktion
+
+#### Nicht implementiert (bewusst)
+
+- Automatische Lifecycle-Übergänge (z.B. Entwurf → aktiv bei Freigabe) — out of scope
+- Konfigurierbare Lifecycle-Regeln — fix für v1
+- Massen-Archivierung — out of scope
+
 ## [0.9.37] - 11.08.2026
 
 ### Review-Erinnerungen und echtes Dashboard (Prompt 023)
