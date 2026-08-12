@@ -119,6 +119,22 @@ export async function fetchSubcategories(): Promise<SubcategoryItem[]> {
   return invoke<SubcategoryItem[]>("cmd_list_subcategories");
 }
 
+export async function createCategory(name: string): Promise<CategoryItem> {
+  return invoke<CategoryItem>("cmd_create_category", { name });
+}
+
+export async function renameCategory(id: string, newName: string): Promise<CategoryItem> {
+  return invoke<CategoryItem>("cmd_rename_category", { id, newName });
+}
+
+export async function createSubcategory(name: string, categoryId: string): Promise<SubcategoryItem> {
+  return invoke<SubcategoryItem>("cmd_create_subcategory", { name, categoryId });
+}
+
+export async function renameSubcategory(id: string, newName: string): Promise<SubcategoryItem> {
+  return invoke<SubcategoryItem>("cmd_rename_subcategory", { id, newName });
+}
+
 export async function selectPdf(): Promise<string | null> {
   return invoke<string | null>("cmd_select_pdf");
 }

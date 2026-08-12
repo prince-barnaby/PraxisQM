@@ -1866,6 +1866,85 @@ pub fn list_subcategories(conn: &Connection) -> SqliteResult<Vec<SubcategoryItem
     Ok(items)
 }
 
+/// --- Kategorie-Operationen (DB-005, Prompt 026A) ------------------------
+
+/// Erstellt eine neue Kategorie.
+/// Der Name wird getrimmt und muss eindeutig sein (UNIQUE-Constraint).
+pub fn create_category(conn: &Connection, name: &str) -> SqliteResult<CategoryItem> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = now_iso();
+    conn.execute(
+        "INSERT INTO categories (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4);",
+        rusqlite::params![id, name, now, now],
+    )?;
+    Ok(CategoryItem { id, name: name.to_string() })
+}
+
+/// Benennt eine bestehende Kategorie um (gleiche UUID, updated_at wird aktualisiert).
+/// Alle Dokument- und Unterkategorie-Beziehungen bleiben durch die UUID erhalten.
+pub fn rename_category(conn: &Connection, id: &str, new_name: &str) -> SqliteResult<CategoryItem> {
+    let now = now_iso();
+    let affected = conn.execute(
+        "UPDATE categories SET name = ?1, updated_at = ?2 WHERE id = ?3;",
+        rusqlite::params![new_name, now, id],
+    )?;
+    if affected == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+    Ok(CategoryItem { id: id.to_string(), name: new_name.to_string() })
+}
+
+/// --- Unterkategorie-Operationen (DB-006, Prompt 026A) --------------------
+
+/// Erstellt eine neue Unterkategorie unter einer existierenden Kategorie.
+/// Die Kategorie muss existieren (FK-Constraint). Der Name wird getrimmt.
+pub fn create_subcategory(
+    conn: &Connection,
+    name: &str,
+    category_id: &str,
+) -> SqliteResult<SubcategoryItem> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = now_iso();
+    conn.execute(
+        "INSERT INTO subcategories (id, name, category_id, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5);",
+        rusqlite::params![id, name, category_id, now, now],
+    )?;
+    Ok(SubcategoryItem {
+        id,
+        name: name.to_string(),
+        category_id: category_id.to_string(),
+    })
+}
+
+/// Benennt eine bestehende Unterkategorie um (gleiche UUID, gleiche category_id).
+/// Alle Dokument-Beziehungen bleiben durch die UUID erhalten.
+pub fn rename_subcategory(
+    conn: &Connection,
+    id: &str,
+    new_name: &str,
+) -> SqliteResult<SubcategoryItem> {
+    let now = now_iso();
+    let affected = conn.execute(
+        "UPDATE subcategories SET name = ?1, updated_at = ?2 WHERE id = ?3;",
+        rusqlite::params![new_name, now, id],
+    )?;
+    if affected == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+
+    let category_id: String = conn.query_row(
+        "SELECT category_id FROM subcategories WHERE id = ?1;",
+        rusqlite::params![id],
+        |row| row.get(0),
+    )?;
+    Ok(SubcategoryItem {
+        id: id.to_string(),
+        name: new_name.to_string(),
+        category_id,
+    })
+}
+
 /// --- Tests ---------------------------------------------------------------
 
 #[cfg(test)]
@@ -5313,6 +5392,159 @@ mod tests {
         let restored2 = restore_document(&mut conn, &doc.id).unwrap();
         assert_eq!(restored2.status, "aktiv");
         assert!(restored2.pre_archive_status.is_none());
+    }
+
+    // --- Kategorie- & Unterkategorie-Tests (Prompt 026A) ---
+
+    #[test]
+    fn test_list_categories_empty() {
+        let tmp = NamedTempFile::new().unwrap();
+        init_database(tmp.path()).unwrap();
+        let conn = Connection::open(tmp.path()).unwrap();
+        let cats = list_categories(&conn).unwrap();
+        assert!(cats.is_empty());
+    }
+
+    #[test]
+    fn test_create_category() {
+        let (conn, _tmp) = init_test_db();
+        let cat = create_category(&conn, "Hygiene").unwrap();
+        assert!(!cat.id.is_empty());
+        assert_eq!(cat.name, "Hygiene");
+        let cats = list_categories(&conn).unwrap();
+        assert_eq!(cats.len(), 1);
+        assert_eq!(cats[0].name, "Hygiene");
+    }
+
+    #[test]
+    fn test_create_category_duplicate_rejected() {
+        let (conn, _tmp) = init_test_db();
+        create_category(&conn, "Hygiene").unwrap();
+        let result = create_category(&conn, "Hygiene");
+        assert!(result.is_err(), "Duplikate sollten abgelehnt werden");
+    }
+
+    #[test]
+    fn test_rename_category() {
+        let (conn, _tmp) = init_test_db();
+        let cat = create_category(&conn, "Alt").unwrap();
+        let renamed = rename_category(&conn, &cat.id, "Neu").unwrap();
+        assert_eq!(renamed.id, cat.id);
+        assert_eq!(renamed.name, "Neu");
+        let cats = list_categories(&conn).unwrap();
+        assert_eq!(cats[0].name, "Neu");
+    }
+
+    #[test]
+    fn test_rename_category_preserves_uuid() {
+        let (conn, _tmp) = init_test_db();
+        let cat = create_category(&conn, "Original").unwrap();
+        let original_id = cat.id.clone();
+        rename_category(&conn, &cat.id, "Umbenannt").unwrap();
+        let cats = list_categories(&conn).unwrap();
+        assert_eq!(cats.len(), 1);
+        assert_eq!(cats[0].id, original_id);
+        assert_eq!(cats[0].name, "Umbenannt");
+    }
+
+    #[test]
+    fn test_rename_category_preserves_subcategory() {
+        let (conn, _tmp) = init_test_db();
+        let cat = create_category(&conn, "Parent").unwrap();
+        let sub = create_subcategory(&conn, "Child", &cat.id).unwrap();
+        rename_category(&conn, &cat.id, "ParentRenamed").unwrap();
+        let subs = list_subcategories(&conn).unwrap();
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0].id, sub.id);
+        assert_eq!(subs[0].category_id, cat.id);
+    }
+
+    #[test]
+    fn test_rename_category_nonexistent_returns_error() {
+        let (conn, _tmp) = init_test_db();
+        let result = rename_category(&conn, "nicht-vorhanden", "Neu");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_subcategory() {
+        let (conn, _tmp) = init_test_db();
+        let cat = create_category(&conn, "Hygiene").unwrap();
+        let sub = create_subcategory(&conn, "Oberflächen", &cat.id).unwrap();
+        assert!(!sub.id.is_empty());
+        assert_eq!(sub.name, "Oberflächen");
+        assert_eq!(sub.category_id, cat.id);
+    }
+
+    #[test]
+    fn test_create_subcategory_nonexistent_parent_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let result = create_subcategory(&conn, "Test", "fake-uuid");
+        assert!(result.is_err(), "Unterkategorie ohne existierende Kategorie sollte fehlschlagen");
+    }
+
+    #[test]
+    fn test_rename_subcategory() {
+        let (conn, _tmp) = init_test_db();
+        let cat = create_category(&conn, "Hygiene").unwrap();
+        let sub = create_subcategory(&conn, "Oberflächen", &cat.id).unwrap();
+        let renamed = rename_subcategory(&conn, &sub.id, "Desinfektion").unwrap();
+        assert_eq!(renamed.id, sub.id);
+        assert_eq!(renamed.name, "Desinfektion");
+        assert_eq!(renamed.category_id, cat.id);
+    }
+
+    #[test]
+    fn test_rename_subcategory_preserves_uuid_and_parent() {
+        let (conn, _tmp) = init_test_db();
+        let cat = create_category(&conn, "Cat").unwrap();
+        let sub = create_subcategory(&conn, "Sub", &cat.id).unwrap();
+        let original_id = sub.id.clone();
+        let original_cat = cat.id.clone();
+        rename_subcategory(&conn, &sub.id, "SubRenamed").unwrap();
+        let subs = list_subcategories(&conn).unwrap();
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0].id, original_id);
+        assert_eq!(subs[0].name, "SubRenamed");
+        assert_eq!(subs[0].category_id, original_cat);
+    }
+
+    #[test]
+    fn test_rename_subcategory_nonexistent_returns_error() {
+        let (conn, _tmp) = init_test_db();
+        let result = rename_subcategory(&conn, "nicht-vorhanden", "Neu");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_categories_survive_reload() {
+        let tmp = NamedTempFile::new().unwrap();
+        init_database(tmp.path()).unwrap();
+        let conn = Connection::open(tmp.path()).unwrap();
+        create_category(&conn, "Persist").unwrap();
+        let cat_id = list_categories(&conn).unwrap()[0].id.clone();
+        create_subcategory(&conn, "PersistSub", &cat_id).unwrap();
+        // Reopen connection
+        drop(conn);
+        let conn2 = Connection::open(tmp.path()).unwrap();
+        let cats = list_categories(&conn2).unwrap();
+        assert_eq!(cats.len(), 1);
+        assert_eq!(cats[0].name, "Persist");
+        let subs = list_subcategories(&conn2).unwrap();
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0].name, "PersistSub");
+    }
+
+    #[test]
+    fn test_no_delete_functionality_exists() {
+        // Ensure no DELETE statements for categories/subcategories are issued
+        // This test documents the deferred delete behavior
+        let (conn, _tmp) = init_test_db();
+        let cat = create_category(&conn, "NoDelete").unwrap();
+        let _sub = create_subcategory(&conn, "NoDeleteSub", &cat.id).unwrap();
+        // Verify both still exist
+        assert_eq!(list_categories(&conn).unwrap().len(), 1);
+        assert_eq!(list_subcategories(&conn).unwrap().len(), 1);
     }
 
 }

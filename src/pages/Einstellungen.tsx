@@ -3,6 +3,7 @@ import {
   Settings,
   Hash,
   FolderTree,
+  Users,
   UserCog,
   DatabaseBackup,
   Info,
@@ -20,12 +21,22 @@ import {
   createQmArea,
   renameQmArea,
 } from "../lib/masterDataApi";
+import {
+  fetchCategories,
+  createCategory,
+  renameCategory,
+  fetchSubcategories,
+  createSubcategory,
+  renameSubcategory,
+} from "../lib/documentApi";
+import SubcategorySection from "../components/settings/SubcategorySection";
 import "./Einstellungen.css";
 
 const SETTINGS_SECTIONS: SettingsNavItem[] = [
   { id: "allgemein", label: "Allgemein", icon: Settings },
   { id: "dokumentennummerierung", label: "Dokumentennummerierung", icon: Hash },
   { id: "kategorien", label: "Kategorien & Unterkategorien", icon: FolderTree },
+  { id: "mitarbeiterdaten", label: "Mitarbeiterdaten", icon: Users },
   { id: "benutzerverwaltung", label: "Benutzerverwaltung", icon: UserCog },
   { id: "backup", label: "Backup", icon: DatabaseBackup },
   { id: "systeminformationen", label: "Systeminformationen", icon: Info },
@@ -115,7 +126,41 @@ export default function Einstellungen() {
           {activeSection === "kategorien" && (
             <SettingsSection
               title="Kategorien & Unterkategorien"
-              description="Verwaltung von Verantwortungspositionen und QM-Bereichen"
+              description="Verwaltung der Hauptkategorien und Unterkategorien für Dokumente"
+            >
+              <MasterDataSection
+                title="Hauptkategorien"
+                description="Zentral verwaltbare Hauptkategorien, denen Dokumente und Unterkategorien zugeordnet werden."
+                inputLabel="Kategoriebezeichnung"
+                addButtonLabel="Kategorie hinzufügen"
+                emptyMessage="Noch keine Kategorien angelegt."
+                loadingMessage="Kategorien werden geladen …"
+                duplicateHint="Diese Kategoriebezeichnung existiert bereits."
+                fetchItems={fetchCategories}
+                createItem={createCategory}
+                renameItem={renameCategory}
+              />
+              <SubcategorySection
+                title="Unterkategorien"
+                description="Unterkategorien sind einer Hauptkategorie fest zugeordnet. Beim Anlegen ist eine Kategorie auszuwählen."
+                inputLabel="Unterkategoriebezeichnung"
+                categoryLabel="Übergeordnete Kategorie"
+                addButtonLabel="Unterkategorie hinzufügen"
+                emptyMessage="Noch keine Unterkategorien angelegt."
+                loadingMessage="Unterkategorien werden geladen …"
+                duplicateHint="Diese Unterkategoriebezeichnung existiert bereits."
+                fetchSubcategories={fetchSubcategories}
+                fetchCategories={fetchCategories}
+                createSubcategory={createSubcategory}
+                renameSubcategory={renameSubcategory}
+              />
+            </SettingsSection>
+          )}
+
+          {activeSection === "mitarbeiterdaten" && (
+            <SettingsSection
+              title="Mitarbeiterdaten"
+              description="Zentrale Verwaltung von Verantwortungspositionen und QM-Bereichen"
             >
               <MasterDataSection
                 title="Verantwortungspositionen"

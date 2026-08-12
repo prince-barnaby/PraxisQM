@@ -2,6 +2,57 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.40] - 12.08.2026
+
+### Kategorien & Unterkategorien verwalten (Prompt 026A / SDD-006 / 006C)
+
+Echte Stammdatenverwaltung für Hauptkategorien (DB-005) und Unterkategorien (DB-006).
+Erstellen und Umbenennen ist jetzt vollständig implementiert. Löschverhalten bleibt
+bewusst zurückgestellt — kanonische Löschsemantik ist nicht dokumentiert.
+
+#### Backend (Rust / Tauri)
+
+- Neue DB-Funktionen: `create_category`, `rename_category`, `create_subcategory`, `rename_subcategory`
+- Neue Tauri-Commands: `cmd_create_category`, `cmd_rename_category`, `cmd_create_subcategory`, `cmd_rename_subcategory`
+- Bestehende `cmd_list_categories`/`cmd_list_subcategories` werden weiterhin genutzt
+- UUIDs bleiben beim Umbenennen erhalten — alle Dokument- und Unterkategorie-Beziehungen bleiben intakt
+- `category_id` ist nach Erstellung einer Unterkategorie unveränderlich
+- Trim und Empty-Validierung in den Commands; UNIQUE-Constraint auf `categories.name` wird durchgesetzt
+- Keine Lösch-Funktionen, kein SQL DELETE für Kategorien/Unterkategorien
+
+#### Frontend (React)
+
+- `documentApi.ts`: `createCategory`, `renameCategory`, `createSubcategory`, `renameSubcategory` API-Funktionen
+- `SubcategorySection.tsx` (neu): Unterkategorie-Verwaltung mit Kategorie-Auswahl, Erstellen, Umbenennen
+- `MasterDataSection.css`: Styles für Kategorie-Select und Parent-Hint ergänzt
+- `Einstellungen.tsx`: "Kategorien & Unterkategorien" zeigt jetzt echte Kategorie- und Unterkategorie-Verwaltung
+- `Einstellungen.tsx`: Neue Sektion "Mitarbeiterdaten" für Verantwortungspositionen und QM-Bereiche (aus "kategorien" verschoben)
+- `SettingsNav`: Neer Navigationspunkt "Mitarbeiterdaten" (Users-Icon)
+- Keine Lösch-Buttons in der gesamten UI
+
+#### Kanonische Schema-Bestätigung
+
+- `categories`: `id TEXT PK, name TEXT NOT NULL UNIQUE, created_at, updated_at` — UUIDs, globale Namens-Eindeutigkeit
+- `subcategories`: `id TEXT PK, name TEXT NOT NULL, category_id TEXT NOT NULL FK→categories, created_at, updated_at` — UUIDs, keine Namens-Eindeutigkeit (nur UUID-Eindeutigkeit)
+- Keine Schema-Migration erforderlich — alle Tabellen existierten bereits mit korrektem Schema
+
+#### Tests
+
+16 neue Rust-Tests: leere Kategorien-Liste, Kategorie erstellen, Duplikat abgelehnt,
+Kategorie umbenennen, UUID erhalten beim Umbenennen, Unterkategorie-Beziehung erhalten
+beim Umbenennen, Nichtexistent-Fehler, Unterkategorie erstellen, Nichtexistent-Parent
+abgelehnt, Unterkategorie umbenennen, UUID und Parent erhalten, Nichtexistent-Fehler,
+Reload-Persistenz, keine Löschfunktionalität.
+
+#### Bewusst nicht implementiert
+
+- Kategorie- oder Unterkategorie-Löschung (kanonisch nicht dokumentiert — deferred)
+- Soft Delete / Archivierung für Kategorien
+- Verschieben von Unterkategorien zwischen Kategorien (category_id ist unveränderlich)
+- Sortierung / manuelle Anordnung
+- Tags / Schlagwörter (separater Prompt 026B)
+- Dokument-Tag-Zuordnung (separater Prompt 026C)
+
 ## [0.9.39] - 12.08.2026
 
 ### Dokumentensuche und Dokumentfilter (Prompt 025 / SDD-006 / 006B)

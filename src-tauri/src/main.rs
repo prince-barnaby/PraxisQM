@@ -63,6 +63,10 @@ fn main() {
             cmd_list_archived_documents,
             cmd_list_categories,
             cmd_list_subcategories,
+            cmd_create_category,
+            cmd_rename_category,
+            cmd_create_subcategory,
+            cmd_rename_subcategory,
             cmd_select_pdf,
             cmd_dashboard_summary,
             cmd_review_list,
@@ -344,6 +348,73 @@ fn cmd_list_categories(state: State<DbState>) -> Result<Vec<CategoryItem>, Strin
 fn cmd_list_subcategories(state: State<DbState>) -> Result<Vec<SubcategoryItem>, String> {
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     database::list_subcategories(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cmd_create_category(
+    state: State<DbState>,
+    name: String,
+) -> Result<CategoryItem, String> {
+    let trimmed = name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("Kategoriebezeichnung darf nicht leer sein.".to_string());
+    }
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::create_category(&conn, &trimmed).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cmd_rename_category(
+    state: State<DbState>,
+    id: String,
+    new_name: String,
+) -> Result<CategoryItem, String> {
+    let trimmed = new_name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("Kategoriebezeichnung darf nicht leer sein.".to_string());
+    }
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::rename_category(&conn, &id, &trimmed) {
+        Ok(item) => Ok(item),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            Err("Kategorie nicht gefunden.".to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+fn cmd_create_subcategory(
+    state: State<DbState>,
+    name: String,
+    category_id: String,
+) -> Result<SubcategoryItem, String> {
+    let trimmed = name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("Unterkategoriebezeichnung darf nicht leer sein.".to_string());
+    }
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::create_subcategory(&conn, &trimmed, &category_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cmd_rename_subcategory(
+    state: State<DbState>,
+    id: String,
+    new_name: String,
+) -> Result<SubcategoryItem, String> {
+    let trimmed = new_name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("Unterkategoriebezeichnung darf nicht leer sein.".to_string());
+    }
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::rename_subcategory(&conn, &id, &trimmed) {
+        Ok(item) => Ok(item),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            Err("Unterkategorie nicht gefunden.".to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 /// Lädt die Dashboard-Zusammenfassung (Zähler für aktive/archivierte Dokumente, Mitarbeiter).
