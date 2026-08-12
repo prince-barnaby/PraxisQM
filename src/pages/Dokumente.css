@@ -5,6 +5,23 @@
   max-width: 1200px;
 }
 
+.pqm-dokumente__reset {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  color: var(--pqm-color-primary);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pqm-dokumente__reset:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: 2px;
+}
+
 .pqm-dokumente__error {
   color: var(--pqm-color-error);
   font-size: 0.85rem;

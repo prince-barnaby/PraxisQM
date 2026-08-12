@@ -7,9 +7,10 @@ import EmptyState from "./EmptyState";
 interface DocumentListProps {
   documents: DocumentRowData[];
   loading?: boolean;
+  filteredEmpty?: boolean;
 }
 
-export default function DocumentList({ documents, loading = false }: DocumentListProps) {
+export default function DocumentList({ documents, loading = false, filteredEmpty = false }: DocumentListProps) {
   if (loading) {
     return (
       <div className="pqm-document-list" role="region" aria-label="Dokumentenliste wird geladen">
@@ -22,8 +23,8 @@ export default function DocumentList({ documents, loading = false }: DocumentLis
     return (
       <EmptyState
         icon={FileText}
-        title="Noch keine Dokumente erfasst"
-        message="Es wurden noch keine Dokumente angelegt. Klicken Sie auf „Neues Dokument“, um ein QM-Dokument zu erstellen."
+        title={filteredEmpty ? "Keine passenden Dokumente" : "Noch keine Dokumente erfasst"}
+        message={filteredEmpty ? "Keine Dokumente entsprechen der aktuellen Suche oder den gewählten Filtern." : "Es wurden noch keine Dokumente angelegt. Klicken Sie auf „Neues Dokument“, um ein QM-Dokument zu erstellen."}
       />
     );
   }

@@ -56,8 +56,13 @@
   font-style: italic;
 }
 
-.pqm-document-toolbar__search input:disabled {
-  cursor: not-allowed;
+.pqm-document-toolbar__search input:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: 2px;
+}
+
+.pqm-document-toolbar__search input::-webkit-search-cancel-button {
+  cursor: pointer;
 }
 
 .pqm-document-toolbar__button {

@@ -4,9 +4,15 @@ import "./DocumentToolbar.css";
 
 interface DocumentToolbarProps {
   resultCount: number;
+  searchTerm: string;
+  onSearchTermChange: (value: string) => void;
 }
 
-export default function DocumentToolbar({ resultCount }: DocumentToolbarProps) {
+export default function DocumentToolbar({
+  resultCount,
+  searchTerm,
+  onSearchTermChange,
+}: DocumentToolbarProps) {
   const navigate = useNavigate();
 
   return (
@@ -18,16 +24,14 @@ export default function DocumentToolbar({ resultCount }: DocumentToolbarProps) {
         </p>
       </div>
       <div className="pqm-document-toolbar__actions">
-        <div
-          className="pqm-document-toolbar__search"
-          aria-label="Suchfeld – Platzhalter"
-        >
+        <div className="pqm-document-toolbar__search" aria-label="Dokumentsuche">
           <Search size={16} aria-hidden="true" />
           <input
-            type="text"
-            placeholder="Suche – Platzhalter"
-            disabled
-            aria-label="Dokumentsuche (Platzhalter)"
+            type="search"
+            value={searchTerm}
+            onChange={(event) => onSearchTermChange(event.target.value)}
+            placeholder="Dokumente durchsuchen"
+            aria-label="Dokumente durchsuchen"
           />
         </div>
         <button

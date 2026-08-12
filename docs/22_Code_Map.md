@@ -65,9 +65,9 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dashboard-Karte „Archiv“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Schnellzugriff Archiv (Platzhalter-Wert) | vorbereitet |
 | Dashboard-Karte „Systemstatus“ | Dashboard | `src/pages/Startseite.tsx` | `DashboardCard` | Anzeige lokaler Systeminformationen (Platzhalter-Wert) | vorbereitet |
 | Button „Neues Dokument” | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Navigiert zum Dokument-Erstellungsformular (`/dokumente/neu`) | aktiv |
-| Suchfeld Dokumente | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Filtert Dokumentenliste (Platzhalter, deaktiviert) | vorbereitet |
-| Filterbereich Dokumente | Dokumente | `src/components/documents/DocumentFilters.tsx` | `DocumentFilters` | Einklappbarer Filterbereich mit fünf dokumentierten Filtern (Platzhalter, nicht funktional); Standard: eingeklappt | vorbereitet |
-| Dokumentenliste | Dokumente | `src/components/documents/DocumentList.tsx` | `DocumentList` | Tabellarische Übersicht mit Mock-Platzhalter-Einträgen; sticky Tabellenkopf, optimierte Spaltengewichtung | vorbereitet |
+| Suchfeld Dokumente | Dokumente | `src/components/documents/DocumentToolbar.tsx` | `DocumentToolbar` | Durchsucht clientseitig Dokumentennummer, Titel und Beschreibung; äußere Leerzeichen und Groß-/Kleinschreibung werden ignoriert | aktiv |
+| Filterbereich Dokumente | Dokumente | `src/components/documents/DocumentFilters.tsx` | `DocumentFilters` | Einklappbarer Filterbereich für Kategorie, Unterkategorie, verantwortliche Person, Status und abgeleitete Gültigkeit | aktiv |
+| Dokumentenliste | Dokumente | `src/components/documents/DocumentList.tsx` | `DocumentList` | Tabellarische Übersicht der geladenen Dokumente mit Loading-State sowie getrennten Empty-States für leere Datenbank und erfolglose Suche/Filterung | aktiv |
 | Dokumentenzeile | Dokumente | `src/components/documents/DocumentRow.tsx` | `DocumentRow` | Eine Tabellenzeile mit allen dokumentierten Dokumentfeldern; Hover-State, Keyboard-Focus, Monospace für Nummer/Version; komplette Zeile navigiert zur Detailansicht (`/dokumente/{nummer}`) | aktiv |
 | Status-Badge | Dokumente | `src/components/documents/StatusBadge.tsx` | `StatusBadge` | Wiederverwendbare Badge für Status und Gültigkeit | aktiv |
 | Empty State | Dokumente | `src/components/documents/EmptyState.tsx` | `EmptyState` | Platzhalter für leeren Zustand der Dokumentenliste | aktiv |
@@ -109,7 +109,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | Dokument archivieren | `src-tauri/src/database.rs`, `src-tauri/src/main.rs` | Markiert Dokument als archiviert (status='archiviert', archived_at=now) | Dokumente / Archiv | aktiv |
 | Dokument wiederherstellen | `src-tauri/src/database.rs`, `src-tauri/src/main.rs` | Holt Dokument aus dem Archiv zurück (status='aktiv', archived_at=NULL) | Archiv | aktiv |
 | Archivierte Dokumente laden | `src-tauri/src/database.rs`, `src-tauri/src/main.rs` | Lädt alle Dokumente mit archived_at IS NOT NULL | Archiv | aktiv |
-| Dokument suchen | noch offen | Filtert Dokumente nach Suchbegriff | Dokumente | geplant |
+| Dokument suchen | `src/pages/Dokumente.tsx` | Filtert den geladenen nicht archivierten DB-001-Datensatz clientseitig nach Dokumentennummer, Titel, Beschreibung und den fünf Dokumentfiltern | Dokumente | aktiv |
 | Mitarbeiter speichern | noch offen | Speichert Mitarbeiterdaten lokal | Mitarbeiter | geplant |
 | Backup erstellen | noch offen | Erstellt lokale Sicherung | Einstellungen / Backup | geplant |
 | Backup wiederherstellen | noch offen | Importiert lokale Sicherung | Einstellungen / Backup | geplant |
@@ -197,6 +197,7 @@ Dieses Dokument muss bei neuen Modulen, Komponenten, Buttons, Dialogen, Services
 | 2026-08-11 | Code Map für Prompt 022/022A (Dokument-Gültigkeitsstatus: calculate_validity_status pure Helper mit 30-Tage-Schwellwert; today_local_date; Document-Struct um computed_validity erweitert; list_documents/query_document_row/list_archived_documents berechnen computed_validity zur Laufzeit; Dokumente.tsx verwendet computed_validity für Badge + Filter; DocumentFilters.tsx von Platzhalter zu funktionsfähigem Gültigkeits-Filter; DokumentDetail.tsx zeigt Gültigkeits-Badge im Header; 20 neue Rust-Tests) aktualisiert | Saskia / Bolt |
 | 2026-08-11 | Code Map für Prompt 023 (Review-Erinnerungen & echtes Dashboard: DashboardSummary/ReviewEntry Structs; dashboard_summary/review_list DB-Funktionen mit kanonischer Sortierung; cmd_dashboard_summary/cmd_review_list Tauri Commands; dashboardApi.ts; Startseite.tsx mit echten Daten + Review-Sektion; DashboardCard.tsx mit onClick-Navigation; ReviewList.tsx/css mit StatusBadge + Empty-State + Navigation zu Dokumentdetail; 20 neue Rust-Tests für Summary/Review/Sortierung/Archiv/Restore) aktualisiert | Saskia / Bolt |
 | 2026-08-11 | Code Map für Prompt 024 (Dokument-Lifecycle & Archiv-Wiederherstellung: ADR-029; pre_archive_status-Spalte DB-001; Schema-Migration v1→v2; archive_document sichert pre_archive_status; restore_document stellt exakten Pre-Archive-Status wieder her; Legacy-Dokumente mit NULL pre_archive_status geben kontrollierten Fehler; create_document/update_document/create_version weisen archiviert als Status zurück; is_valid_creation_status Helper; DocumentForm.tsx archiviert aus Status-Dropdown entfernt; SCHEMA_VERSION 1→2) aktualisiert | Saskia / Bolt |
+| 2026-08-12 | Code Map für Prompt 025 (006B Dokumentensuche: clientseitige Metadatensuche, fünf kombinierbare Dokumentfilter, abhängige Unterkategorien, Trefferzähler und getrennte Empty-States; keine PDF-Volltextsuche und keine 006C-Funktionen) aktualisiert | Saskia / Bolt |
 
 ---
 

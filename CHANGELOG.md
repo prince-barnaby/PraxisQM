@@ -2,6 +2,25 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.39] - 12.08.2026
+
+### Dokumentensuche und Dokumentfilter (Prompt 025 / SDD-006 / 006B)
+
+Die Dokumentenseite unterstützt jetzt eine sofortige clientseitige Suche und die fünf vorbereiteten Dokumentfilter. Die Suche arbeitet ausschließlich auf den geladenen, nicht archivierten DB-001-Metadaten.
+
+- Suche in Dokumentennummer, Titel und Beschreibung
+- Groß-/Kleinschreibung und äußere Leerzeichen werden ignoriert
+- Filter für Kategorie, Unterkategorie, verantwortliche Person, Status und abgeleitete Gültigkeit
+- Statusfilter enthält nur `Entwurf` und `aktiv`; `archiviert` bleibt dem Archiv vorbehalten
+- Gültigkeitsfilter verwendet ausschließlich das Backend-Feld `computed_validity`
+- Kategorieabhängige Unterkategorien und automatisches Entfernen inkompatibler Auswahl
+- UND-Verknüpfung aller aktiven Such- und Filterbedingungen
+- Zurücksetzen von Suche und allen Filtern
+- Trefferzähler und Empty-States unterscheiden sichtbare Treffer, leere Datenbank und erfolglose Suche
+- Keine PDF-Volltextsuche, Versionshistorien-, UUID-, Pfad- oder Tag-Suche
+
+006C Kategorien & Schlagwörter sowie DB-007/DB-008 bleiben unverändert zurückgestellt.
+
 ## [0.9.38] - 11.08.2026
 
 ### Dokument-Lifecycle und Archiv-Wiederherstellung (Prompt 024 / ADR-029)
