@@ -2943,6 +2943,7 @@ mod tests {
             description: None,
             source_file_path: source_path.to_string(),
             original_file_name: file_name.to_string(),
+            tag_ids: vec![],
         }
     }
 
@@ -3096,6 +3097,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
 
         let result = create_document(&conn, &bad_input, &managed);
@@ -3124,6 +3126,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let result = create_document(&conn, &input, &managed);
         assert!(result.is_err());
@@ -3153,6 +3156,7 @@ mod tests {
             description: Some("Beschreibung".to_string()),
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "hygieneplan.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         let created = create_document(&conn, &input, &managed).unwrap();
@@ -3217,6 +3221,7 @@ mod tests {
             description: Some("Ursprüngliche Beschreibung".to_string()),
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "test-uuid").unwrap();
         create_document(conn, &input, &managed).unwrap()
@@ -3244,6 +3249,7 @@ mod tests {
             validity: validity.to_string(),
             valid_until: valid_until.map(|s| s.to_string()),
             description: description.map(|s| s.to_string()),
+            tag_ids: vec![],
         }
     }
 
@@ -4423,6 +4429,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         create_document(&conn, &input, &managed).unwrap();
@@ -4454,6 +4461,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         create_document(&conn, &input, &managed).unwrap();
@@ -4485,6 +4493,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         create_document(&conn, &input, &managed).unwrap();
@@ -4518,6 +4527,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         create_document(&conn, &input, &managed).unwrap();
@@ -4552,6 +4562,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         create_document(&conn, &input, &managed).unwrap();
@@ -4596,6 +4607,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         let doc = create_document(&conn, &input, &managed).unwrap();
@@ -4634,6 +4646,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         let doc = create_document(&conn, &input, &managed).unwrap();
@@ -4651,6 +4664,7 @@ mod tests {
             validity: "gültig".to_string(),
             valid_until: Some("2000-01-01".to_string()),
             description: None,
+            tag_ids: vec![],
         };
         let updated = update_document(&conn, &doc.id, &update).unwrap();
 
@@ -4680,6 +4694,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         let doc = create_document(&conn, &input, &managed).unwrap();
@@ -4750,6 +4765,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
         create_document(conn, &input, &managed).unwrap()
@@ -5118,6 +5134,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "test-uuid").unwrap();
         create_document(conn, &input, &managed).unwrap()
@@ -5170,6 +5187,7 @@ mod tests {
             description: None,
             source_file_path: pdf.to_str().unwrap().to_string(),
             original_file_name: "test.pdf".to_string(),
+            tag_ids: vec![],
         };
         let managed = copy_to_managed_storage(&pdf, storage.path(), "test-uuid").unwrap();
         let result = create_document(&conn, &input, &managed);
@@ -6050,7 +6068,7 @@ mod tests {
         let kw1 = create_keyword(&conn, "First").unwrap();
         let kw2 = create_keyword(&conn, "Second").unwrap();
         sync_document_tags(&conn, &doc.id, &[kw1.id.clone()]).unwrap();
-        let tags = sync_document_tags(&conn, &doc.id, &[kw1.id, kw2.id]).unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[kw1.id.clone(), kw2.id.clone()]).unwrap();
         assert_eq!(tags.len(), 2);
     }
 
@@ -6061,8 +6079,8 @@ mod tests {
         let doc = make_doc_with_status(&conn, &storage, "aktiv");
         let kw1 = create_keyword(&conn, "Keep").unwrap();
         let kw2 = create_keyword(&conn, "Remove").unwrap();
-        sync_document_tags(&conn, &doc.id, &[kw1.id, kw2.id]).unwrap();
-        let tags = sync_document_tags(&conn, &doc.id, &[kw1.id]).unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw1.id.clone(), kw2.id.clone()]).unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[kw1.id.clone()]).unwrap();
         assert_eq!(tags.len(), 1);
         assert_eq!(tags[0], "Keep");
     }
@@ -6100,9 +6118,9 @@ mod tests {
         let doc = make_doc_with_status(&conn, &storage, "aktiv");
         let kw1 = create_keyword(&conn, "Before").unwrap();
         let kw2 = create_keyword(&conn, "After").unwrap();
-        sync_document_tags(&conn, &doc.id, &[kw1.id]).unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw1.id.clone()]).unwrap();
         archive_document(&mut conn, &doc.id).unwrap();
-        let result = sync_document_tags(&conn, &doc.id, &[kw2.id]);
+        let result = sync_document_tags(&conn, &doc.id, &[kw2.id.clone()]);
         assert!(result.is_err());
     }
 
@@ -6165,9 +6183,9 @@ mod tests {
         let kw1 = create_keyword(&conn, "A").unwrap();
         let kw2 = create_keyword(&conn, "B").unwrap();
         let kw3 = create_keyword(&conn, "C").unwrap();
-        sync_document_tags(&conn, &doc1.id, &[kw1.id, kw2.id]).unwrap();
-        sync_document_tags(&conn, &doc2.id, &[kw3.id]).unwrap();
-        let map = batch_document_tag_names(&conn, &[doc1.id, doc2.id]).unwrap();
+        sync_document_tags(&conn, &doc1.id, &[kw1.id.clone(), kw2.id.clone()]).unwrap();
+        sync_document_tags(&conn, &doc2.id, &[kw3.id.clone()]).unwrap();
+        let map = batch_document_tag_names(&conn, &[doc1.id.clone(), doc2.id.clone()]).unwrap();
         assert_eq!(map.get(&doc1.id).unwrap().len(), 2);
         assert_eq!(map.get(&doc2.id).unwrap().len(), 1);
     }
@@ -6187,8 +6205,8 @@ mod tests {
         let doc2 = make_doc_with_status(&conn, &storage, "aktiv");
         let kw1 = create_keyword(&conn, "X").unwrap();
         let kw2 = create_keyword(&conn, "Y").unwrap();
-        sync_document_tags(&conn, &doc1.id, &[kw1.id]).unwrap();
-        sync_document_tags(&conn, &doc2.id, &[kw2.id]).unwrap();
+        sync_document_tags(&conn, &doc1.id, &[kw1.id.clone()]).unwrap();
+        sync_document_tags(&conn, &doc2.id, &[kw2.id.clone()]).unwrap();
         let tags1 = list_document_tags(&conn, &doc1.id).unwrap();
         let tags2 = list_document_tags(&conn, &doc2.id).unwrap();
         assert_eq!(tags1, vec!["X"]);

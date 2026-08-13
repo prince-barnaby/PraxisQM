@@ -257,24 +257,24 @@ fn cmd_create_document(
 
     let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    match database::create_document(&tx, &input, &managed_file) {
-        Ok(doc) => {
-            if !input.tag_ids.is_empty() {
-                database::sync_document_tags(&tx, &doc.id, &input.tag_ids)
-                    .map_err(|e| {
-                        let _ = tx.rollback();
-                        database::remove_managed_file(&storage_dir, &managed_file);
-                        e.to_string()
-                    })?;
-            }
-            tx.commit().map_err(|e| {
-                database::remove_managed_file(&storage_dir, &managed_file);
-                e.to_string()
-            })?;
-            Ok(doc)
-        }
+    let doc = match database::create_document(&tx, &input, &managed_file) {
+        Ok(doc) => doc,
         Err(e) => {
             let _ = tx.rollback();
+            database::remove_managed_file(&storage_dir, &managed_file);
+            return Err(e.to_string());
+        }
+    };
+    if !input.tag_ids.is_empty() {
+        if let Err(e) = database::sync_document_tags(&tx, &doc.id, &input.tag_ids) {
+            let _ = tx.rollback();
+            database::remove_managed_file(&storage_dir, &managed_file);
+            return Err(e.to_string());
+        }
+    }
+    match tx.commit() {
+        Ok(()) => Ok(doc),
+        Err(e) => {
             database::remove_managed_file(&storage_dir, &managed_file);
             Err(e.to_string())
         }
@@ -291,23 +291,24 @@ fn cmd_update_document(
 ) -> Result<Document, String> {
     let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    match database::update_document(&tx, &id, &input) {
-        Ok(doc) => {
-            database::sync_document_tags(&tx, &id, &input.tag_ids).map_err(|e| {
-                let _ = tx.rollback();
-                e.to_string()
-            })?;
-            tx.commit().map_err(|e| e.to_string())?;
-            Ok(doc)
-        }
+    let doc = match database::update_document(&tx, &id, &input) {
+        Ok(doc) => doc,
         Err(rusqlite::Error::QueryReturnedNoRows) => {
             let _ = tx.rollback();
-            Err("Dokument nicht gefunden.".to_string())
+            return Err("Dokument nicht gefunden.".to_string());
         }
         Err(e) => {
             let _ = tx.rollback();
-            Err(e.to_string())
+            return Err(e.to_string());
         }
+    };
+    if let Err(e) = database::sync_document_tags(&tx, &id, &input.tag_ids) {
+        let _ = tx.rollback();
+        return Err(e.to_string());
+    }
+    match tx.commit() {
+        Ok(()) => Ok(doc),
+        Err(e) => Err(e.to_string()),
     }
 }
 
