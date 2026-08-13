@@ -67,6 +67,9 @@ fn main() {
             cmd_rename_category,
             cmd_create_subcategory,
             cmd_rename_subcategory,
+            cmd_list_keywords,
+            cmd_create_keyword,
+            cmd_rename_keyword,
             cmd_select_pdf,
             cmd_dashboard_summary,
             cmd_review_list,
@@ -412,6 +415,45 @@ fn cmd_rename_subcategory(
         Ok(item) => Ok(item),
         Err(rusqlite::Error::QueryReturnedNoRows) => {
             Err("Unterkategorie nicht gefunden.".to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+fn cmd_list_keywords(state: State<DbState>) -> Result<Vec<MasterDataItem>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::list_keywords(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cmd_create_keyword(
+    state: State<DbState>,
+    name: String,
+) -> Result<MasterDataItem, String> {
+    let trimmed = name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("Schlagwort darf nicht leer sein.".to_string());
+    }
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::create_keyword(&conn, &trimmed).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cmd_rename_keyword(
+    state: State<DbState>,
+    id: String,
+    new_name: String,
+) -> Result<MasterDataItem, String> {
+    let trimmed = new_name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("Schlagwort darf nicht leer sein.".to_string());
+    }
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::rename_keyword(&conn, &id, &trimmed) {
+        Ok(item) => Ok(item),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            Err("Schlagwort nicht gefunden.".to_string())
         }
         Err(e) => Err(e.to_string()),
     }

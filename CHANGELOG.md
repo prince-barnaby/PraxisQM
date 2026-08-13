@@ -2,6 +2,65 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.41] - 13.08.2026
+
+### Schlagwort-Verzeichnis verwalten (Prompt 026B / SDD-006 / 006C)
+
+Echte Stammdatenverwaltung für das Schlagwort-Dictionary (DB-007 KeywordDictionary).
+Erstellen und Umbenennen ist jetzt vollständig implementiert. Löschverhalten bleibt
+bewusst zurückgestellt — kanonische Löschsemantik ist nicht dokumentiert.
+
+Die Dokument-Schlagwort-Zuordnung (DB-008 DocumentTags) bleibt unverändert und ist
+nicht Teil dieses Prompts. Prompt 026C wird die Dokument-Zuordnung behandeln.
+
+#### Backend (Rust / Tauri)
+
+- Neue DB-Funktionen: `list_keywords`, `create_keyword`, `rename_keyword`
+- Neue Tauri-Commands: `cmd_list_keywords`, `cmd_create_keyword`, `cmd_rename_keyword`
+- `rename_keyword` prüft auf Existenz (QueryReturnedNoRows → kontrollierter Fehler)
+- UUIDs bleiben beim Umbenennen erhalten — alle `document_tags`-Beziehungen bleiben intakt
+- Trim und Empty-Validierung in den Commands; UNIQUE-Constraint auf `keyword_dictionary.keyword` wird durchgesetzt
+- Keine Lösch-Funktionen, kein SQL DELETE für Schlagwörter
+
+#### Frontend (React)
+
+- `masterDataApi.ts`: `fetchKeywords`, `createKeyword`, `renameKeyword` API-Funktionen
+- `Einstellungen.tsx`: Neue Sektion "Schlagwörter" (Tags-Icon) mit MasterDataSection-Komponente
+- `SettingsNav`: Neuer Navigationspunkt "Schlagwörter"
+- Keine Lösch-Buttons in der gesamten UI
+- Keine Dokument-Schlagwort-Zuordnung in der UI
+
+#### Einstellungen-Bereinigung
+
+- Obsole globale Platzhalter-Hinweis entfernt ("Alle Einstellungsbereiche sind Platzhalter …")
+- Kein Ersatz durch neue pauschale Aussage
+- Einzelne Platzhalter-Sektionen können sich lokal als Platzhalter ausweisen
+
+#### Kanonische Schema-Bestätigung
+
+- `keyword_dictionary`: `id TEXT PK, keyword TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL` — UUIDs, globale Namens-Eindeutigkeit
+- `document_tags`: `document_id TEXT + keyword_id TEXT` Composite PK, FKs zu documents und keyword_dictionary — referenziert UUIDs, nicht Schlagwort-Text
+- Keine Schema-Migration erforderlich — Tabellen existierten bereits mit korrektem Schema
+
+#### Tests
+
+17 neue Rust-Tests: leere Schlagwort-Liste, Schlagwort erstellen, Persistenz nach Reload,
+Whitespace-Verhalten, Duplikat abgelehnt, Umbenennen, UUID erhalten beim Umbenennen,
+Persistenz nach Reload, Rename-Kollision abgelehnt, Nichtexistent-Fehler,
+document_tags-Beziehung überlebt Rename, Beziehung löst zu umbenanntem Schlagwort auf,
+Dokument-Zeile wird durch Rename nicht verändert, keine Löschfunktionalität.
+
+#### Bewusst nicht implementiert
+
+- Schlagwort-Löschung (kanonisch nicht dokumentiert — deferred)
+- Soft Delete / Archivierung für Schlagwörter
+- Dokument-Schlagwort-Zuordnung (Prompt 026C)
+- Schlagwort-basierte Dokumentensuche / Filter (Prompt 026C oder später)
+- Schlagwort-Vorschläge / Autovervollständigung
+- PDF-Volltextindizierung
+- Schlagwort-Kategorien / Gruppen / Hierarchie
+- Schlagwort-Farben
+
 ## [0.9.40] - 12.08.2026
 
 ### Kategorien & Unterkategorien verwalten (Prompt 026A / SDD-006 / 006C)

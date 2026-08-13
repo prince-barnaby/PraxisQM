@@ -28,3 +28,15 @@ export async function createQmArea(name: string): Promise<MasterDataItem> {
 export async function renameQmArea(id: string, newName: string): Promise<MasterDataItem> {
   return invoke<MasterDataItem>("cmd_rename_qm_area", { id, newName });
 }
+
+export async function fetchKeywords(): Promise<MasterDataItem[]> {
+  return invoke<MasterDataItem[]>("cmd_list_keywords");
+}
+
+export async function createKeyword(name: string): Promise<MasterDataItem> {
+  return invoke<MasterDataItem>("cmd_create_keyword", { name });
+}
+
+export async function renameKeyword(id: string, newName: string): Promise<MasterDataItem> {
+  return invoke<MasterDataItem>("cmd_rename_keyword", { id, newName });
+}

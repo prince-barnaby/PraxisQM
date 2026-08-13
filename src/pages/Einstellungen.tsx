@@ -4,6 +4,7 @@ import {
   Hash,
   FolderTree,
   Users,
+  Tags,
   UserCog,
   DatabaseBackup,
   Info,
@@ -20,6 +21,9 @@ import {
   fetchQmAreas,
   createQmArea,
   renameQmArea,
+  fetchKeywords,
+  createKeyword,
+  renameKeyword,
 } from "../lib/masterDataApi";
 import {
   fetchCategories,
@@ -37,6 +41,7 @@ const SETTINGS_SECTIONS: SettingsNavItem[] = [
   { id: "dokumentennummerierung", label: "Dokumentennummerierung", icon: Hash },
   { id: "kategorien", label: "Kategorien & Unterkategorien", icon: FolderTree },
   { id: "mitarbeiterdaten", label: "Mitarbeiterdaten", icon: Users },
+  { id: "schlagwoerter", label: "Schlagwörter", icon: Tags },
   { id: "benutzerverwaltung", label: "Benutzerverwaltung", icon: UserCog },
   { id: "backup", label: "Backup", icon: DatabaseBackup },
   { id: "systeminformationen", label: "Systeminformationen", icon: Info },
@@ -189,6 +194,26 @@ export default function Einstellungen() {
             </SettingsSection>
           )}
 
+          {activeSection === "schlagwoerter" && (
+            <SettingsSection
+              title="Schlagwörter"
+              description="Zentral verwaltbare Schlagwörter, die später Dokumenten zugewiesen werden können."
+            >
+              <MasterDataSection
+                title="Schlagwort-Verzeichnis"
+                description="Zentral verwaltbare Schlagwörter für die Dokumentenverschlagwortung."
+                inputLabel="Schlagwort"
+                addButtonLabel="Schlagwort hinzufügen"
+                emptyMessage="Noch keine Schlagwörter angelegt."
+                loadingMessage="Schlagwörter werden geladen …"
+                duplicateHint="Dieses Schlagwort existiert bereits."
+                fetchItems={fetchKeywords}
+                createItem={createKeyword}
+                renameItem={renameKeyword}
+              />
+            </SettingsSection>
+          )}
+
           {activeSection === "benutzerverwaltung" && (
             <SettingsSection
               title="Benutzerverwaltung"
@@ -244,10 +269,6 @@ export default function Einstellungen() {
         </div>
       </div>
 
-      <p className="pqm-einstellungen__hint">
-        Hinweis: Alle Einstellungsbereiche sind Platzhalter. Es werden keine
-        Konfigurationen gespeichert oder angewendet.
-      </p>
     </div>
   );
 }
