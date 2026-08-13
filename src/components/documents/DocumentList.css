@@ -119,3 +119,34 @@
   font-family: monospace;
   font-size: 0.8rem;
 }
+
+.pqm-document-row__tags {
+  max-width: 200px;
+}
+
+.pqm-document-row__tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pqm-document-row__tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--pqm-color-accent);
+  background-color: color-mix(in srgb, var(--pqm-color-accent) 12%, transparent);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pqm-document-row__tag-more {
+  font-size: 0.75rem;
+  color: var(--pqm-color-neutral);
+  white-space: nowrap;
+}
+
+.pqm-document-row__tags-empty {
+  color: var(--pqm-color-neutral);
+}

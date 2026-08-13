@@ -70,6 +70,9 @@ fn main() {
             cmd_list_keywords,
             cmd_create_keyword,
             cmd_rename_keyword,
+            cmd_list_document_tags,
+            cmd_sync_document_tags,
+            cmd_batch_document_tags,
             cmd_select_pdf,
             cmd_dashboard_summary,
             cmd_review_list,
@@ -252,10 +255,26 @@ fn cmd_create_document(
 
     let managed_file = database::copy_to_managed_storage(source, &storage_dir, &doc_id)?;
 
-    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    match database::create_document(&conn, &input, &managed_file) {
-        Ok(doc) => Ok(doc),
+    let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    match database::create_document(&tx, &input, &managed_file) {
+        Ok(doc) => {
+            if !input.tag_ids.is_empty() {
+                database::sync_document_tags(&tx, &doc.id, &input.tag_ids)
+                    .map_err(|e| {
+                        let _ = tx.rollback();
+                        database::remove_managed_file(&storage_dir, &managed_file);
+                        e.to_string()
+                    })?;
+            }
+            tx.commit().map_err(|e| {
+                database::remove_managed_file(&storage_dir, &managed_file);
+                e.to_string()
+            })?;
+            Ok(doc)
+        }
         Err(e) => {
+            let _ = tx.rollback();
             database::remove_managed_file(&storage_dir, &managed_file);
             Err(e.to_string())
         }
@@ -274,6 +293,10 @@ fn cmd_update_document(
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     match database::update_document(&tx, &id, &input) {
         Ok(doc) => {
+            database::sync_document_tags(&tx, &id, &input.tag_ids).map_err(|e| {
+                let _ = tx.rollback();
+                e.to_string()
+            })?;
             tx.commit().map_err(|e| e.to_string())?;
             Ok(doc)
         }
@@ -457,6 +480,58 @@ fn cmd_rename_keyword(
         }
         Err(e) => Err(e.to_string()),
     }
+}
+
+#[tauri::command]
+fn cmd_list_document_tags(
+    state: State<DbState>,
+    document_id: String,
+) -> Result<Vec<String>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::list_document_tags(&conn, &document_id) {
+        Ok(tags) => Ok(tags),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            Err("Dokument nicht gefunden.".to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+fn cmd_sync_document_tags(
+    state: State<DbState>,
+    document_id: String,
+    tag_ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    match database::sync_document_tags(&tx, &document_id, &tag_ids) {
+        Ok(tags) => {
+            tx.commit().map_err(|e| e.to_string())?;
+            Ok(tags)
+        }
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            let _ = tx.rollback();
+            Err("Dokument nicht gefunden.".to_string())
+        }
+        Err(rusqlite::Error::SqliteFailure(_, msg)) => {
+            let _ = tx.rollback();
+            Err(msg.unwrap_or_else(|| "Schlagwort-Zuordnung fehlgeschlagen.".to_string()))
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+fn cmd_batch_document_tags(
+    state: State<DbState>,
+    document_ids: Vec<String>,
+) -> Result<std::collections::HashMap<String, Vec<String>>, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::batch_document_tag_names(&conn, &document_ids).map_err(|e| e.to_string())
 }
 
 /// Lädt die Dashboard-Zusammenfassung (Zähler für aktive/archivierte Dokumente, Mitarbeiter).

@@ -41,6 +41,7 @@ export default function DocumentList({ documents, loading = false, filteredEmpty
             <th scope="col">Status</th>
             <th scope="col">Verantwortlich</th>
             <th scope="col">Gültigkeit</th>
+            <th scope="col">Schlagwörter</th>
             <th scope="col">Version</th>
           </tr>
         </thead>

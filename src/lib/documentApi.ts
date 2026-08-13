@@ -35,6 +35,7 @@ export interface CreateDocumentInput {
   description: string | null;
   source_file_path: string;
   original_file_name: string;
+  tag_ids?: string[];
 }
 
 export interface UpdateDocumentInput {
@@ -47,6 +48,7 @@ export interface UpdateDocumentInput {
   validity: string;
   valid_until: string | null;
   description: string | null;
+  tag_ids?: string[];
 }
 
 export interface DocumentVersion {
@@ -149,4 +151,18 @@ export async function restoreDocument(id: string): Promise<Document> {
 
 export async function fetchArchivedDocuments(): Promise<Document[]> {
   return invoke<Document[]>("cmd_list_archived_documents");
+}
+
+export async function fetchDocumentTags(documentId: string): Promise<string[]> {
+  return invoke<string[]>("cmd_list_document_tags", { documentId });
+}
+
+export async function syncDocumentTags(documentId: string, tagIds: string[]): Promise<string[]> {
+  return invoke<string[]>("cmd_sync_document_tags", { documentId, tagIds });
+}
+
+export async function batchDocumentTags(
+  documentIds: string[],
+): Promise<Record<string, string[]>> {
+  return invoke<Record<string, string[]>>("cmd_batch_document_tags", { documentIds });
 }

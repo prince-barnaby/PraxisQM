@@ -32,3 +32,8 @@
   border-radius: 999px;
   white-space: nowrap;
 }
+
+.pqm-tag-list__empty {
+  color: var(--pqm-color-neutral);
+  font-size: 0.9rem;
+}

@@ -12,9 +12,11 @@ import {
   listVersions,
   archiveDocument,
   restoreDocument,
+  fetchDocumentTags,
   type Document,
   type DocumentVersion,
 } from "../lib/documentApi";
+import TagList from "../components/documents/TagList";
 import "./DokumentDetail.css";
 
 function statusToVariant(status: string): "success" | "neutral" {
@@ -42,6 +44,7 @@ export default function DokumentDetail() {
 
   const [doc, setDoc] = useState<Document | null>(null);
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -53,8 +56,9 @@ export default function DokumentDetail() {
     try {
       const d = await fetchDocumentByNumber(documentNumber);
       setDoc(d);
-      const v = await listVersions(d.id);
+      const [v, t] = await Promise.all([listVersions(d.id), fetchDocumentTags(d.id)]);
       setVersions(v);
+      setTags(t);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -179,6 +183,8 @@ export default function DokumentDetail() {
       </header>
 
       <DocumentMetadata entries={metadata} />
+
+      <TagList tags={tags} />
 
       <section
         className="pqm-dokument-detail__card"

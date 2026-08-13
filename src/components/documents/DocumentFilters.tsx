@@ -1,6 +1,16 @@
 import { ChevronDown, Filter, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import type { DocumentFilterValues, ValidityFilterValue } from "../../pages/Dokumente";
+
+const NO_DOCUMENT_FILTERS: DocumentFilterValues = {
+  categoryId: "",
+  subcategoryId: "",
+  responsiblePersonId: "",
+  status: "all",
+  validity: "all",
+  keywordId: "",
+};
+
 import "./DocumentFilters.css";
 
 interface Option {
@@ -14,6 +24,7 @@ interface DocumentFiltersProps {
   categories: Option[];
   subcategories: Option[];
   responsiblePeople: Option[];
+  keywords: Option[];
 }
 
 const VALIDITY_OPTIONS: { value: ValidityFilterValue; label: string }[] = [
@@ -30,6 +41,7 @@ export default function DocumentFilters({
   categories,
   subcategories,
   responsiblePeople,
+  keywords,
 }: DocumentFiltersProps) {
   const [open, setOpen] = useState(false);
   const hasActiveFilters =
@@ -37,7 +49,8 @@ export default function DocumentFilters({
     values.subcategoryId !== "" ||
     values.responsiblePersonId !== "" ||
     values.status !== "all" ||
-    values.validity !== "all";
+    values.validity !== "all" ||
+    values.keywordId !== "";
 
   return (
     <div className="pqm-document-filters">
@@ -61,7 +74,7 @@ export default function DocumentFilters({
           <button
             type="button"
             className="pqm-document-filters__reset"
-            onClick={() => onChange({ categoryId: "", subcategoryId: "", responsiblePersonId: "", status: "all", validity: "all" })}
+            onClick={() => onChange({ ...NO_DOCUMENT_FILTERS })}
             aria-label="Dokumentfilter zurücksetzen"
           >
             <RotateCcw size={12} aria-hidden="true" />
@@ -104,6 +117,13 @@ export default function DocumentFilters({
             <label className="pqm-document-filters__field-label" htmlFor="pqm-filter-validity">Gültigkeit</label>
             <select id="pqm-filter-validity" value={values.validity} onChange={(event) => onChange({ ...values, validity: event.target.value as ValidityFilterValue })}>
               {VALIDITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          <div className="pqm-document-filters__field">
+            <label className="pqm-document-filters__field-label" htmlFor="pqm-filter-keyword">Schlagwort</label>
+            <select id="pqm-filter-keyword" value={values.keywordId} onChange={(event) => onChange({ ...values, keywordId: event.target.value })}>
+              <option value="">Alle</option>
+              {keywords.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </div>
         </div>

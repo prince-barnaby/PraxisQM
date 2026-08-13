@@ -8,11 +8,13 @@ import {
   fetchCategories,
   fetchDocuments,
   fetchSubcategories,
+  batchDocumentTags,
   type CategoryItem,
   type Document,
   type SubcategoryItem,
 } from "../lib/documentApi";
 import { fetchEmployees, type Employee } from "../lib/employeeApi";
+import { fetchKeywords, type MasterDataItem } from "../lib/masterDataApi";
 import "./Dokumente.css";
 
 export type ValidityFilterValue = "all" | "gültig" | "läuft bald ab" | "abgelaufen" | "none";
@@ -24,6 +26,7 @@ export interface DocumentFilterValues {
   responsiblePersonId: string;
   status: StatusFilterValue;
   validity: ValidityFilterValue;
+  keywordId: string;
 }
 
 const NO_DOCUMENT_FILTERS: DocumentFilterValues = {
@@ -32,6 +35,7 @@ const NO_DOCUMENT_FILTERS: DocumentFilterValues = {
   responsiblePersonId: "",
   status: "all",
   validity: "all",
+  keywordId: "",
 };
 
 function validityToVariant(validity: string | null): BadgeVariant {
@@ -46,7 +50,12 @@ function statusToVariant(status: string): BadgeVariant {
   return status === "aktiv" ? "success" : "neutral";
 }
 
-function toRowData(doc: Document): DocumentRowData {
+export interface DocumentWithTags extends Document {
+  tags: string[];
+  tagIds: string[];
+}
+
+function toRowData(doc: DocumentWithTags): DocumentRowData {
   return {
     id: doc.id,
     documentNumber: doc.document_number,
@@ -59,17 +68,18 @@ function toRowData(doc: Document): DocumentRowData {
     validity: doc.computed_validity ?? "—",
     validityVariant: validityToVariant(doc.computed_validity),
     version: doc.version,
+    tags: doc.tags,
   };
 }
 
 function matchesDocument(
-  document: Document,
+  document: DocumentWithTags,
   searchTerm: string,
   filters: DocumentFilterValues,
 ): boolean {
   const normalizedSearch = searchTerm.trim().toLocaleLowerCase();
   if (normalizedSearch) {
-    const searchableText = [document.document_number, document.title, document.description ?? ""]
+    const searchableText = [document.document_number, document.title, document.description ?? "", ...document.tags]
       .join(" ")
       .toLocaleLowerCase();
     if (!searchableText.includes(normalizedSearch)) return false;
@@ -80,14 +90,16 @@ function matchesDocument(
   if (filters.status !== "all" && document.status !== filters.status) return false;
   if (filters.validity === "none" && document.computed_validity !== null) return false;
   if (filters.validity !== "all" && filters.validity !== "none" && document.computed_validity !== filters.validity) return false;
+  if (filters.keywordId && !document.tagIds.includes(filters.keywordId)) return false;
   return true;
 }
 
 export default function Dokumente() {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<DocumentWithTags[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryItem[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [keywords, setKeywords] = useState<MasterDataItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState<DocumentFilterValues>(NO_DOCUMENT_FILTERS);
   const [loading, setLoading] = useState(true);
@@ -97,16 +109,25 @@ export default function Dokumente() {
     setLoading(true);
     setError(null);
     try {
-      const [documentData, categoryData, subcategoryData, employeeData] = await Promise.all([
+      const [documentData, categoryData, subcategoryData, employeeData, keywordData] = await Promise.all([
         fetchDocuments(),
         fetchCategories(),
         fetchSubcategories(),
         fetchEmployees(),
+        fetchKeywords(),
       ]);
-      setDocuments(documentData);
+      const docIds = documentData.map((d) => d.id);
+      const tagMap = await batchDocumentTags(docIds);
+      const docsWithTags: DocumentWithTags[] = documentData.map((d) => ({
+        ...d,
+        tags: tagMap[d.id] ?? [],
+        tagIds: tagMap[d.id] ?? [],
+      }));
+      setDocuments(docsWithTags);
       setCategories(categoryData);
       setSubcategories(subcategoryData);
       setEmployees(employeeData);
+      setKeywords(keywordData);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -128,7 +149,7 @@ export default function Dokumente() {
     [documents, filters, searchTerm],
   );
 
-  const hasActiveRestrictions = searchTerm.trim() !== "" || filters.categoryId !== "" || filters.subcategoryId !== "" || filters.responsiblePersonId !== "" || filters.status !== "all" || filters.validity !== "all";
+  const hasActiveRestrictions = searchTerm.trim() !== "" || filters.categoryId !== "" || filters.subcategoryId !== "" || filters.responsiblePersonId !== "" || filters.status !== "all" || filters.validity !== "all" || filters.keywordId !== "";
   const handleFilterChange = (nextFilters: DocumentFilterValues) => {
     const selectedSubcategory = subcategories.find((subcategory) => subcategory.id === nextFilters.subcategoryId);
     setFilters({
@@ -150,6 +171,7 @@ export default function Dokumente() {
         categories={categories.map((category) => ({ value: category.id, label: category.name }))}
         subcategories={filteredSubcategories.map((subcategory) => ({ value: subcategory.id, label: subcategory.name }))}
         responsiblePeople={employees.map((employee) => ({ value: employee.id, label: `${employee.first_name} ${employee.last_name}` }))}
+        keywords={keywords.map((keyword) => ({ value: keyword.id, label: keyword.name }))}
       />
       {hasActiveRestrictions && (
         <button type="button" className="pqm-dokumente__reset" onClick={resetSearchAndFilters}>

@@ -13,11 +13,15 @@ export default function TagList({ tags }: TagListProps) {
         Schlagwörter
       </h3>
       <div className="pqm-tag-list__tags">
-        {tags.map((tag) => (
-          <span key={tag} className="pqm-tag-list__tag">
-            {tag}
-          </span>
-        ))}
+        {tags.length === 0 ? (
+          <span className="pqm-tag-list__empty">—</span>
+        ) : (
+          tags.map((tag) => (
+            <span key={tag} className="pqm-tag-list__tag">
+              {tag}
+            </span>
+          ))
+        )}
       </div>
     </section>
   );

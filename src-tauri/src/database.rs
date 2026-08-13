@@ -862,6 +862,145 @@ pub fn rename_keyword(conn: &Connection, id: &str, new_keyword: &str) -> SqliteR
     Ok(MasterDataItem { id: id.to_string(), name: new_keyword.to_string() })
 }
 
+/// --- Dokument-Schlagwort-Zuordnung (DB-008) -----------------------------
+
+/// Lädt die Schlagwörter (Namen) für ein einzelnes Dokument.
+pub fn list_document_tags(conn: &Connection, document_id: &str) -> SqliteResult<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT kd.keyword FROM document_tags dt
+         JOIN keyword_dictionary kd ON kd.id = dt.keyword_id
+         WHERE dt.document_id = ?1
+         ORDER BY kd.keyword;",
+    )?;
+    let tags = stmt
+        .query_map(rusqlite::params![document_id], |row| row.get(0))?
+        .collect::<SqliteResult<Vec<String>>>()?;
+    Ok(tags)
+}
+
+/// Lädt die Schlagwort-IDs für ein einzelnes Dokument.
+pub fn list_document_tag_ids(conn: &Connection, document_id: &str) -> SqliteResult<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT dt.keyword_id FROM document_tags dt
+         WHERE dt.document_id = ?1;",
+    )?;
+    let ids = stmt
+        .query_map(rusqlite::params![document_id], |row| row.get(0))?
+        .collect::<SqliteResult<Vec<String>>>()?;
+    Ok(ids)
+}
+
+/// Lädt eine Map von document_id → Schlagwort-Namen für alle angegebenen Dokument-IDs.
+/// Vermeidet N+1-Abfragen beim Laden der Dokumentenliste.
+pub fn batch_document_tag_names(
+    conn: &Connection,
+    document_ids: &[String],
+) -> SqliteResult<std::collections::HashMap<String, Vec<String>>> {
+    let mut map: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    if document_ids.is_empty() {
+        return Ok(map);
+    }
+    let placeholders = document_ids
+        .iter()
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT dt.document_id, kd.keyword FROM document_tags dt
+         JOIN keyword_dictionary kd ON kd.id = dt.keyword_id
+         WHERE dt.document_id IN ({})
+         ORDER BY dt.document_id, kd.keyword;",
+        placeholders
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let params: Vec<&dyn rusqlite::ToSql> = document_ids
+        .iter()
+        .map(|id| id as &dyn rusqlite::ToSql)
+        .collect();
+    let rows = stmt.query_map(params.as_slice(), |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    for row in rows {
+        let (doc_id, keyword) = row?;
+        map.entry(doc_id).or_default().push(keyword);
+    }
+    Ok(map)
+}
+
+/// Synchronisiert die Schlagwort-Zuordnungen eines Dokuments atomar.
+/// Fügt fehlende Zuordnungen hinzu, entfernt nicht mehr gewählte.
+/// Validiert, dass das Dokument existiert und nicht archiviert ist.
+/// Validiert, dass alle Schlagwort-IDs im Dictionary existieren.
+pub fn sync_document_tags(
+    conn: &Connection,
+    document_id: &str,
+    desired_tag_ids: &[String],
+) -> SqliteResult<Vec<String>> {
+    let exists: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM documents WHERE id = ?1;",
+        rusqlite::params![document_id],
+        |row| row.get(0),
+    )?;
+    if exists == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+
+    let archived: Option<String> = conn.query_row(
+        "SELECT archived_at FROM documents WHERE id = ?1;",
+        rusqlite::params![document_id],
+        |row| row.get(0),
+    )?;
+    if archived.is_some() {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some("Archivierte Dokumente können nicht mit Schlagwörtern versehen werden.".to_string()),
+        ));
+    }
+
+    // Validiere alle Schlagwort-IDs
+    for tag_id in desired_tag_ids {
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM keyword_dictionary WHERE id = ?1;",
+            rusqlite::params![tag_id],
+            |row| row.get(0),
+        )?;
+        if count == 0 {
+            return Err(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+                Some("Schlagwort nicht gefunden.".to_string()),
+            ));
+        }
+    }
+
+    // Aktuelle Zuordnungen laden
+    let current_ids = list_document_tag_ids(conn, document_id)?;
+    let current_set: std::collections::HashSet<&String> = current_ids.iter().collect();
+    let desired_set: std::collections::HashSet<&String> = desired_tag_ids.iter().collect();
+
+    // Entferne nicht mehr gewählte
+    for id in &current_ids {
+        if !desired_set.contains(id) {
+            conn.execute(
+                "DELETE FROM document_tags WHERE document_id = ?1 AND keyword_id = ?2;",
+                rusqlite::params![document_id, id],
+            )?;
+        }
+    }
+
+    // Füge neue hinzu
+    for id in desired_tag_ids {
+        if !current_set.contains(id) {
+            conn.execute(
+                "INSERT INTO document_tags (document_id, keyword_id) VALUES (?1, ?2);",
+                rusqlite::params![document_id, id],
+            )?;
+        }
+    }
+
+    list_document_tags(conn, document_id)
+}
+
 /// --- Dokument-Modelle ---------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -904,6 +1043,8 @@ pub struct CreateDocumentInput {
     pub description: Option<String>,
     pub source_file_path: String,
     pub original_file_name: String,
+    #[serde(default)]
+    pub tag_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -930,6 +1071,8 @@ pub struct UpdateDocumentInput {
     pub validity: String,
     pub valid_until: Option<String>,
     pub description: Option<String>,
+    #[serde(default)]
+    pub tag_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -5784,6 +5927,272 @@ mod tests {
         create_keyword(&conn, "NoDelete").unwrap();
         // Verify keyword still exists — no delete function exists
         assert_eq!(list_keywords(&conn).unwrap().len(), 1);
+    }
+
+    // --- Dokument-Schlagwort-Zuordnung-Tests (Prompt 026C) ---
+
+    #[test]
+    fn test_document_zero_tags() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let tags = list_document_tags(&conn, &doc.id).unwrap();
+        assert!(tags.is_empty());
+    }
+
+    #[test]
+    fn test_assign_one_tag() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Hygiene").unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[kw.id.clone()]).unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0], "Hygiene");
+    }
+
+    #[test]
+    fn test_assign_multiple_tags() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw1 = create_keyword(&conn, "Alpha").unwrap();
+        let kw2 = create_keyword(&conn, "Beta").unwrap();
+        let kw3 = create_keyword(&conn, "Gamma").unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[kw1.id, kw2.id, kw3.id]).unwrap();
+        assert_eq!(tags.len(), 3);
+    }
+
+    #[test]
+    fn test_duplicate_assignment_prevented() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Dup").unwrap();
+        // First sync succeeds
+        sync_document_tags(&conn, &doc.id, &[kw.id.clone()]).unwrap();
+        // Second sync with same tag — should be idempotent, not duplicate
+        let tags = sync_document_tags(&conn, &doc.id, &[kw.id.clone()]).unwrap();
+        assert_eq!(tags.len(), 1);
+    }
+
+    #[test]
+    fn test_assigned_tags_persist_after_reload() {
+        let tmp = NamedTempFile::new().unwrap();
+        init_database(tmp.path()).unwrap();
+        let conn = Connection::open(tmp.path()).unwrap();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Persist").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw.id]).unwrap();
+        drop(conn);
+        let conn2 = Connection::open(tmp.path()).unwrap();
+        let tags = list_document_tags(&conn2, &doc.id).unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0], "Persist");
+    }
+
+    #[test]
+    fn test_nonexistent_document_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let kw = create_keyword(&conn, "Tag").unwrap();
+        let result = sync_document_tags(&conn, "nonexistent-id", &[kw.id]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_nonexistent_tag_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let result = sync_document_tags(&conn, &doc.id, &["fake-tag-id".to_string()]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_remove_tag_assignment() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Remove").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw.id.clone()]).unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[]).unwrap();
+        assert!(tags.is_empty());
+    }
+
+    #[test]
+    fn test_removing_assignment_does_not_delete_dictionary_entry() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Keep").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw.id.clone()]).unwrap();
+        sync_document_tags(&conn, &doc.id, &[]).unwrap();
+        let keywords = list_keywords(&conn).unwrap();
+        assert_eq!(keywords.len(), 1);
+        assert_eq!(keywords[0].name, "Keep");
+    }
+
+    #[test]
+    fn test_sync_empty_set() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let tags = sync_document_tags(&conn, &doc.id, &[]).unwrap();
+        assert!(tags.is_empty());
+    }
+
+    #[test]
+    fn test_sync_adds_missing_relationships() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw1 = create_keyword(&conn, "First").unwrap();
+        let kw2 = create_keyword(&conn, "Second").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw1.id.clone()]).unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[kw1.id, kw2.id]).unwrap();
+        assert_eq!(tags.len(), 2);
+    }
+
+    #[test]
+    fn test_sync_removes_obsolete_relationships() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw1 = create_keyword(&conn, "Keep").unwrap();
+        let kw2 = create_keyword(&conn, "Remove").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw1.id, kw2.id]).unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[kw1.id]).unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0], "Keep");
+    }
+
+    #[test]
+    fn test_keyword_rename_preserves_assignment() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Alt").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw.id.clone()]).unwrap();
+        rename_keyword(&conn, &kw.id, "Neu").unwrap();
+        let tags = list_document_tags(&conn, &doc.id).unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0], "Neu");
+    }
+
+    #[test]
+    fn test_archive_preserves_assignments() {
+        let mut conn = init_test_db().0;
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Arch").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw.id]).unwrap();
+        archive_document(&mut conn, &doc.id).unwrap();
+        let tags = list_document_tags(&conn, &doc.id).unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0], "Arch");
+    }
+
+    #[test]
+    fn test_archived_document_mutation_rejected() {
+        let mut conn = init_test_db().0;
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw1 = create_keyword(&conn, "Before").unwrap();
+        let kw2 = create_keyword(&conn, "After").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw1.id]).unwrap();
+        archive_document(&mut conn, &doc.id).unwrap();
+        let result = sync_document_tags(&conn, &doc.id, &[kw2.id]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_restore_preserves_assignments() {
+        let mut conn = init_test_db().0;
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Restore").unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw.id]).unwrap();
+        archive_document(&mut conn, &doc.id).unwrap();
+        restore_document(&mut conn, &doc.id).unwrap();
+        let tags = list_document_tags(&conn, &doc.id).unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0], "Restore");
+    }
+
+    #[test]
+    fn test_draft_document_tag_assignment() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "Entwurf");
+        let kw = create_keyword(&conn, "Draft").unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[kw.id]).unwrap();
+        assert_eq!(tags.len(), 1);
+    }
+
+    #[test]
+    fn test_active_document_tag_assignment() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Active").unwrap();
+        let tags = sync_document_tags(&conn, &doc.id, &[kw.id]).unwrap();
+        assert_eq!(tags.len(), 1);
+    }
+
+    #[test]
+    fn test_tag_changes_do_not_alter_versions() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw = create_keyword(&conn, "Ver").unwrap();
+        let version_count_before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM document_versions WHERE document_id = ?1;", rusqlite::params![doc.id], |row| row.get(0))
+            .unwrap();
+        sync_document_tags(&conn, &doc.id, &[kw.id]).unwrap();
+        let version_count_after: i64 = conn
+            .query_row("SELECT COUNT(*) FROM document_versions WHERE document_id = ?1;", rusqlite::params![doc.id], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version_count_before, version_count_after);
+    }
+
+    #[test]
+    fn test_batch_document_tag_names() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc1 = make_doc_with_status(&conn, &storage, "aktiv");
+        let doc2 = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw1 = create_keyword(&conn, "A").unwrap();
+        let kw2 = create_keyword(&conn, "B").unwrap();
+        let kw3 = create_keyword(&conn, "C").unwrap();
+        sync_document_tags(&conn, &doc1.id, &[kw1.id, kw2.id]).unwrap();
+        sync_document_tags(&conn, &doc2.id, &[kw3.id]).unwrap();
+        let map = batch_document_tag_names(&conn, &[doc1.id, doc2.id]).unwrap();
+        assert_eq!(map.get(&doc1.id).unwrap().len(), 2);
+        assert_eq!(map.get(&doc2.id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_batch_empty_document_ids() {
+        let (conn, _tmp) = init_test_db();
+        let map = batch_document_tag_names(&conn, &[]).unwrap();
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_documents_independent_tag_sets() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let doc1 = make_doc_with_status(&conn, &storage, "aktiv");
+        let doc2 = make_doc_with_status(&conn, &storage, "aktiv");
+        let kw1 = create_keyword(&conn, "X").unwrap();
+        let kw2 = create_keyword(&conn, "Y").unwrap();
+        sync_document_tags(&conn, &doc1.id, &[kw1.id]).unwrap();
+        sync_document_tags(&conn, &doc2.id, &[kw2.id]).unwrap();
+        let tags1 = list_document_tags(&conn, &doc1.id).unwrap();
+        let tags2 = list_document_tags(&conn, &doc2.id).unwrap();
+        assert_eq!(tags1, vec!["X"]);
+        assert_eq!(tags2, vec!["Y"]);
     }
 
 }

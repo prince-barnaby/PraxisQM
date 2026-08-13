@@ -12,6 +12,8 @@ import {
   type SubcategoryItem,
 } from "../lib/documentApi";
 import { fetchEmployees, type Employee } from "../lib/employeeApi";
+import { fetchKeywords, type MasterDataItem } from "../lib/masterDataApi";
+import type { TagOption } from "../components/documents/DocumentForm";
 import "./DokumentNeu.css";
 
 export default function DokumentNeu() {
@@ -19,10 +21,11 @@ export default function DokumentNeu() {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryItem[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
+  const [tags, setTags] = useState<TagOption[]>([]);
 
   useEffect(() => {
-    Promise.all([fetchCategories(), fetchSubcategories(), fetchEmployees()])
-      .then(([cats, subs, emps]) => {
+    Promise.all([fetchCategories(), fetchSubcategories(), fetchEmployees(), fetchKeywords()])
+      .then(([cats, subs, emps, kws]) => {
         setCategories(cats);
         setSubcategories(subs);
         setEmployees(
@@ -31,6 +34,7 @@ export default function DokumentNeu() {
             name: `${e.last_name}, ${e.first_name}`,
           })),
         );
+        setTags(kws.map((k: MasterDataItem) => ({ id: k.id, name: k.name })));
       })
       .catch(() => {
         // Daten können leer sein, Formular bleibt nutzbar
@@ -50,6 +54,7 @@ export default function DokumentNeu() {
       description: data.description,
       source_file_path: data.source_file_path ?? "",
       original_file_name: data.original_file_name ?? "",
+      tag_ids: data.tag_ids,
     });
     navigate("/dokumente");
   };
@@ -78,6 +83,7 @@ export default function DokumentNeu() {
         categories={categories}
         subcategories={subcategories}
         employees={employees}
+        tags={tags}
         onSubmit={handleSubmit}
         onCancel={() => navigate("/dokumente")}
         onSelectPdf={selectPdf}

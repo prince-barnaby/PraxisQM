@@ -2,6 +2,83 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.42] - 13.08.2026
+
+### Dokument-Schlagwort-Zuordnung & Integration (Prompt 026C / SDD-006 / 006C)
+
+Verbindung der zentral verwalteten Schlagwörter (DB-007) mit Dokumenten (DB-001)
+über die Join-Tabelle DB-008 (DocumentTags). Tags sind Metadaten des logischen
+Dokuments (DB-001), nicht von Versionen (DB-002). Tag-Änderungen erstellen keine
+neuen Versionen. Archivierte Dokumente behalten ihre Tag-Zuordnungen und sind
+schreibgeschützt.
+
+#### Backend (Rust / Tauri)
+
+- Neue DB-Funktionen: `list_document_tags`, `list_document_tag_ids`, `batch_document_tag_names`, `sync_document_tags`
+- Neue Tauri-Commands: `cmd_list_document_tags`, `cmd_sync_document_tags`, `cmd_batch_document_tags`
+- `sync_document_tags`: atomare Synchronisation (add missing, remove obsolete), validiert Dokument-Existenz, archiviert-Status, Schlagwort-Existenz
+- `batch_document_tag_names`: lädt alle Tag-Namen für eine Liste von Dokument-IDs in einer Abfrage (vermeidet N+1)
+- `CreateDocumentInput` und `UpdateDocumentInput` um `tag_ids: Vec<String>` erweitert
+- `cmd_create_document` und `cmd_update_document` rufen `sync_document_tags` innerhalb der Transaktion auf
+- Archivierte Dokumente: Backend weist Tag-Mutation mit Constraint-Fehler ab
+
+#### Frontend (React)
+
+- `documentApi.ts`: `fetchDocumentTags`, `syncDocumentTags`, `batchDocumentTags`
+- `DocumentForm.tsx`: Schlagwort-Auswahl mit Chip-basiertem Multi-Select
+- `DokumentNeu.tsx`: lädt Schlagwörter und übergibt sie an DocumentForm
+- `DokumentBearbeiten.tsx`: lädt aktuelle Tag-Zuordnungen und übergibt sie
+- `DokumentDetail.tsx`: zeigt zugewiesene Schlagwörter über TagList-Komponente
+- `TagList.tsx`: leerer Zustand zeigt `—`
+- `Dokumente.tsx`: lädt Tags via `batchDocumentTags` (kein N+1)
+- `DocumentList.tsx`: neue Spalte "Schlagwörter" in der Tabelle
+- `DocumentRow.tsx`: zeigt bis zu 3 Tags als Badges, danach `+N`
+- `DocumentFilters.tsx`: neuer Filter "Schlagwort" (Dropdown aus Keyword-Dictionary)
+- Suche: Schlagwort-Namen sind jetzt durchsuchbar (case-insensitive, client-side)
+- Reset: leert auch den Schlagwort-Filter
+
+#### Batch-Loading-Strategie
+
+`batchDocumentTags` ruft `cmd_batch_document_tags` einmal auf, übergibt alle
+Dokument-IDs und erhält eine Map `document_id → tag_names[]`. Vermeidet N+1.
+
+#### Versionierungs-Verhalten
+
+Tags sind DB-001 logische Dokument-Metadaten. Tag-Änderungen erstellen keine
+DB-002 Versionszeilen. Historische Versionen erhalten keine retrospektiven
+Tag-Snapshots.
+
+#### Archiv-Verhalten
+
+Archivierte Dokumente behalten Tag-Zuordnungen (DB-008). Archive/Restore löscht
+oder ändert keine DB-008-Zeilen. Backend weist Tag-Mutation für archivierte
+Dokumente ab.
+
+#### Tests
+
+24 neue Rust-Tests: null Tags, einen Tag zuordnen, mehrere Tags, Duplikat
+verhindert, Persistenz nach Reload, nichtexistentes Dokument, nichtexistenter
+Tag, Zuordnung entfernen, Dictionary-Eintrag bleibt bei Entfernung erhalten,
+leere Menge synchronisieren, fehlende hinzufügen, obsolete entfernen,
+Rename bewahrt Zuordnung, Archiv bewahrt Zuordnungen, archivierte Mutation
+abgelehnt, Restore bewahrt Zuordnungen, Entwurf-Tag-Zuordnung, aktiv-Tag-Zuordnung,
+Tag-Änderungen verändern keine Versionen, Batch-Loading, leere Batch-IDs,
+unabhängige Tag-Sets.
+
+#### Bewusst nicht implementiert
+
+- Schlagwort-Löschung aus Dictionary (deferred)
+- Tag Soft-Delete (deferred)
+- Freie Schlagwort-Eingabe im DocumentForm (nur Dictionary-Einträge)
+- Automatische Tag-Vorschläge (deferred)
+- AI-Tagging (deferred)
+- PDF-Volltextsuche (deferred)
+- Tag-Hierarchie (deferred)
+- Tag-Farben (deferred)
+- Globale Anwendungssuche (deferred)
+- Tag-Historie pro DB-002 Version (deferred)
+- Freigabe-Workflow (deferred)
+
 ## [0.9.41] - 13.08.2026
 
 ### Schlagwort-Verzeichnis verwalten (Prompt 026B / SDD-006 / 006C)

@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { FileText, X } from "lucide-react";
+import { FileText, X, Tag } from "lucide-react";
 import DocumentFormSection from "./DocumentFormSection";
 import FormField from "./FormField";
 import "./DocumentForm.css";
@@ -22,6 +22,11 @@ export interface EmployeeOption {
   name: string;
 }
 
+export interface TagOption {
+  id: string;
+  name: string;
+}
+
 export interface DocumentFormInitialValues {
   title: string;
   category_id: string | null;
@@ -33,6 +38,7 @@ export interface DocumentFormInitialValues {
   valid_until: string | null;
   description: string | null;
   file_name: string | null;
+  tag_ids: string[];
 }
 
 interface DocumentFormProps {
@@ -42,6 +48,7 @@ interface DocumentFormProps {
   categories?: CategoryOption[];
   subcategories?: SubcategoryOption[];
   employees?: EmployeeOption[];
+  tags?: TagOption[];
   initialValues?: DocumentFormInitialValues;
   onSubmit?: (data: DocumentFormData) => Promise<void>;
   onCancel?: () => void;
@@ -60,6 +67,7 @@ export interface DocumentFormData {
   description: string | null;
   source_file_path?: string;
   original_file_name?: string;
+  tag_ids: string[];
 }
 
 export default function DocumentForm({
@@ -69,6 +77,7 @@ export default function DocumentForm({
   categories = [],
   subcategories = [],
   employees = [],
+  tags = [],
   initialValues,
   onSubmit,
   onCancel,
@@ -96,6 +105,7 @@ export default function DocumentForm({
   const [description, setDescription] = useState("");
   const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(null);
   const [selectedPdfName, setSelectedPdfName] = useState<string | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,6 +120,7 @@ export default function DocumentForm({
       setValidity(initialValues.validity);
       setValidUntil(initialValues.valid_until ?? "");
       setDescription(initialValues.description ?? "");
+      setSelectedTagIds(initialValues.tag_ids ?? []);
     }
   }, [initialValues, mode]);
 
@@ -167,6 +178,7 @@ export default function DocumentForm({
         validity,
         valid_until: validUntil || null,
         description: description.trim() || null,
+        tag_ids: selectedTagIds,
         ...(isCreate ? {
           source_file_path: selectedPdfPath ?? "",
           original_file_name: selectedPdfName ?? "",
@@ -376,6 +388,55 @@ export default function DocumentForm({
             aria-label="Dokumentbeschreibung"
           />
         </FormField>
+      </DocumentFormSection>
+
+      <DocumentFormSection title="Schlagwörter">
+        <div className="pqm-document-form__tag-area">
+          <div className="pqm-document-form__tag-selected">
+            {selectedTagIds.length === 0 ? (
+              <span className="pqm-document-form__tag-empty">Keine Schlagwörter ausgewählt</span>
+            ) : (
+              selectedTagIds.map((tagId) => {
+                const tag = tags.find((t) => t.id === tagId);
+                return (
+                  <span key={tagId} className="pqm-document-form__tag-chip">
+                    {tag?.name ?? "Unbekannt"}
+                    <button
+                      type="button"
+                      className="pqm-document-form__tag-remove"
+                      onClick={() => setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))}
+                      aria-label={`Schlagwort ${tag?.name ?? ""} entfernen`}
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  </span>
+                );
+              })
+            )}
+          </div>
+          {tags.length > 0 ? (
+            <div className="pqm-document-form__tag-available">
+              {tags
+                .filter((t) => !selectedTagIds.includes(t.id))
+                .map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    className="pqm-document-form__tag-add"
+                    onClick={() => setSelectedTagIds((prev) => [...prev, tag.id])}
+                    aria-label={`Schlagwort ${tag.name} hinzufügen`}
+                  >
+                    <Tag size={11} aria-hidden="true" />
+                    {tag.name}
+                  </button>
+                ))}
+            </div>
+          ) : (
+            <p className="pqm-document-form__tag-hint">
+              Es sind noch keine Schlagwörter im System angelegt. Legen Sie diese in den Einstellungen an.
+            </p>
+          )}
+        </div>
       </DocumentFormSection>
 
       {isCreate && (

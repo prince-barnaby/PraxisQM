@@ -15,6 +15,7 @@ export interface DocumentRowData {
   validity: string;
   validityVariant: BadgeVariant;
   version: string;
+  tags: string[];
 }
 
 interface DocumentRowProps {
@@ -60,6 +61,24 @@ export default function DocumentRow({
       <td className="pqm-document-row__responsible">{doc.responsible}</td>
       <td className="pqm-document-row__validity">
         <StatusBadge label={doc.validity} variant={doc.validityVariant} icon={validityIcon} />
+      </td>
+      <td className="pqm-document-row__tags">
+        {doc.tags.length === 0 ? (
+          <span className="pqm-document-row__tags-empty">—</span>
+        ) : doc.tags.length <= 3 ? (
+          <div className="pqm-document-row__tags-list">
+            {doc.tags.map((tag) => (
+              <span key={tag} className="pqm-document-row__tag">{tag}</span>
+            ))}
+          </div>
+        ) : (
+          <div className="pqm-document-row__tags-list">
+            {doc.tags.slice(0, 3).map((tag) => (
+              <span key={tag} className="pqm-document-row__tag">{tag}</span>
+            ))}
+            <span className="pqm-document-row__tag-more">+{doc.tags.length - 3}</span>
+          </div>
+        )}
       </td>
       <td className="pqm-document-row__version">{doc.version}</td>
     </tr>

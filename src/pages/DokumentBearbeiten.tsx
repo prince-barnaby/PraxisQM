@@ -12,10 +12,13 @@ import {
   fetchCategories,
   fetchSubcategories,
   updateDocument,
+  fetchDocumentTags,
   type Document,
   type UpdateDocumentInput,
 } from "../lib/documentApi";
 import { fetchEmployees } from "../lib/employeeApi";
+import { fetchKeywords, type MasterDataItem } from "../lib/masterDataApi";
+import type { TagOption } from "../components/documents/DocumentForm";
 import "./DokumentBearbeiten.css";
 
 export default function DokumentBearbeiten() {
@@ -27,6 +30,8 @@ export default function DokumentBearbeiten() {
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryOption[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [tags, setTags] = useState<TagOption[]>([]);
+  const [currentTagIds, setCurrentTagIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,8 +43,9 @@ export default function DokumentBearbeiten() {
       fetchCategories(),
       fetchSubcategories(),
       fetchEmployees(),
+      fetchKeywords(),
     ])
-      .then(([d, cats, subs, emps]) => {
+      .then(async ([d, cats, subs, emps, kws]) => {
         setDoc(d);
         setCategories(cats);
         setSubcategories(subs);
@@ -49,6 +55,9 @@ export default function DokumentBearbeiten() {
             name: `${e.last_name}, ${e.first_name}`,
           }))
         );
+        setTags(kws.map((k: MasterDataItem) => ({ id: k.id, name: k.name })));
+        const tagIds = await fetchDocumentTags(d.id);
+        setCurrentTagIds(tagIds);
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : String(err));
@@ -66,6 +75,7 @@ export default function DokumentBearbeiten() {
     validity: string;
     valid_until: string | null;
     description: string | null;
+    tag_ids: string[];
   }) => {
     if (!doc) return;
     const input: UpdateDocumentInput = {
@@ -78,6 +88,7 @@ export default function DokumentBearbeiten() {
       validity: data.validity,
       valid_until: data.valid_until,
       description: data.description,
+      tag_ids: data.tag_ids,
     };
     await updateDocument(doc.id, input);
     navigate(`/dokumente/${documentNumber}`);
@@ -95,6 +106,7 @@ export default function DokumentBearbeiten() {
         valid_until: doc.valid_until,
         description: doc.description,
         file_name: doc.file_name,
+        tag_ids: currentTagIds,
       }
     : undefined;
 
@@ -164,6 +176,7 @@ export default function DokumentBearbeiten() {
         categories={categories}
         subcategories={subcategories}
         employees={employees}
+        tags={tags}
         initialValues={initialValues}
         onSubmit={handleSubmit}
         onCancel={() => navigate(`/dokumente/${documentNumber}`)}
