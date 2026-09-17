@@ -13,6 +13,7 @@ import {
   archiveDocument,
   restoreDocument,
   fetchDocumentTags,
+  openCurrentDocumentPdf,
   type Document,
   type DocumentVersion,
 } from "../lib/documentApi";
@@ -87,6 +88,19 @@ export default function DokumentDetail() {
       setActionLoading(false);
     }
   }, [doc, loadAll]);
+
+  const handleOpenPdf = useCallback(async () => {
+    if (!doc) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await openCurrentDocumentPdf(doc.id);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }, [doc]);
 
   const handleRestore = useCallback(async () => {
     if (!doc) return;
@@ -207,8 +221,9 @@ export default function DokumentDetail() {
           <button
             type="button"
             className="pqm-dokument-detail__pdf-button"
-            disabled
-            aria-label="PDF öffnen – noch nicht implementiert"
+            onClick={handleOpenPdf}
+            disabled={actionLoading}
+            aria-label="PDF öffnen"
           >
             PDF öffnen
           </button>
@@ -228,6 +243,7 @@ export default function DokumentDetail() {
         isArchived={isArchived}
         onEdit={!isArchived ? () => navigate(`/dokumente/${doc.document_number}/bearbeiten`) : undefined}
         onNewVersion={!isArchived ? () => navigate(`/dokumente/${doc.document_number}/neue-version`) : undefined}
+        onOpenPdf={!actionLoading ? handleOpenPdf : undefined}
         onArchive={!isArchived && !actionLoading ? handleArchive : undefined}
         onRestore={isArchived && !actionLoading ? handleRestore : undefined}
       />

@@ -111,3 +111,34 @@
   color: var(--pqm-color-primary);
   margin: 0;
 }
+
+.pqm-document-history__open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--pqm-color-accent);
+  background: none;
+  border: 1px solid var(--pqm-color-accent);
+  border-radius: var(--pqm-radius);
+  padding: 2px 8px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pqm-document-history__open-btn:hover:not(:disabled) {
+  background-color: var(--pqm-color-accent);
+  color: var(--pqm-color-background);
+}
+
+.pqm-document-history__open-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pqm-document-history__error {
+  font-size: 0.8rem;
+  color: var(--pqm-color-error);
+  margin-bottom: var(--pqm-space-1);
+}

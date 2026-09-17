@@ -166,3 +166,11 @@ export async function batchDocumentTags(
 ): Promise<Record<string, string[]>> {
   return invoke<Record<string, string[]>>("cmd_batch_document_tags", { documentIds });
 }
+
+export async function openCurrentDocumentPdf(documentId: string): Promise<void> {
+  return invoke<void>("cmd_open_current_pdf", { documentId });
+}
+
+export async function openDocumentVersionPdf(versionId: string): Promise<void> {
+  return invoke<void>("cmd_open_version_pdf", { versionId });
+}

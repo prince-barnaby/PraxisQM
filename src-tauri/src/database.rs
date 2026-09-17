@@ -1179,6 +1179,98 @@ pub fn remove_managed_file(storage_dir: &Path, relative_path: &str) {
     let _ = fs::remove_file(&full);
 }
 
+/// --- PDF-Pfad-Auflösung und Validierung (Prompt 028) ---------------------
+
+/// Validiert, dass ein relativer Dateipfad sicher im verwalteten Speicher liegt.
+/// Schützt vor Path-Traversal und Verweisen außerhalb des Dokumentenspeichers.
+/// Gibt den kanonischen absoluten Pfad zurück, wenn die Validierung erfolgreich ist.
+pub fn validate_managed_pdf_path(
+    storage_dir: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
+    if relative_path.is_empty() {
+        return Err("Keine Datei hinterlegt.".to_string());
+    }
+
+    if !relative_path.ends_with(".pdf") {
+        return Err("Die Datei ist keine PDF-Datei.".to_string());
+    }
+
+    let full = storage_dir.join(relative_path);
+
+    let canonical_storage = storage_dir
+        .canonicalize()
+        .map_err(|_| "Dokumentenspeicher nicht verfügbar.".to_string())?;
+
+    let canonical_file = full
+        .canonicalize()
+        .map_err(|_| "Die PDF-Datei wurde nicht gefunden.".to_string())?;
+
+    if !canonical_file.starts_with(&canonical_storage) {
+        return Err("Die PDF-Datei liegt außerhalb des verwalteten Speichers.".to_string());
+    }
+
+    if !canonical_file.is_file() {
+        return Err("Die referenzierte Datei ist keine reguläre Datei.".to_string());
+    }
+
+    Ok(canonical_file)
+}
+
+/// Löst den PDF-Pfad der aktuellen Version eines Dokuments auf (DB-001 UUID).
+/// Gibt den kanonischen absoluten Pfad zurück, wenn das Dokument existiert
+/// und eine aktuelle Version mit PDF vorhanden ist.
+pub fn resolve_current_pdf_path(
+    conn: &Connection,
+    document_id: &str,
+    storage_dir: &Path,
+) -> Result<PathBuf, String> {
+    let exists: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM documents WHERE id = ?1;",
+            rusqlite::params![document_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if exists == 0 {
+        return Err("Dokument nicht gefunden.".to_string());
+    }
+
+    let file_path: Option<String> = conn
+        .query_row(
+            "SELECT file_path FROM document_versions
+             WHERE document_id = ?1
+             ORDER BY rowid DESC LIMIT 1;",
+            rusqlite::params![document_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let file_path = file_path.ok_or("Das Dokument hat keine Version mit PDF-Datei.")?;
+
+    validate_managed_pdf_path(storage_dir, &file_path)
+}
+
+/// Löst den PDF-Pfad einer bestimmten historischen Version auf (DB-002 UUID).
+/// Gibt den kanonischen absoluten Pfad zurück, wenn die Version existiert.
+pub fn resolve_version_pdf_path(
+    conn: &Connection,
+    version_id: &str,
+    storage_dir: &Path,
+) -> Result<PathBuf, String> {
+    let row: Option<(String, String)> = conn
+        .query_row(
+            "SELECT file_path, document_id FROM document_versions WHERE id = ?1;",
+            rusqlite::params![version_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .ok();
+
+    let (file_path, _doc_id) = row.ok_or("Version nicht gefunden.")?;
+
+    validate_managed_pdf_path(storage_dir, &file_path)
+}
+
 /// Erstellt ein Dokument mit Metadaten und Datei-Referenz in einer Transaktion.
 /// Die Dokumentennummer wird automatisch generiert (ADR-001).
 /// Die Datei muss bereits in den verwalteten Speicher kopiert worden sein.
@@ -6211,6 +6303,240 @@ mod tests {
         let tags2 = list_document_tags(&conn, &doc2.id).unwrap();
         assert_eq!(tags1, vec!["X"]);
         assert_eq!(tags2, vec!["Y"]);
+    }
+
+    // --- PDF-Pfad-Auflösung Tests (Prompt 028) ---
+
+    #[test]
+    fn test_resolve_current_pdf_path_finds_current_version() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+
+        let resolved = resolve_current_pdf_path(&conn, &doc.id, storage.path()).unwrap();
+        assert!(resolved.exists());
+        assert!(resolved.is_file());
+        assert!(resolved.to_string_lossy().ends_with(".pdf"));
+    }
+
+    #[test]
+    fn test_resolve_version_pdf_path_finds_correct_version() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf1 = make_valid_pdf(&storage, "v1.pdf");
+        let input = make_document_input(pdf1.to_str().unwrap(), "v1.pdf");
+        let managed1 = copy_to_managed_storage(&pdf1, storage.path(), "uuid-v1").unwrap();
+        let doc = create_document(&conn, &input, &managed1).unwrap();
+
+        let pdf2 = make_valid_pdf(&storage, "v2.pdf");
+        let managed2 = copy_to_managed_storage(&pdf2, storage.path(), "uuid-v2").unwrap();
+        let ver_input = CreateVersionInput {
+            document_id: doc.id.clone(),
+            version_number: "2.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            source_file_path: pdf2.to_str().unwrap().to_string(),
+            original_file_name: "v2.pdf".to_string(),
+        };
+        let _doc2 = create_version_from_source(&mut conn, &ver_input, storage.path()).unwrap();
+
+        let versions = list_versions(&conn, &doc.id).unwrap();
+        assert_eq!(versions.len(), 2);
+
+        let v1 = versions.iter().find(|v| v.version_number == "1.0").unwrap();
+        let v2 = versions.iter().find(|v| v.version_number == "2.0").unwrap();
+
+        let resolved_v1 = resolve_version_pdf_path(&conn, &v1.id, storage.path()).unwrap();
+        let resolved_v2 = resolve_version_pdf_path(&conn, &v2.id, storage.path()).unwrap();
+
+        assert_ne!(resolved_v1, resolved_v2);
+        assert!(resolved_v1.to_string_lossy().contains("uuid-v1"));
+        assert!(resolved_v2.to_string_lossy().contains("uuid-v2"));
+    }
+
+    #[test]
+    fn test_resolve_current_pdf_nonexistent_document_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let result = resolve_current_pdf_path(&conn, "nonexistent-id", storage.path());
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Dokument nicht gefunden.");
+    }
+
+    #[test]
+    fn test_resolve_version_pdf_nonexistent_version_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let result = resolve_version_pdf_path(&conn, "nonexistent-version-id", storage.path());
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Version nicht gefunden.");
+    }
+
+    #[test]
+    fn test_resolve_current_pdf_missing_file_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+
+        remove_managed_file(storage.path(), &managed);
+
+        let result = resolve_current_pdf_path(&conn, &doc.id, storage.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_managed_pdf_path_traversal_rejected() {
+        let storage = init_test_storage();
+        let outside = tempfile::TempDir::new().unwrap();
+        let outside_pdf = make_valid_pdf(&outside, "outside.pdf");
+        let outside_name = outside_pdf.file_name().unwrap().to_str().unwrap();
+        let traversal_path = format!("../{}", outside_name);
+
+        let result = validate_managed_pdf_path(storage.path(), &traversal_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_managed_pdf_empty_path_rejected() {
+        let storage = init_test_storage();
+        let result = validate_managed_pdf_path(storage.path(), "");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_managed_pdf_non_pdf_extension_rejected() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let txt = make_test_pdf(&storage, "notpdf.txt", b"text content");
+        let result = validate_managed_pdf_path(storage.path(), "notpdf.txt");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_managed_pdf_directory_rejected() {
+        let storage = init_test_storage();
+        std::fs::create_dir(storage.path().join("somedir.pdf")).unwrap();
+        let result = validate_managed_pdf_path(storage.path(), "somedir.pdf");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_current_pdf_archived_document_allowed() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+        archive_document(&mut conn, &doc.id).unwrap();
+
+        let resolved = resolve_current_pdf_path(&conn, &doc.id, storage.path());
+        assert!(resolved.is_ok());
+        assert!(resolved.unwrap().is_file());
+    }
+
+    #[test]
+    fn test_resolve_pdf_does_not_mutate_document() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+
+        let before = load_document(&conn, &doc.id).unwrap();
+        let _resolved = resolve_current_pdf_path(&conn, &doc.id, storage.path()).unwrap();
+        let after = load_document(&conn, &doc.id).unwrap();
+
+        assert_eq!(before.updated_at, after.updated_at);
+        assert_eq!(before.status, after.status);
+        assert_eq!(before.version, after.version);
+    }
+
+    #[test]
+    fn test_resolve_pdf_does_not_mutate_version_history() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+        let pdf = make_valid_pdf(&storage, "test.pdf");
+        let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
+        let managed = copy_to_managed_storage(&pdf, storage.path(), "doc-uuid").unwrap();
+        let doc = create_document(&conn, &input, &managed).unwrap();
+
+        let versions_before = list_versions(&conn, &doc.id).unwrap();
+        let _resolved = resolve_current_pdf_path(&conn, &doc.id, storage.path()).unwrap();
+        let versions_after = list_versions(&conn, &doc.id).unwrap();
+
+        assert_eq!(versions_before.len(), versions_after.len());
+        assert_eq!(versions_before[0].id, versions_after[0].id);
+        assert_eq!(versions_before[0].updated_at, versions_after[0].updated_at);
+    }
+
+    #[test]
+    fn test_resolve_current_pdf_prefers_latest_version() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        let pdf1 = make_valid_pdf(&storage, "v1.pdf");
+        let input = make_document_input(pdf1.to_str().unwrap(), "v1.pdf");
+        let managed1 = copy_to_managed_storage(&pdf1, storage.path(), "uuid-v1").unwrap();
+        let doc = create_document(&conn, &input, &managed1).unwrap();
+
+        let pdf2 = make_valid_pdf(&storage, "v2.pdf");
+        let managed2 = copy_to_managed_storage(&pdf2, storage.path(), "uuid-v2").unwrap();
+        let ver_input = CreateVersionInput {
+            document_id: doc.id.clone(),
+            version_number: "2.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            source_file_path: pdf2.to_str().unwrap().to_string(),
+            original_file_name: "v2.pdf".to_string(),
+        };
+        let _doc2 = create_version_from_source(&mut conn, &ver_input, storage.path()).unwrap();
+
+        let resolved = resolve_current_pdf_path(&conn, &doc.id, storage.path()).unwrap();
+        assert!(resolved.to_string_lossy().contains("uuid-v2"));
+        assert!(!resolved.to_string_lossy().contains("uuid-v1"));
+    }
+
+    #[test]
+    fn test_resolve_current_pdf_unaffected_by_unrelated_inserts() {
+        let (conn, _tmp) = init_test_db();
+        let storage = init_test_storage();
+
+        let pdf_a = make_valid_pdf(&storage, "a1.pdf");
+        let input_a = make_document_input(pdf_a.to_str().unwrap(), "a1.pdf");
+        let managed_a = copy_to_managed_storage(&pdf_a, storage.path(), "uuid-a1").unwrap();
+        let doc_a = create_document(&conn, &input_a, &managed_a).unwrap();
+
+        let pdf_b = make_valid_pdf(&storage, "b1.pdf");
+        let input_b = make_document_input(pdf_b.to_str().unwrap(), "b1.pdf");
+        let managed_b = copy_to_managed_storage(&pdf_b, storage.path(), "uuid-b1").unwrap();
+        let doc_b = create_document(&conn, &input_b, &managed_b).unwrap();
+
+        let pdf_b2 = make_valid_pdf(&storage, "b2.pdf");
+        let managed_b2 = copy_to_managed_storage(&pdf_b2, storage.path(), "uuid-b2").unwrap();
+        let ver_input_b = CreateVersionInput {
+            document_id: doc_b.id.clone(),
+            version_number: "2.0".to_string(),
+            status: "aktiv".to_string(),
+            validity: "gültig".to_string(),
+            valid_until: None,
+            source_file_path: pdf_b2.to_str().unwrap().to_string(),
+            original_file_name: "b2.pdf".to_string(),
+        };
+        let _doc_b2 = create_version_from_source(&mut conn, &ver_input_b, storage.path()).unwrap();
+
+        let resolved_a = resolve_current_pdf_path(&conn, &doc_a.id, storage.path()).unwrap();
+        assert!(resolved_a.to_string_lossy().contains("uuid-a1"));
+        assert!(!resolved_a.to_string_lossy().contains("uuid-b"));
     }
 
 }

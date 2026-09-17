@@ -2,6 +2,63 @@
 
 Alle wichtigen Änderungen an PraxisQM werden in dieser Datei dokumentiert.
 
+## [0.9.43] - 15.09.2026
+
+### Verwaltete PDFs im Standard-Viewer öffnen (Prompt 028)
+
+Benutzer können jetzt verwaltete PDFs direkt im Standard-PDF-Viewer des Betriebssystems
+öffnen — sowohl die aktuelle Version als auch historische Versionen. Die vorherige
+deaktivierte Platzhalter-Funktion ist nun vollständig funktional.
+
+#### Backend (Rust / Tauri)
+
+- Neue DB-Funktionen: `validate_managed_pdf_path`, `resolve_current_pdf_path`, `resolve_version_pdf_path`
+- Neue Tauri-Commands: `cmd_open_current_pdf`, `cmd_open_version_pdf`
+- Pfad-Auflösung erfolgt ausschließlich über Dokument-UUID bzw. Versions-UUID — niemals über Frontend-Pfade
+- `validate_managed_pdf_path`: prüft `.pdf`-Erweiterung, kanonischen Pfad innerhalb des verwalteten Speichers, Path-Traversal-Schutz, reguläre Datei
+- `resolve_current_pdf_path`: löst die aktuellste DB-002 Version für ein Dokument auf
+- `resolve_version_pdf_path`: löst eine spezifische historische Version auf
+- Öffnen erfolgt über `std::process::Command` (Windows: `cmd /C start`, macOS: `open`, Linux: `xdg-open`) — Tauri v1-kompatibel, kein ShellScope erforderlich
+- Keine Datenbank-Mutation, keine Versionierung, keine Dateikopie — reines Lesen
+
+#### Frontend (React)
+
+- `documentApi.ts`: `openCurrentDocumentPdf`, `openDocumentVersionPdf`
+- `DokumentDetail.tsx`: PDF-Öffnen-Button aktiviert, verbindet mit `cmd_open_current_pdf`
+- `DocumentActionBar.tsx`: `onOpenPdf`-Prop hinzugefügt, PDF-Button für aktive und archivierte Dokumente funktional
+- `DocumentHistory.tsx`: "Öffnen"-Button pro Versionseintrag, öffnet die jeweilige historische PDF
+- Keine Dateipfade in der UI sichtbar — nur Dokument-/Versionsmetadaten
+
+#### Sicherheits-Strategie
+
+- Frontend übergibt nur UUIDs, niemals Dateipfade
+- Backend löst Pfade aus der Datenbank auf und validiert sie
+- Path-Traversal-Schutz via `canonicalize()` und `starts_with`-Prüfung
+- Nur `.pdf`-Dateien akzeptiert
+- Keine Verzeichnisse akzeptiert (is_file-Prüfung)
+- Kein generischer Datei-Öffner — nur verwaltete PDFs
+
+#### Archiv-Verhalten
+
+- Archivierte Dokumente: PDF bleibt öffnbar (Lesen ist keine Mutation)
+- Bearbeiten/Neue Version bleiben für archivierte Dokumente gesperrt
+
+#### Tests
+
+12 neue Rust-Tests: aktuelle PDF wird gefunden, historische Version wird korrekt
+aufgelöst, nichtexistentes Dokument abgelehnt, nichtexistente Version abgelehnt,
+fehlende Datei abgelehnt, Path-Traversal abgelehnt, leerer Pfad abgelehnt,
+non-PDF-Erweiterung abgelehnt, Verzeichnis abgelehnt, archiviertes Dokument erlaubt,
+keine Mutation des Dokuments, keine Mutation der Versionshistorie.
+
+#### Bewusst nicht implementiert
+
+- Eingebetteter PDF-Viewer (out of scope)
+- PDF-Bearbeitung / Annotation (out of scope)
+- PDF-Export / Kopieren (out of scope)
+- Audit-Logging (separater Prompt)
+- Globale Suche (separater Prompt)
+
 ## [0.9.42] - 13.08.2026
 
 ### Dokument-Schlagwort-Zuordnung & Integration (Prompt 026C / SDD-006 / 006C)

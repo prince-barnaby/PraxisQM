@@ -6,6 +6,7 @@ interface DocumentActionBarProps {
   isArchived: boolean;
   onEdit?: () => void;
   onNewVersion?: () => void;
+  onOpenPdf?: () => void;
   onArchive?: () => void;
   onRestore?: () => void;
 }
@@ -15,6 +16,7 @@ export default function DocumentActionBar({
   isArchived,
   onEdit,
   onNewVersion,
+  onOpenPdf,
   onArchive,
   onRestore,
 }: DocumentActionBarProps) {
@@ -49,8 +51,9 @@ export default function DocumentActionBar({
           <button
             type="button"
             className="pqm-action-bar__button"
-            disabled
-            aria-label={`PDF öffnen – noch nicht implementiert – ${pdfFileName}`}
+            onClick={onOpenPdf}
+            disabled={!onOpenPdf}
+            aria-label={`PDF öffnen – ${pdfFileName}`}
           >
             <FileText size={16} aria-hidden="true" />
             PDF öffnen
@@ -72,8 +75,9 @@ export default function DocumentActionBar({
           <button
             type="button"
             className="pqm-action-bar__button"
-            disabled
-            aria-label={`PDF öffnen – noch nicht implementiert – ${pdfFileName}`}
+            onClick={onOpenPdf}
+            disabled={!onOpenPdf}
+            aria-label={`PDF öffnen – ${pdfFileName}`}
           >
             <FileText size={16} aria-hidden="true" />
             PDF öffnen

@@ -74,6 +74,8 @@ fn main() {
             cmd_sync_document_tags,
             cmd_batch_document_tags,
             cmd_select_pdf,
+            cmd_open_current_pdf,
+            cmd_open_version_pdf,
             cmd_dashboard_summary,
             cmd_review_list,
         ])
@@ -564,6 +566,119 @@ async fn cmd_select_pdf(app: tauri::AppHandle) -> Result<Option<String>, String>
         Ok(Some(path)) => Ok(Some(path.to_string_lossy().to_string())),
         Ok(None) => Ok(None),
         Err(_) => Err("Dateiauswahl fehlgeschlagen.".to_string()),
+    }
+}
+
+/// Öffnet die aktuelle PDF eines Dokuments im Standard-PDF-Viewer des Betriebssystems.
+/// Der Pfad wird aus der Datenbank anhand der Dokument-UUID aufgelöst — die Frontend-Seite
+/// übergibt niemals einen Dateipfad.
+#[tauri::command]
+fn cmd_open_current_pdf(
+    state: State<DbState>,
+    app: tauri::AppHandle,
+    document_id: String,
+) -> Result<(), String> {
+    let storage_dir = database::document_storage_path(&app);
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    let pdf_path = database::resolve_current_pdf_path(&conn, &document_id, &storage_dir)
+        .map_err(|e| {
+            eprintln!("PraxisQM: PDF-Pfadauflösung fehlgeschlagen (document={}): {}", document_id, e);
+            e
+        })?;
+    eprintln!("PraxisQM: Öffne aktuelle PDF: {}", pdf_path.display());
+    open_pdf_with_system_viewer(&pdf_path)
+}
+
+/// Öffnet die PDF einer bestimmten historischen Version im Standard-PDF-Viewer.
+/// Die Version wird anhand ihrer UUID aus der Datenbank aufgelöst.
+#[tauri::command]
+fn cmd_open_version_pdf(
+    state: State<DbState>,
+    app: tauri::AppHandle,
+    version_id: String,
+) -> Result<(), String> {
+    let storage_dir = database::document_storage_path(&app);
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    let pdf_path = database::resolve_version_pdf_path(&conn, &version_id, &storage_dir)
+        .map_err(|e| {
+            eprintln!("PraxisQM: PDF-Pfadauflösung fehlgeschlagen (version={}): {}", version_id, e);
+            e
+        })?;
+    eprintln!("PraxisQM: Öffne Versions-PDF: {}", pdf_path.display());
+    open_pdf_with_system_viewer(&pdf_path)
+}
+
+/// Öffnet eine PDF-Datei mit dem Standard-PDF-Viewer des Betriebssystems.
+/// Auf Windows wird ShellExecuteW direkt aufgerufen — das ist die zuverlässige
+/// Win32-API, die auch `cmd /C start` letztlich nutzt, aber ohne die fragile
+/// cmd.exe-Quoting-Problematik.
+fn open_pdf_with_system_viewer(path: &std::path::Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::UI::Shell::ShellExecuteW;
+        use windows_sys::Win32::UI::Shell::SW_SHOWNORMAL;
+        use std::ffi::OsStr;
+
+        let verb: Vec<u16> = OsStr::new("open")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let file: Vec<u16> = path.as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        let result = unsafe {
+            ShellExecuteW(
+                std::ptr::null_mut(),
+                verb.as_ptr(),
+                file.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+
+        let h = result as usize;
+        if h <= 32 {
+            eprintln!("PraxisQM: ShellExecuteW fehlgeschlagen, Ergebniscode={}", h);
+            return Err("Die PDF-Datei konnte nicht mit dem Standardprogramm geöffnet werden.".to_string());
+        }
+        Ok(())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let status = std::process::Command::new("open")
+            .arg(path)
+            .status()
+            .map_err(|e| {
+                eprintln!("PraxisQM: open fehlgeschlagen: {}", e);
+                "Die PDF-Datei konnte nicht mit dem Standardprogramm geöffnet werden.".to_string()
+            })?;
+        if !status.success() {
+            return Err("Die PDF-Datei konnte nicht mit dem Standardprogramm geöffnet werden.".to_string());
+        }
+        Ok(())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let status = std::process::Command::new("xdg-open")
+            .arg(path)
+            .status()
+            .map_err(|e| {
+                eprintln!("PraxisQM: xdg-open fehlgeschlagen: {}", e);
+                "Die PDF-Datei konnte nicht mit dem Standardprogramm geöffnet werden.".to_string()
+            })?;
+        if !status.success() {
+            return Err("Die PDF-Datei konnte nicht mit dem Standardprogramm geöffnet werden.".to_string());
+        }
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        let _ = path;
+        Err("PDF-Öffnen wird auf diesem Betriebssystem nicht unterstützt.".to_string())
     }
 }
 
