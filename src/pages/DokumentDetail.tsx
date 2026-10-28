@@ -94,7 +94,16 @@ export default function DokumentDetail() {
     setActionLoading(true);
     setActionError(null);
     try {
-      await openCurrentDocumentPdf(doc.id);
+      const result = await Promise.race([
+        openCurrentDocumentPdf(doc.id),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Das PDF konnte nicht geöffnet werden – Zeitüberschreitung.")),
+            15000,
+          ),
+        ),
+      ]);
+      void result;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -147,6 +156,7 @@ export default function DokumentDetail() {
   }
 
   const isArchived = doc.status === "archiviert";
+  const hasFile = doc.file_name != null && doc.file_name !== "";
 
   const metadata: MetadataEntry[] = [
     { label: "Dokumentnummer", value: doc.document_number, mono: true },
@@ -222,7 +232,7 @@ export default function DokumentDetail() {
             type="button"
             className="pqm-dokument-detail__pdf-button"
             onClick={handleOpenPdf}
-            disabled={actionLoading}
+            disabled={actionLoading || !hasFile}
             aria-label="PDF öffnen"
           >
             PDF öffnen
@@ -243,7 +253,7 @@ export default function DokumentDetail() {
         isArchived={isArchived}
         onEdit={!isArchived ? () => navigate(`/dokumente/${doc.document_number}/bearbeiten`) : undefined}
         onNewVersion={!isArchived ? () => navigate(`/dokumente/${doc.document_number}/neue-version`) : undefined}
-        onOpenPdf={!actionLoading ? handleOpenPdf : undefined}
+        onOpenPdf={!actionLoading && hasFile ? handleOpenPdf : undefined}
         onArchive={!isArchived && !actionLoading ? handleArchive : undefined}
         onRestore={isArchived && !actionLoading ? handleRestore : undefined}
       />

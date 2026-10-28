@@ -16,7 +16,15 @@ export default function DocumentHistory({ versions }: DocumentHistoryProps) {
     setOpeningId(versionId);
     setError(null);
     try {
-      await openDocumentVersionPdf(versionId);
+      await Promise.race([
+        openDocumentVersionPdf(versionId),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Das PDF konnte nicht geöffnet werden – Zeitüberschreitung.")),
+            15000,
+          ),
+        ),
+      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
