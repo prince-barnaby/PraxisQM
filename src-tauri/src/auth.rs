@@ -303,10 +303,17 @@ pub fn check_last_admin_protection(
     conn: &Connection,
     target_user_id: &str,
 ) -> Result<(), String> {
-    if !database::is_active_admin(conn, target_user_id)? {
+    let is_admin = database::is_active_admin(conn, target_user_id).map_err(|e| {
+        eprintln!("PraxisQM: Datenbankfehler bei Admin-Prüfung: {}", e);
+        "Berechtigungsprüfung fehlgeschlagen.".to_string()
+    })?;
+    if !is_admin {
         return Ok(());
     }
-    let count = database::count_active_admins(conn)?;
+    let count = database::count_active_admins(conn).map_err(|e| {
+        eprintln!("PraxisQM: Datenbankfehler bei Admin-Zählung: {}", e);
+        "Berechtigungsprüfung fehlgeschlagen.".to_string()
+    })?;
     if count <= 1 {
         return Err("Der letzte aktive Administrator kann nicht deaktiviert oder entfernt werden.".to_string());
     }

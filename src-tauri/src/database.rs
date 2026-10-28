@@ -472,12 +472,12 @@ pub fn update_password_hash(
 
 /// Prüft, ob ein Benutzer ein aktiver Admin ist.
 pub fn is_active_admin(conn: &Connection, user_id: &str) -> SqliteResult<bool> {
-    let result: Option<bool> = conn.query_row(
-        "SELECT is_active FROM users WHERE id = ?1 AND role = ?2;",
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM users WHERE id = ?1 AND role = ?2 AND is_active = 1;",
         rusqlite::params![user_id, ROLE_ADMIN],
         |row| row.get(0),
     )?;
-    Ok(result.unwrap_or(false))
+    Ok(count > 0)
 }
 
 /// Prüft, ob ein Status-Wert kanonisch ist (alle drei Lifecycle-States).
@@ -6506,7 +6506,7 @@ mod tests {
 
     #[test]
     fn test_resolve_version_pdf_path_finds_correct_version() {
-        let (conn, _tmp) = init_test_db();
+        let (mut conn, _tmp) = init_test_db();
         let storage = init_test_storage();
         let pdf1 = make_valid_pdf(&storage, "v1.pdf");
         let input = make_document_input(pdf1.to_str().unwrap(), "v1.pdf");
@@ -6514,7 +6514,7 @@ mod tests {
         let doc = create_document(&conn, &input, &managed1).unwrap();
 
         let pdf2 = make_valid_pdf(&storage, "v2.pdf");
-        let managed2 = copy_to_managed_storage(&pdf2, storage.path(), "uuid-v2").unwrap();
+        copy_to_managed_storage(&pdf2, storage.path(), "uuid-v2").unwrap();
         let ver_input = CreateVersionInput {
             document_id: doc.id.clone(),
             version_number: "2.0".to_string(),
@@ -6594,9 +6594,9 @@ mod tests {
 
     #[test]
     fn test_validate_managed_pdf_non_pdf_extension_rejected() {
-        let (conn, _tmp) = init_test_db();
+        let (_conn, _tmp) = init_test_db();
         let storage = init_test_storage();
-        let txt = make_test_pdf(&storage, "notpdf.txt", b"text content");
+        make_test_pdf(&storage, "notpdf.txt", b"text content");
         let result = validate_managed_pdf_path(storage.path(), "notpdf.txt");
         assert!(result.is_err());
     }
@@ -6611,7 +6611,7 @@ mod tests {
 
     #[test]
     fn test_resolve_current_pdf_archived_document_allowed() {
-        let (conn, _tmp) = init_test_db();
+        let (mut conn, _tmp) = init_test_db();
         let storage = init_test_storage();
         let pdf = make_valid_pdf(&storage, "test.pdf");
         let input = make_document_input(pdf.to_str().unwrap(), "test.pdf");
@@ -6657,12 +6657,12 @@ mod tests {
 
         assert_eq!(versions_before.len(), versions_after.len());
         assert_eq!(versions_before[0].id, versions_after[0].id);
-        assert_eq!(versions_before[0].updated_at, versions_after[0].updated_at);
+        assert_eq!(versions_before[0].uploaded_at, versions_after[0].uploaded_at);
     }
 
     #[test]
     fn test_resolve_current_pdf_prefers_latest_version() {
-        let (conn, _tmp) = init_test_db();
+        let (mut conn, _tmp) = init_test_db();
         let storage = init_test_storage();
 
         let pdf1 = make_valid_pdf(&storage, "v1.pdf");
@@ -6671,7 +6671,7 @@ mod tests {
         let doc = create_document(&conn, &input, &managed1).unwrap();
 
         let pdf2 = make_valid_pdf(&storage, "v2.pdf");
-        let managed2 = copy_to_managed_storage(&pdf2, storage.path(), "uuid-v2").unwrap();
+        copy_to_managed_storage(&pdf2, storage.path(), "uuid-v2").unwrap();
         let ver_input = CreateVersionInput {
             document_id: doc.id.clone(),
             version_number: "2.0".to_string(),
@@ -6690,7 +6690,7 @@ mod tests {
 
     #[test]
     fn test_resolve_current_pdf_unaffected_by_unrelated_inserts() {
-        let (conn, _tmp) = init_test_db();
+        let (mut conn, _tmp) = init_test_db();
         let storage = init_test_storage();
 
         let pdf_a = make_valid_pdf(&storage, "a1.pdf");
@@ -6704,7 +6704,7 @@ mod tests {
         let doc_b = create_document(&conn, &input_b, &managed_b).unwrap();
 
         let pdf_b2 = make_valid_pdf(&storage, "b2.pdf");
-        let managed_b2 = copy_to_managed_storage(&pdf_b2, storage.path(), "uuid-b2").unwrap();
+        copy_to_managed_storage(&pdf_b2, storage.path(), "uuid-b2").unwrap();
         let ver_input_b = CreateVersionInput {
             document_id: doc_b.id.clone(),
             version_number: "2.0".to_string(),
