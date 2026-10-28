@@ -1,4 +1,5 @@
 import { FileText, Pencil, Archive, FilePlus, RotateCcw } from "lucide-react";
+import { useAuth } from "../../lib/AuthContext";
 import "./DocumentActionBar.css";
 
 interface DocumentActionBarProps {
@@ -20,6 +21,10 @@ export default function DocumentActionBar({
   onArchive,
   onRestore,
 }: DocumentActionBarProps) {
+  const { isEditor } = useAuth();
+  if (!isEditor) {
+    return null;
+  }
   return (
     <div
       className="pqm-action-bar"

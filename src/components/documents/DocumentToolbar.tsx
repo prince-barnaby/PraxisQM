@@ -1,5 +1,6 @@
 import { Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../lib/AuthContext";
 import "./DocumentToolbar.css";
 
 interface DocumentToolbarProps {
@@ -14,6 +15,7 @@ export default function DocumentToolbar({
   onSearchTermChange,
 }: DocumentToolbarProps) {
   const navigate = useNavigate();
+  const { isEditor } = useAuth();
 
   return (
     <header className="pqm-document-toolbar">
@@ -34,15 +36,17 @@ export default function DocumentToolbar({
             aria-label="Dokumente durchsuchen"
           />
         </div>
-        <button
-          type="button"
-          className="pqm-document-toolbar__button"
-          onClick={() => navigate("/dokumente/neu")}
-          aria-label="Neues Dokument erstellen"
-        >
-          <Plus size={18} aria-hidden="true" />
-          Neues Dokument
-        </button>
+        {isEditor && (
+          <button
+            type="button"
+            className="pqm-document-toolbar__button"
+            onClick={() => navigate("/dokumente/neu")}
+            aria-label="Neues Dokument erstellen"
+          >
+            <Plus size={18} aria-hidden="true" />
+            Neues Dokument
+          </button>
+        )}
       </div>
       <p
         className="pqm-document-toolbar__count"

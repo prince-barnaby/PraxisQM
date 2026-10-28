@@ -1,0 +1,104 @@
+.pqm-password-page {
+  max-width: 480px;
+  font-family: var(--pqm-font-family);
+  color: var(--pqm-color-primary);
+}
+
+.pqm-password-page__title {
+  font-size: 24px;
+  line-height: 1.2;
+  margin: 0 0 var(--pqm-space-1);
+}
+
+.pqm-password-page__subtitle {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--pqm-color-neutral);
+  margin: 0 0 var(--pqm-space-3);
+}
+
+.pqm-password-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pqm-space-2);
+}
+
+.pqm-password-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pqm-password-page__field label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.pqm-password-page__field input {
+  font: inherit;
+  font-size: 15px;
+  padding: 10px 12px;
+  border: 1px solid #C9CED6;
+  border-radius: 6px;
+  background: var(--pqm-color-background);
+  color: var(--pqm-color-primary);
+}
+
+.pqm-password-page__field input:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: 1px;
+}
+
+.pqm-password-page__hint {
+  font-size: 13px;
+  color: var(--pqm-color-neutral);
+  margin: 0;
+}
+
+.pqm-password-page__message {
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin: 0;
+}
+
+.pqm-password-page__message--error {
+  background: #FDECEC;
+  color: #991B1B;
+  border: 1px solid #F5B5B5;
+}
+
+.pqm-password-page__message--success {
+  background: #E8F7EE;
+  color: #14532D;
+  border: 1px solid #A7E3BE;
+}
+
+.pqm-password-page__submit {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  background: var(--pqm-color-primary);
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.pqm-password-page__submit:hover:not(:disabled) {
+  background: #0F2A46;
+}
+
+.pqm-password-page__submit:focus-visible {
+  outline: 2px solid var(--pqm-color-accent);
+  outline-offset: 2px;
+}
+
+.pqm-password-page__submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
