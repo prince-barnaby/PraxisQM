@@ -617,7 +617,7 @@ fn open_pdf_with_system_viewer(path: &std::path::Path) -> Result<(), String> {
     {
         use std::os::windows::ffi::OsStrExt;
         use windows_sys::Win32::UI::Shell::ShellExecuteW;
-        use windows_sys::Win32::UI::Shell::SW_SHOWNORMAL;
+        use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
         use std::ffi::OsStr;
 
         let verb: Vec<u16> = OsStr::new("open")
