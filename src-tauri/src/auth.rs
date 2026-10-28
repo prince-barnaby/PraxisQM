@@ -12,6 +12,7 @@ use argon2::{
 };
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -71,15 +72,16 @@ pub struct Session {
     pub login_at: u64,
 }
 
-/// Managed Auth-State: aktuelle Session und Login-Versuch-Tracking.
+/// Managed Auth-State: aktuelle Session und Login-Drosselung pro Benutzername.
 pub struct AuthState {
     session: Mutex<Option<Session>>,
-    login_attempts: Mutex<Vec<LoginAttempt>>,
+    login_throttle: Mutex<HashMap<String, LoginThrottle>>,
 }
 
-struct LoginAttempt {
-    username: String,
-    at: Instant,
+#[derive(Default)]
+struct LoginThrottle {
+    failures: Vec<Instant>,
+    locked_until: Option<Instant>,
 }
 
 /// Maximale Anzahl fehlgeschlagener Login-Versuche innerhalb des Zeitfensters.
@@ -93,7 +95,7 @@ impl AuthState {
     pub fn new() -> Self {
         AuthState {
             session: Mutex::new(None),
-            login_attempts: Mutex::new(Vec::new()),
+            login_throttle: Mutex::new(HashMap::new()),
         }
     }
 
@@ -115,39 +117,30 @@ impl AuthState {
     /// Prüft, ob ein Login-Versuch für den gegebenen Benutzernamen
     /// aufgrund zu vieler fehlgeschlagener Versuche blockiert ist.
     fn is_locked_out(&self, username: &str) -> bool {
-        let mut attempts = self.login_attempts.lock().unwrap();
-        let now = Instant::now();
-
-        attempts.retain(|a| {
-            a.username == username && now.duration_since(a.at) < LOGIN_ATTEMPT_WINDOW
-        });
-
-        if attempts.len() >= MAX_LOGIN_ATTEMPTS {
-            let oldest = attempts.iter().map(|a| a.at).min().unwrap_or(now);
-            return now.duration_since(oldest) < LOGIN_LOCKOUT_DURATION;
-        }
-
-        false
+        let throttle = self.login_throttle.lock().unwrap();
+        throttle
+            .get(username)
+            .and_then(|t| t.locked_until)
+            .map_or(false, |until| Instant::now() < until)
     }
 
     /// Registriert einen fehlgeschlagenen Login-Versuch.
     fn record_failed_attempt(&self, username: &str) {
-        let mut attempts = self.login_attempts.lock().unwrap();
-        attempts.push(LoginAttempt {
-            username: username.to_string(),
-            at: Instant::now(),
-        });
+        let now = Instant::now();
+        let mut throttle = self.login_throttle.lock().unwrap();
+        let entry = throttle.entry(username.to_string()).or_default();
+        entry.failures.retain(|t| now.duration_since(*t) < LOGIN_ATTEMPT_WINDOW);
+        entry.failures.push(now);
+        if entry.failures.len() >= MAX_LOGIN_ATTEMPTS {
+            entry.locked_until = Some(now + LOGIN_LOCKOUT_DURATION);
+            entry.failures.clear();
+        }
     }
 
     /// Löscht alle fehlgeschlagenen Versuche für einen Benutzernamen
     /// nach erfolgreichem Login.
     fn clear_failed_attempts(&self, username: &str) {
-        let mut attempts = self.login_attempts.lock().unwrap();
-        let now = Instant::now();
-        attempts.retain(|a| {
-            a.username != username || now.duration_since(a.at) < LOGIN_ATTEMPT_WINDOW
-        });
-        attempts.retain(|a| a.username != username);
+        self.login_throttle.lock().unwrap().remove(username);
     }
 }
 
@@ -574,7 +567,7 @@ mod tests {
 
         let result = check_last_admin_protection(&conn, &admin.id);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("letzter aktiver Administrator"));
+        assert!(result.unwrap_err().contains("letzte aktive Administrator"));
     }
 
     #[test]
@@ -693,7 +686,7 @@ mod tests {
 
         let result = login(&conn, &auth, "admin", "falsch");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("fehlschlagene Versuche"));
+        assert!(result.unwrap_err().contains("fehlgeschlagene Versuche"));
     }
 
     #[test]
@@ -710,7 +703,30 @@ mod tests {
 
         let result = login(&conn, &auth, "admin", "richtig");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("fehlschlagene Versuche"));
+        assert!(result.unwrap_err().contains("fehlgeschlagene Versuche"));
+    }
+
+    #[test]
+    fn test_login_lockout_expires_after_duration() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+
+        let hash = hash_password("richtig").unwrap();
+        database::create_first_admin(&conn, "admin", &hash).unwrap();
+
+        for _ in 0..MAX_LOGIN_ATTEMPTS {
+            let _ = login(&conn, &auth, "admin", "falsch");
+        }
+        assert!(login(&conn, &auth, "admin", "richtig").is_err());
+
+        auth.login_throttle
+            .lock()
+            .unwrap()
+            .get_mut("admin")
+            .unwrap()
+            .locked_until = Some(Instant::now() - Duration::from_secs(1));
+
+        assert!(login(&conn, &auth, "admin", "richtig").is_ok());
     }
 
     #[test]
@@ -735,6 +751,6 @@ mod tests {
         }
         let result = login(&conn, &auth, "admin", "falsch");
         assert!(result.is_err());
-        assert!(!result.unwrap_err().contains("fehlschlagene Versuche"));
+        assert!(!result.unwrap_err().contains("fehlgeschlagene Versuche"));
     }
 }

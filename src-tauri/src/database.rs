@@ -5812,14 +5812,23 @@ mod tests {
     }
 
     #[test]
-    fn test_init_database_creates_v2_schema() {
+    fn test_init_database_creates_current_schema() {
         let tmp = NamedTempFile::new().unwrap();
         init_database(tmp.path()).unwrap();
         let conn = Connection::open(tmp.path()).unwrap();
         let version: i64 = conn
             .query_row("SELECT MAX(version) FROM schema_version;", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, SCHEMA_VERSION);
+        assert_eq!(version, 3);
+        let user_columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(users);")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(user_columns.iter().any(|c| c == "password_hash"));
         let columns: Vec<String> = conn
             .prepare("PRAGMA table_info(documents);")
             .unwrap()
@@ -6537,7 +6546,14 @@ mod tests {
 
         assert_ne!(resolved_v1, resolved_v2);
         assert!(resolved_v1.to_string_lossy().contains("uuid-v1"));
-        assert!(resolved_v2.to_string_lossy().contains("uuid-v2"));
+        let v2_file: String = conn
+            .query_row(
+                "SELECT file_path FROM document_versions WHERE id = ?1;",
+                rusqlite::params![v2.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(resolved_v2.file_name().and_then(|n| n.to_str()), Some(v2_file.as_str()));
     }
 
     #[test]
@@ -6683,9 +6699,16 @@ mod tests {
         };
         let _doc2 = create_version_from_source(&mut conn, &ver_input, storage.path()).unwrap();
 
+        let v2_file: String = conn
+            .query_row(
+                "SELECT file_path FROM document_versions WHERE document_id = ?1 AND version_number = '2.0';",
+                rusqlite::params![doc.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_ne!(v2_file, "uuid-v1.pdf");
         let resolved = resolve_current_pdf_path(&conn, &doc.id, storage.path()).unwrap();
-        assert!(resolved.to_string_lossy().contains("uuid-v2"));
-        assert!(!resolved.to_string_lossy().contains("uuid-v1"));
+        assert_eq!(resolved.file_name().and_then(|n| n.to_str()), Some(v2_file.as_str()));
     }
 
     #[test]
