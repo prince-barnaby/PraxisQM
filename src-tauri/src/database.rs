@@ -15,7 +15,7 @@ use tauri::AppHandle;
 
 /// Aktuelle Schema-Version.
 /// Muss erhöht werden, wenn das Schema geändert wird.
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 /// Dateiname der SQLite-Datenbank.
 const DB_FILENAME: &str = "praxisqm.sqlite";
@@ -243,6 +243,10 @@ pub fn init_database(db_path: &Path) -> SqliteResult<()> {
     if current_version < 2 {
         migrate_v1_to_v2(&conn)?;
     }
+    // Migration 2→3: password_hash-Spalte für lokale Authentifizierung (Prompt 029)
+    if current_version < 3 {
+        migrate_v2_to_v3(&conn)?;
+    }
 
     // Verifiziere Foreign-Key-Enforcement
     let fk_enabled: i64 =
@@ -291,12 +295,190 @@ fn migrate_v1_to_v2(conn: &Connection) -> SqliteResult<()> {
     Ok(())
 }
 
+/// Migration v2→v3: Fügt die Spalte `password_hash` zur users-Tabelle hinzu.
+/// Nullable TEXT-Spalte — leer für vor Prompt 029 erstellte Benutzerkonten.
+/// Idempotent: prüft Spalten-Existenz vor ALTER TABLE.
+fn migrate_v2_to_v3(conn: &Connection) -> SqliteResult<()> {
+    let columns: Vec<String> = conn
+        .prepare("PRAGMA table_info(users);")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .collect();
+    if !columns.iter().any(|c| c == "password_hash") {
+        conn.execute(
+            "ALTER TABLE users ADD COLUMN password_hash TEXT;",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
 /// --- Dokument-Lifecycle (Prompt 024) -------------------------------------
 
 /// Kanonische DB-001/DB-002 Status-Werte (Enum-Audit SDD-004B).
 pub const STATUS_ENTWURF: &str = "Entwurf";
 pub const STATUS_AKTIV: &str = "aktiv";
 pub const STATUS_ARCHIVIERT: &str = "archiviert";
+
+// --- Benutzer-Rollen (Prompt 029 / ADR-030) -------------------------------
+
+pub const ROLE_GUEST: &str = "Gast";
+pub const ROLE_EDITOR: &str = "Editor";
+pub const ROLE_ADMIN: &str = "Admin";
+
+/// Prüft, ob ein Rollen-Wert kanonisch ist.
+pub fn is_valid_role(role: &str) -> bool {
+    role == ROLE_GUEST || role == ROLE_EDITOR || role == ROLE_ADMIN
+}
+
+/// --- Benutzer-Operationen (Prompt 029) -----------------------------------
+
+/// Benutzerdatensatz (ohne Passwort-Hash) für Serialisierung ans Frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserAccount {
+    pub id: String,
+    pub username: String,
+    pub role: String,
+    pub employee_id: Option<String>,
+    pub is_active: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Interner Datensatz inkl. Passwort-Hash für Authentifizierung.
+pub struct UserWithHash {
+    pub id: String,
+    pub username: String,
+    pub role: String,
+    pub employee_id: Option<String>,
+    pub is_active: bool,
+    pub password_hash: Option<String>,
+}
+
+/// Prüft, ob die users-Tabelle leer ist (First-Run-Setup erforderlich).
+pub fn is_users_empty(conn: &Connection) -> SqliteResult<bool> {
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM users;", [], |row| row.get(0))?;
+    Ok(count == 0)
+}
+
+/// Zählt aktive Admin-Konten.
+pub fn count_active_admins(conn: &Connection) -> SqliteResult<i64> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM users WHERE role = ?1 AND is_active = 1;",
+        rusqlite::params![ROLE_ADMIN],
+        |row| row.get(0),
+    )?;
+    Ok(count)
+}
+
+/// Erstellt den ersten Administrator-Account (nur wenn users-Tabelle leer ist).
+/// Gibt den erstellten Benutzer ohne Passwort-Hash zurück.
+pub fn create_first_admin(
+    conn: &Connection,
+    username: &str,
+    password_hash: &str,
+) -> SqliteResult<UserAccount> {
+    if !is_users_empty(conn)? {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some("Es existieren bereits Benutzerkonten.".to_string()),
+        ));
+    }
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = now_iso();
+    conn.execute(
+        "INSERT INTO users (id, username, role, employee_id, is_active, password_hash, created_at, updated_at)
+         VALUES (?1, ?2, ?3, NULL, 1, ?4, ?5, ?6);",
+        rusqlite::params![id, username, ROLE_ADMIN, password_hash, now, now],
+    )?;
+
+    Ok(UserAccount {
+        id,
+        username: username.to_string(),
+        role: ROLE_ADMIN.to_string(),
+        employee_id: None,
+        is_active: true,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+/// Sucht einen Benutzer anhand des Benutzernamens (inkl. Passwort-Hash).
+pub fn find_user_by_username(conn: &Connection, username: &str) -> SqliteResult<Option<UserWithHash>> {
+    let result = conn.query_row(
+        "SELECT id, username, role, employee_id, is_active, password_hash
+         FROM users WHERE username = ?1;",
+        rusqlite::params![username],
+        |row| {
+            Ok(UserWithHash {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                role: row.get(2)?,
+                employee_id: row.get(3)?,
+                is_active: row.get::<_, bool>(4)?,
+                password_hash: row.get(5)?,
+            })
+        },
+    );
+    match result {
+        Ok(user) => Ok(Some(user)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Sucht einen Benutzer anhand der ID (ohne Passwort-Hash).
+pub fn find_user_by_id(conn: &Connection, user_id: &str) -> SqliteResult<Option<UserAccount>> {
+    let result = conn.query_row(
+        "SELECT id, username, role, employee_id, is_active, created_at, updated_at
+         FROM users WHERE id = ?1;",
+        rusqlite::params![user_id],
+        |row| {
+            Ok(UserAccount {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                role: row.get(2)?,
+                employee_id: row.get(3)?,
+                is_active: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        },
+    );
+    match result {
+        Ok(user) => Ok(Some(user)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Ändert das Passwort eines Benutzers.
+pub fn update_password_hash(
+    conn: &Connection,
+    user_id: &str,
+    new_hash: &str,
+) -> SqliteResult<()> {
+    let now = now_iso();
+    let affected = conn.execute(
+        "UPDATE users SET password_hash = ?1, updated_at = ?2 WHERE id = ?3;",
+        rusqlite::params![new_hash, now, user_id],
+    )?;
+    if affected == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+    Ok(())
+}
+
+/// Prüft, ob ein Benutzer ein aktiver Admin ist.
+pub fn is_active_admin(conn: &Connection, user_id: &str) -> SqliteResult<bool> {
+    let result: Option<bool> = conn.query_row(
+        "SELECT is_active FROM users WHERE id = ?1 AND role = ?2;",
+        rusqlite::params![user_id, ROLE_ADMIN],
+        |row| row.get(0),
+    )?;
+    Ok(result.unwrap_or(false))
+}
 
 /// Prüft, ob ein Status-Wert kanonisch ist (alle drei Lifecycle-States).
 pub fn is_valid_status(status: &str) -> bool {

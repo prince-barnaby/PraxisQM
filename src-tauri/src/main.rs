@@ -9,6 +9,7 @@
 )]
 
 mod database;
+mod auth;
 
 use database::{
     CategoryItem, CreateDocumentInput, CreateEmployeeInput, CreateVersionInput, DashboardSummary,
@@ -38,6 +39,7 @@ fn main() {
             conn.execute("PRAGMA foreign_keys = ON;", [])
                 .expect("Foreign-Key-Enforcement fehlgeschlagen");
             app.manage(DbState(Mutex::new(conn)));
+            app.manage(auth::AuthState::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -78,6 +80,12 @@ fn main() {
             cmd_open_version_pdf,
             cmd_dashboard_summary,
             cmd_review_list,
+            cmd_needs_setup,
+            cmd_setup_admin,
+            cmd_login,
+            cmd_logout,
+            cmd_get_current_user,
+            cmd_change_password,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten von PraxisQM");
@@ -680,5 +688,121 @@ fn open_pdf_with_system_viewer(path: &std::path::Path) -> Result<(), String> {
         let _ = path;
         Err("PDF-Öffnen wird auf diesem Betriebssystem nicht unterstützt.".to_string())
     }
+}
+
+// --- Authentifizierungs- und Autorisierungs-Commands (Prompt 029) ---------
+
+/// Prüft, ob der First-Run-Setup erforderlich ist (users-Tabelle leer).
+#[tauri::command]
+fn cmd_needs_setup(state: State<DbState>) -> Result<bool, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    database::is_users_empty(&conn).map_err(|e| e.to_string())
+}
+
+/// Erstellt den ersten Administrator-Account (nur wenn users-Tabelle leer).
+#[tauri::command]
+fn cmd_setup_admin(
+    username: String,
+    password: String,
+    state: State<DbState>,
+    auth_state: State<auth::AuthState>,
+) -> Result<auth::LoginResult, String> {
+    let trimmed_username = username.trim().to_string();
+    if trimmed_username.is_empty() {
+        return Err("Benutzername darf nicht leer sein.".to_string());
+    }
+    if password.is_empty() {
+        return Err("Passwort darf nicht leer sein.".to_string());
+    }
+
+    let hash = auth::hash_password(&password)?;
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+
+    if !database::is_users_empty(&conn).map_err(|e| e.to_string())? {
+        return Err("Es existieren bereits Benutzerkonten.".to_string());
+    }
+
+    let user = database::create_first_admin(&conn, &trimmed_username, &hash)
+        .map_err(|e| e.to_string())?;
+
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let session = auth::Session {
+        user_id: user.id.clone(),
+        username: user.username.clone(),
+        role: user.role.clone(),
+        login_at: now_secs,
+    };
+
+    let result = auth::LoginResult {
+        user_id: session.user_id.clone(),
+        username: session.username.clone(),
+        role: session.role.clone(),
+    };
+
+    auth_state.set_session(session);
+    Ok(result)
+}
+
+/// Meldet einen Benutzer an.
+#[tauri::command]
+fn cmd_login(
+    username: String,
+    password: String,
+    state: State<DbState>,
+    auth_state: State<auth::AuthState>,
+) -> Result<auth::LoginResult, String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    auth::login(&conn, &auth_state, &username, &password)
+}
+
+/// Meldet den aktuellen Benutzer ab.
+#[tauri::command]
+fn cmd_logout(auth_state: State<auth::AuthState>) -> Result<(), String> {
+    auth_state.clear_session();
+    Ok(())
+}
+
+/// Liefert den aktuell angemeldeten Benutzer (oder None für Gast-Modus).
+#[tauri::command]
+fn cmd_get_current_user(
+    auth_state: State<auth::AuthState>,
+    state: State<DbState>,
+) -> Result<Option<database::UserAccount>, String> {
+    let session = match auth_state.get_session() {
+        Some(s) => s,
+        None => return Ok(None),
+    };
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    match database::find_user_by_id(&conn, &session.user_id) {
+        Ok(Some(user)) => {
+            if !user.is_active {
+                auth_state.clear_session();
+                return Ok(None);
+            }
+            Ok(Some(user))
+        }
+        Ok(None) => {
+            auth_state.clear_session();
+            Ok(None)
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Ändert das Passwort des angemeldeten Benutzers.
+/// Erfordert Verifizierung des aktuellen Passworts.
+#[tauri::command]
+fn cmd_change_password(
+    current_password: String,
+    new_password: String,
+    state: State<DbState>,
+    auth_state: State<auth::AuthState>,
+) -> Result<(), String> {
+    let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
+    auth::change_password(&conn, &auth_state, &current_password, &new_password)
 }
 
