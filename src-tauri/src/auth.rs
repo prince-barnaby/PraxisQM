@@ -359,15 +359,8 @@ pub fn check_last_admin_protection(
 mod tests {
     use super::*;
     use crate::database;
+    use crate::test_support::{init_test_db, insert_test_user, set_test_session};
     use tempfile::NamedTempFile;
-
-    fn init_test_db() -> (Connection, NamedTempFile) {
-        let tmp = NamedTempFile::new().unwrap();
-        database::init_database(tmp.path()).unwrap();
-        let conn = Connection::open(tmp.path()).unwrap();
-        conn.execute("PRAGMA foreign_keys = ON;", []).unwrap();
-        (conn, tmp)
-    }
 
     #[test]
     fn test_hash_and_verify_password() {
@@ -436,24 +429,6 @@ mod tests {
         let result = require_role(&None, ROLE_GUEST);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("anmelden"));
-    }
-
-    fn insert_test_user(conn: &Connection, id: &str, role: &str, is_active: bool) {
-        conn.execute(
-            "INSERT INTO users (id, username, role, employee_id, is_active, password_hash, created_at, updated_at)
-             VALUES (?1, ?2, ?3, NULL, ?4, NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');",
-            rusqlite::params![id, format!("user-{}", id), role, is_active],
-        )
-        .unwrap();
-    }
-
-    fn set_test_session(auth: &AuthState, id: &str, role: &str) {
-        auth.set_session(Session {
-            user_id: id.to_string(),
-            username: format!("user-{}", id),
-            role: role.to_string(),
-            login_at: 0,
-        });
     }
 
     #[test]

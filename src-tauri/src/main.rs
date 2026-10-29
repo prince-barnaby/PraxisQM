@@ -10,6 +10,9 @@
 
 mod database;
 mod auth;
+mod employee_access;
+#[cfg(test)]
+mod test_support;
 
 use database::{
     CategoryItem, CreateDocumentInput, CreateEmployeeInput, CreateVersionInput, DashboardSummary,
@@ -92,67 +95,43 @@ fn main() {
 }
 
 #[tauri::command]
-fn cmd_list_employees(state: State<DbState>) -> Result<Vec<Employee>, String> {
+fn cmd_list_employees(
+    state: State<DbState>,
+    auth: State<auth::AuthState>,
+) -> Result<Vec<Employee>, String> {
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    database::list_employees(&conn).map_err(|e| e.to_string())
+    employee_access::list_employees(&conn, &auth)
 }
 
 #[tauri::command]
 fn cmd_create_employee(
     input: CreateEmployeeInput,
     state: State<DbState>,
+    auth: State<auth::AuthState>,
 ) -> Result<Employee, String> {
     let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-    match database::create_employee(&tx, &input) {
-        Ok(emp) => {
-            tx.commit().map_err(|e| e.to_string())?;
-            Ok(emp)
-        }
-        Err(e) => {
-            let _ = tx.rollback();
-            Err(e.to_string())
-        }
-    }
+    employee_access::create_employee(&mut conn, &auth, &input)
 }
 
 #[tauri::command]
 fn cmd_get_employee(
     state: State<DbState>,
+    auth: State<auth::AuthState>,
     id: String,
 ) -> Result<Employee, String> {
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    match database::get_employee(&conn, &id) {
-        Ok(emp) => Ok(emp),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err("Mitarbeiter nicht gefunden.".to_string())
-        }
-        Err(e) => Err(e.to_string()),
-    }
+    employee_access::get_employee(&conn, &auth, &id)
 }
 
 #[tauri::command]
 fn cmd_update_employee(
     state: State<DbState>,
+    auth: State<auth::AuthState>,
     id: String,
     input: UpdateEmployeeInput,
 ) -> Result<Employee, String> {
     let mut conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-    match database::update_employee(&tx, &id, &input) {
-        Ok(emp) => {
-            tx.commit().map_err(|e| e.to_string())?;
-            Ok(emp)
-        }
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            let _ = tx.rollback();
-            Err("Mitarbeiter nicht gefunden.".to_string())
-        }
-        Err(e) => {
-            let _ = tx.rollback();
-            Err(e.to_string())
-        }
-    }
+    employee_access::update_employee(&mut conn, &auth, &id, &input)
 }
 
 #[tauri::command]
