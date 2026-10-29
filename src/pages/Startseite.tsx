@@ -4,6 +4,7 @@ import { FileText, Users, Archive, CircleCheck as CheckCircle, TriangleAlert as 
 import DashboardGrid from "../components/dashboard/DashboardGrid";
 import DashboardCard from "../components/dashboard/DashboardCard";
 import ReviewList from "../components/dashboard/ReviewList";
+import { useAuth } from "../lib/AuthContext";
 import {
   fetchDashboardSummary,
   fetchReviewList,
@@ -14,6 +15,7 @@ import "./Startseite.css";
 
 export default function Startseite() {
   const navigate = useNavigate();
+  const { isEditor, isAdmin } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [reviews, setReviews] = useState<ReviewEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ export default function Startseite() {
         </p>
       )}
 
-      <DashboardGrid>
+      <DashboardGrid columns={isEditor ? 2 : 1}>
         <DashboardCard
           icon={FileText}
           title="Dokumente"
@@ -64,23 +66,27 @@ export default function Startseite() {
           description="Aktive QM-Dokumente in der Verwaltung."
           onClick={() => navigate("/dokumente")}
         />
-        <DashboardCard
-          icon={Users}
-          title="Mitarbeiter"
-          value={loading ? "…" : String(employees)}
-          description="Erfasste Mitarbeitenden im Mitarbeiterregister."
-          onClick={() => navigate("/mitarbeiter")}
-        />
-        <DashboardCard
-          icon={Archive}
-          title="Archiv"
-          value={loading ? "…" : String(archived)}
-          description="Archivierte Dokumente."
-          onClick={() => navigate("/archiv")}
-        />
+        {isAdmin && (
+          <DashboardCard
+            icon={Users}
+            title="Mitarbeiter"
+            value={loading ? "…" : String(employees)}
+            description="Erfasste Mitarbeitenden im Mitarbeiterregister."
+            onClick={() => navigate("/mitarbeiter")}
+          />
+        )}
+        {isEditor && (
+          <DashboardCard
+            icon={Archive}
+            title="Archiv"
+            value={loading ? "…" : String(archived)}
+            description="Archivierte Dokumente."
+            onClick={() => navigate("/archiv")}
+          />
+        )}
       </DashboardGrid>
 
-      {summary && (summary.warning > 0 || summary.expired > 0) && (
+      {isEditor && summary && (summary.warning > 0 || summary.expired > 0) && (
         <div className="pqm-startseite__validity-cards">
           {summary.expired > 0 && (
             <DashboardCard
@@ -103,21 +109,23 @@ export default function Startseite() {
         </div>
       )}
 
-      <section className="pqm-startseite__review-section">
-        <div className="pqm-startseite__review-header">
-          <h3 className="pqm-startseite__review-heading">
-            <Clock size={20} aria-hidden="true" />
-            Prüfungsbedürftige Dokumente
-          </h3>
-          {summary && summary.valid > 0 && (
-            <span className="pqm-startseite__valid-count">
-              <CheckCircle size={16} aria-hidden="true" />
-              {summary.valid} gültig
-            </span>
-          )}
-        </div>
-        <ReviewList entries={reviews} loading={loading} />
-      </section>
+      {isEditor && (
+        <section className="pqm-startseite__review-section">
+          <div className="pqm-startseite__review-header">
+            <h3 className="pqm-startseite__review-heading">
+              <Clock size={20} aria-hidden="true" />
+              Prüfungsbedürftige Dokumente
+            </h3>
+            {summary && summary.valid > 0 && (
+              <span className="pqm-startseite__valid-count">
+                <CheckCircle size={16} aria-hidden="true" />
+                {summary.valid} gültig
+              </span>
+            )}
+          </div>
+          <ReviewList entries={reviews} loading={loading} />
+        </section>
+      )}
     </div>
   );
 }

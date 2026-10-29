@@ -5,6 +5,10 @@
   flex: 1;
 }
 
+.pqm-dashboard-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @media (max-width: 768px) {
   .pqm-dashboard-grid {
     grid-template-columns: 1fr;
