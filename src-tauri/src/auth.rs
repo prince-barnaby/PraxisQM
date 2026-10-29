@@ -60,6 +60,46 @@ pub fn require_role(session: &Option<Session>, min_role: &str) -> Result<Session
     Ok(session.clone())
 }
 
+/// Prüft eine privilegierte Aktion gegen den aktuellen Datenbankzustand.
+/// Die Rolle wird aus der Datenbank gelesen, nicht aus der Sitzung, damit
+/// Deaktivierung, Löschung oder Herabstufung sofort wirksam werden.
+/// Lock-Reihenfolge: Datenbank-Verbindung vor AuthState.
+pub fn require_privileged(
+    conn: &Connection,
+    auth: &AuthState,
+    min_role: &str,
+) -> Result<Session, String> {
+    let session = match auth.get_session() {
+        Some(session) => session,
+        None => return require_role(&None, min_role),
+    };
+
+    let user = match database::find_user_by_id(conn, &session.user_id) {
+        Ok(Some(user)) => user,
+        Ok(None) => {
+            auth.clear_session();
+            return Err("Benutzerkonto nicht gefunden – bitte erneut anmelden.".to_string());
+        }
+        Err(e) => {
+            eprintln!("PraxisQM: Datenbankfehler bei Rollenprüfung: {}", e);
+            return Err("Berechtigungsprüfung fehlgeschlagen.".to_string());
+        }
+    };
+
+    if !user.is_active {
+        auth.clear_session();
+        return Err("Dieses Benutzerkonto ist deaktiviert.".to_string());
+    }
+
+    let current = Session {
+        user_id: user.id,
+        username: user.username,
+        role: user.role,
+        login_at: session.login_at,
+    };
+    require_role(&Some(current), min_role)
+}
+
 // --- Session-Verwaltung ----------------------------------------------------
 
 /// Authentifizierte Session. Wird in Rust-managed State gehalten,
@@ -396,6 +436,120 @@ mod tests {
         let result = require_role(&None, ROLE_GUEST);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("anmelden"));
+    }
+
+    fn insert_test_user(conn: &Connection, id: &str, role: &str, is_active: bool) {
+        conn.execute(
+            "INSERT INTO users (id, username, role, employee_id, is_active, password_hash, created_at, updated_at)
+             VALUES (?1, ?2, ?3, NULL, ?4, NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');",
+            rusqlite::params![id, format!("user-{}", id), role, is_active],
+        )
+        .unwrap();
+    }
+
+    fn set_test_session(auth: &AuthState, id: &str, role: &str) {
+        auth.set_session(Session {
+            user_id: id.to_string(),
+            username: format!("user-{}", id),
+            role: role.to_string(),
+            login_at: 0,
+        });
+    }
+
+    #[test]
+    fn test_privileged_missing_session_denied() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        let result = require_privileged(&conn, &auth, ROLE_EDITOR);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("anmelden"));
+    }
+
+    #[test]
+    fn test_privileged_guest_denied_editor_and_admin() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        insert_test_user(&conn, "g1", ROLE_GUEST, true);
+        set_test_session(&auth, "g1", ROLE_GUEST);
+        assert!(require_privileged(&conn, &auth, ROLE_EDITOR).is_err());
+        assert!(require_privileged(&conn, &auth, ROLE_ADMIN).is_err());
+    }
+
+    #[test]
+    fn test_privileged_editor_allowed_editor_denied_admin() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        insert_test_user(&conn, "e1", ROLE_EDITOR, true);
+        set_test_session(&auth, "e1", ROLE_EDITOR);
+        assert!(require_privileged(&conn, &auth, ROLE_EDITOR).is_ok());
+        let denied = require_privileged(&conn, &auth, ROLE_ADMIN);
+        assert!(denied.is_err());
+        assert!(denied.unwrap_err().contains("Keine Berechtigung"));
+    }
+
+    #[test]
+    fn test_privileged_admin_allowed_editor_and_admin() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        insert_test_user(&conn, "a1", ROLE_ADMIN, true);
+        set_test_session(&auth, "a1", ROLE_ADMIN);
+        assert!(require_privileged(&conn, &auth, ROLE_EDITOR).is_ok());
+        assert!(require_privileged(&conn, &auth, ROLE_ADMIN).is_ok());
+    }
+
+    #[test]
+    fn test_privileged_deactivated_user_denied_and_session_cleared() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        insert_test_user(&conn, "a2", ROLE_ADMIN, false);
+        set_test_session(&auth, "a2", ROLE_ADMIN);
+        let result = require_privileged(&conn, &auth, ROLE_EDITOR);
+        assert!(result.unwrap_err().contains("deaktiviert"));
+        assert!(auth.get_session().is_none());
+    }
+
+    #[test]
+    fn test_privileged_deleted_user_denied_and_session_cleared() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        set_test_session(&auth, "ghost", ROLE_ADMIN);
+        assert!(require_privileged(&conn, &auth, ROLE_EDITOR).is_err());
+        assert!(auth.get_session().is_none());
+    }
+
+    #[test]
+    fn test_privileged_demotion_removes_previous_rights() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        insert_test_user(&conn, "a3", ROLE_ADMIN, true);
+        set_test_session(&auth, "a3", ROLE_ADMIN);
+        assert!(require_privileged(&conn, &auth, ROLE_ADMIN).is_ok());
+
+        conn.execute("UPDATE users SET role = ?1 WHERE id = ?2;", rusqlite::params![ROLE_EDITOR, "a3"])
+            .unwrap();
+
+        assert!(require_privileged(&conn, &auth, ROLE_ADMIN).is_err());
+        assert!(require_privileged(&conn, &auth, ROLE_EDITOR).is_ok());
+    }
+
+    #[test]
+    fn test_privileged_invalid_db_role_denied() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        insert_test_user(&conn, "x1", "Hausmeister", true);
+        set_test_session(&auth, "x1", ROLE_ADMIN);
+        let result = require_privileged(&conn, &auth, ROLE_EDITOR);
+        assert!(result.unwrap_err().contains("Ungültige Benutzerrolle"));
+    }
+
+    #[test]
+    fn test_privileged_unknown_required_role_denied() {
+        let (conn, _tmp) = init_test_db();
+        let auth = AuthState::new();
+        insert_test_user(&conn, "a4", ROLE_ADMIN, true);
+        set_test_session(&auth, "a4", ROLE_ADMIN);
+        let result = require_privileged(&conn, &auth, "Unbekannt");
+        assert!(result.unwrap_err().contains("Ungültige Rollenanforderung"));
     }
 
     #[test]
