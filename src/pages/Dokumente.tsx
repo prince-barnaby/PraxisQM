@@ -15,6 +15,7 @@ import {
 } from "../lib/documentApi";
 import { fetchEmployees, type Employee } from "../lib/employeeApi";
 import { fetchKeywords, type MasterDataItem } from "../lib/masterDataApi";
+import { useAuth } from "../lib/AuthContext";
 import "./Dokumente.css";
 
 export type ValidityFilterValue = "all" | "gültig" | "läuft bald ab" | "abgelaufen" | "none";
@@ -95,6 +96,7 @@ function matchesDocument(
 }
 
 export default function Dokumente() {
+  const { isEditor } = useAuth();
   const [documents, setDocuments] = useState<DocumentWithTags[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryItem[]>([]);
@@ -113,7 +115,7 @@ export default function Dokumente() {
         fetchDocuments(),
         fetchCategories(),
         fetchSubcategories(),
-        fetchEmployees(),
+        isEditor ? fetchEmployees() : Promise.resolve<Employee[]>([]),
         fetchKeywords(),
       ]);
       const docIds = documentData.map((d) => d.id);
@@ -133,7 +135,7 @@ export default function Dokumente() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isEditor]);
 
   useEffect(() => {
     loadDocuments();
