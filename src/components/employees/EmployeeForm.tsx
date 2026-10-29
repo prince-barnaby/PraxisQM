@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { MasterDataItem } from "../../lib/employeeApi";
 import DocumentFormSection from "../documents/DocumentFormSection";
 import FormField from "../documents/FormField";
+import AssignmentTable from "./AssignmentTable";
 import "./EmployeeForm.css";
 
 interface EmployeeFormProps {
@@ -215,58 +216,28 @@ export default function EmployeeForm({
         <p className="pqm-employee-form__section-hint">
           Wählen Sie eine oder mehrere Verantwortungspositionen aus. Mehrfachauswahl möglich.
         </p>
-        <div className="pqm-employee-form__checkbox-list">
-          {responsibilities.map((r) => (
-            <label
-              key={r.id}
-              className="pqm-employee-form__checkbox-item"
-            >
-              <input
-                type="checkbox"
-                checked={selectedRespIds.includes(r.id)}
-                onChange={() => toggleResp(r.id)}
-              />
-              <span className="pqm-employee-form__checkbox-label">{r.name}</span>
-              {selectedRespIds.includes(r.id) && (
-                <Check size={14} className="pqm-employee-form__checkbox-check" aria-hidden="true" />
-              )}
-            </label>
-          ))}
-          {responsibilities.length === 0 && (
-            <p className="pqm-employee-form__empty-master">
-              Keine Verantwortungspositionen vorhanden.
-            </p>
-          )}
-        </div>
+        <AssignmentTable
+          id="emp-resp"
+          label="Verantwortungspositionen"
+          items={responsibilities}
+          selectedIds={selectedRespIds}
+          onToggle={toggleResp}
+          emptyMessage="Noch keine Verantwortungspositionen vorhanden."
+        />
       </DocumentFormSection>
 
       <DocumentFormSection title="Zugeordnete QM-Bereiche">
         <p className="pqm-employee-form__section-hint">
           Wählen Sie einen oder mehrere QM-Bereiche aus. Mehrfachauswahl möglich.
         </p>
-        <div className="pqm-employee-form__checkbox-list">
-          {qmAreas.map((a) => (
-            <label
-              key={a.id}
-              className="pqm-employee-form__checkbox-item"
-            >
-              <input
-                type="checkbox"
-                checked={selectedAreaIds.includes(a.id)}
-                onChange={() => toggleArea(a.id)}
-              />
-              <span className="pqm-employee-form__checkbox-label">{a.name}</span>
-              {selectedAreaIds.includes(a.id) && (
-                <Check size={14} className="pqm-employee-form__checkbox-check" aria-hidden="true" />
-              )}
-            </label>
-          ))}
-          {qmAreas.length === 0 && (
-            <p className="pqm-employee-form__empty-master">
-              Keine QM-Bereiche vorhanden.
-            </p>
-          )}
-        </div>
+        <AssignmentTable
+          id="emp-area"
+          label="QM-Bereiche"
+          items={qmAreas}
+          selectedIds={selectedAreaIds}
+          onToggle={toggleArea}
+          emptyMessage="Noch keine QM-Bereiche vorhanden."
+        />
       </DocumentFormSection>
 
       {error && (
