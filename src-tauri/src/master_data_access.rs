@@ -14,6 +14,13 @@ fn validated_name(name: &str) -> Result<String, String> {
     Ok(trimmed.to_string())
 }
 
+fn map_rename_error(e: rusqlite::Error, not_found: &str) -> String {
+    match e {
+        rusqlite::Error::QueryReturnedNoRows => not_found.to_string(),
+        other => other.to_string(),
+    }
+}
+
 pub fn list_responsibilities(conn: &Connection, auth: &AuthState) -> Result<Vec<MasterDataItem>, String> {
     require_privileged(conn, auth, ROLE_EDITOR)?;
     database::list_responsibilities(conn).map_err(|e| e.to_string())
@@ -38,7 +45,8 @@ pub fn rename_responsibility(
 ) -> Result<MasterDataItem, String> {
     require_privileged(conn, auth, ROLE_ADMIN)?;
     let new_name = validated_name(new_name)?;
-    database::rename_responsibility(conn, id, &new_name).map_err(|e| e.to_string())
+    database::rename_responsibility(conn, id, &new_name)
+        .map_err(|e| map_rename_error(e, "Verantwortungsposition nicht gefunden."))
 }
 
 pub fn create_qm_area(conn: &Connection, auth: &AuthState, name: &str) -> Result<MasterDataItem, String> {
@@ -55,7 +63,8 @@ pub fn rename_qm_area(
 ) -> Result<MasterDataItem, String> {
     require_privileged(conn, auth, ROLE_ADMIN)?;
     let new_name = validated_name(new_name)?;
-    database::rename_qm_area(conn, id, &new_name).map_err(|e| e.to_string())
+    database::rename_qm_area(conn, id, &new_name)
+        .map_err(|e| map_rename_error(e, "QM-Bereich nicht gefunden."))
 }
 
 #[cfg(test)]
@@ -67,6 +76,7 @@ mod tests {
 
     struct Entity {
         table: &'static str,
+        not_found: &'static str,
         seed: fn(&Connection, &str) -> SqliteResult<MasterDataItem>,
         list: fn(&Connection, &AuthState) -> Result<Vec<MasterDataItem>, String>,
         create: fn(&Connection, &AuthState, &str) -> Result<MasterDataItem, String>,
@@ -77,6 +87,7 @@ mod tests {
         [
             Entity {
                 table: "verantwortungspositionen",
+                not_found: "Verantwortungsposition nicht gefunden.",
                 seed: database::create_responsibility,
                 list: list_responsibilities,
                 create: create_responsibility,
@@ -84,6 +95,7 @@ mod tests {
             },
             Entity {
                 table: "qm_bereiche",
+                not_found: "QM-Bereich nicht gefunden.",
                 seed: database::create_qm_area,
                 list: list_qm_areas,
                 create: create_qm_area,
@@ -160,6 +172,27 @@ mod tests {
             assert_eq!(row_count(&conn, entity.table), 2);
             (entity.rename)(&conn, &auth, &id, "Geändert").unwrap();
             assert_eq!(name_of(&conn, entity.table, &id), "Geändert");
+        }
+    }
+
+    #[test]
+    fn test_rename_success_persists_new_name_and_returns_it() {
+        for entity in entities() {
+            let (conn, auth, id, _tmp) = setup_with_role(&entity, ROLE_ADMIN);
+            let renamed = (entity.rename)(&conn, &auth, &id, "  Geändert  ").unwrap();
+            assert_eq!(renamed.id, id);
+            assert_eq!(renamed.name, "Geändert");
+            assert_eq!(name_of(&conn, entity.table, &id), "Geändert");
+        }
+    }
+
+    #[test]
+    fn test_rename_unknown_id_returns_error_and_changes_nothing() {
+        for entity in entities() {
+            let (conn, auth, id, _tmp) = setup_with_role(&entity, ROLE_ADMIN);
+            let err = (entity.rename)(&conn, &auth, "unbekannt", "Geändert").unwrap_err();
+            assert_eq!(err, entity.not_found);
+            assert_no_write_happened(&conn, &entity, &id);
         }
     }
 

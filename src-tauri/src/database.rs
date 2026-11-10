@@ -974,10 +974,13 @@ pub fn create_responsibility(conn: &Connection, name: &str) -> SqliteResult<Mast
 /// Benennt eine bestehende Verantwortungsposition um (gleiche UUID, updated_at wird aktualisiert).
 pub fn rename_responsibility(conn: &Connection, id: &str, new_name: &str) -> SqliteResult<MasterDataItem> {
     let now = now_iso();
-    conn.execute(
+    let changed = conn.execute(
         "UPDATE verantwortungspositionen SET name = ?1, updated_at = ?2 WHERE id = ?3;",
         rusqlite::params![new_name, now, id],
     )?;
+    if changed == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
     Ok(MasterDataItem { id: id.to_string(), name: new_name.to_string() })
 }
 
@@ -995,10 +998,13 @@ pub fn create_qm_area(conn: &Connection, name: &str) -> SqliteResult<MasterDataI
 /// Benennt einen bestehenden QM-Bereich um (gleiche UUID, updated_at wird aktualisiert).
 pub fn rename_qm_area(conn: &Connection, id: &str, new_name: &str) -> SqliteResult<MasterDataItem> {
     let now = now_iso();
-    conn.execute(
+    let changed = conn.execute(
         "UPDATE qm_bereiche SET name = ?1, updated_at = ?2 WHERE id = ?3;",
         rusqlite::params![new_name, now, id],
     )?;
+    if changed == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
     Ok(MasterDataItem { id: id.to_string(), name: new_name.to_string() })
 }
 
