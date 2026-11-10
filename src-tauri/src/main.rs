@@ -11,6 +11,7 @@
 mod database;
 mod auth;
 mod employee_access;
+mod master_data_access;
 #[cfg(test)]
 mod test_support;
 
@@ -135,69 +136,63 @@ fn cmd_update_employee(
 }
 
 #[tauri::command]
-fn cmd_list_responsibilities(state: State<DbState>) -> Result<Vec<MasterDataItem>, String> {
+fn cmd_list_responsibilities(
+    state: State<DbState>,
+    auth: State<auth::AuthState>,
+) -> Result<Vec<MasterDataItem>, String> {
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    database::list_responsibilities(&conn).map_err(|e| e.to_string())
+    master_data_access::list_responsibilities(&conn, &auth)
 }
 
 #[tauri::command]
-fn cmd_list_qm_areas(state: State<DbState>) -> Result<Vec<MasterDataItem>, String> {
+fn cmd_list_qm_areas(
+    state: State<DbState>,
+    auth: State<auth::AuthState>,
+) -> Result<Vec<MasterDataItem>, String> {
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    database::list_qm_areas(&conn).map_err(|e| e.to_string())
+    master_data_access::list_qm_areas(&conn, &auth)
 }
 
 #[tauri::command]
 fn cmd_create_responsibility(
     state: State<DbState>,
+    auth: State<auth::AuthState>,
     name: String,
 ) -> Result<MasterDataItem, String> {
-    let trimmed = name.trim().to_string();
-    if trimmed.is_empty() {
-        return Err("Bezeichnung darf nicht leer sein.".to_string());
-    }
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    database::create_responsibility(&conn, &trimmed).map_err(|e| e.to_string())
+    master_data_access::create_responsibility(&conn, &auth, &name)
 }
 
 #[tauri::command]
 fn cmd_rename_responsibility(
     state: State<DbState>,
+    auth: State<auth::AuthState>,
     id: String,
     new_name: String,
 ) -> Result<MasterDataItem, String> {
-    let trimmed = new_name.trim().to_string();
-    if trimmed.is_empty() {
-        return Err("Bezeichnung darf nicht leer sein.".to_string());
-    }
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    database::rename_responsibility(&conn, &id, &trimmed).map_err(|e| e.to_string())
+    master_data_access::rename_responsibility(&conn, &auth, &id, &new_name)
 }
 
 #[tauri::command]
 fn cmd_create_qm_area(
     state: State<DbState>,
+    auth: State<auth::AuthState>,
     name: String,
 ) -> Result<MasterDataItem, String> {
-    let trimmed = name.trim().to_string();
-    if trimmed.is_empty() {
-        return Err("Bezeichnung darf nicht leer sein.".to_string());
-    }
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    database::create_qm_area(&conn, &trimmed).map_err(|e| e.to_string())
+    master_data_access::create_qm_area(&conn, &auth, &name)
 }
 
 #[tauri::command]
 fn cmd_rename_qm_area(
     state: State<DbState>,
+    auth: State<auth::AuthState>,
     id: String,
     new_name: String,
 ) -> Result<MasterDataItem, String> {
-    let trimmed = new_name.trim().to_string();
-    if trimmed.is_empty() {
-        return Err("Bezeichnung darf nicht leer sein.".to_string());
-    }
     let conn = state.0.lock().expect("Datenbank-Verbindung gesperrt");
-    database::rename_qm_area(&conn, &id, &trimmed).map_err(|e| e.to_string())
+    master_data_access::rename_qm_area(&conn, &auth, &id, &new_name)
 }
 
 #[tauri::command]
